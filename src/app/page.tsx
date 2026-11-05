@@ -1,304 +1,189 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
-import { motion, MotionConfig, useReducedMotion } from "framer-motion";
-import type { InvitationData } from "@/lib/types";
-import { defaultInvitation, formatDateVi } from "@/lib/types";
-import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
-import TemplateMotif from "@/components/TemplateMotif";
-import { BurstParticles, ScrollProgress, Shimmer, SmoothScroll } from "@/components/effects";
-import { decodeShare, loadInvitationById, vietQrUrl } from "@/lib/store";
+import { getTemplate, type Template } from "@/lib/templates";
+import { defaultInvitation } from "@/lib/types";
+import TemplateCard from "@/components/TemplateCard";
 import InvitationPreview from "@/components/InvitationPreview";
+import { useLanguage } from "@/components/LanguageProvider";
 
-function CardInner() {
-  const params = useParams();
-  const search = useSearchParams();
-  const id = decodeURIComponent(String(params.id ?? ""));
-  const [data, setData] = useState<InvitationData | null>(null);
-  const [status, setStatus] = useState<"loading" | "found" | "notfound">("loading");
-  const [opened, setOpened] = useState(false);
-  // Con dấu Hỷ phong bì: ký tự dự phòng chỉ hiện khi ảnh lỗi (không chồng
-  // dưới ảnh như trước — cùng lỗi viền như chữ Hỷ ở dải).
-  const [sealFailed, setSealFailed] = useState(false);
-  const guestName = search.get("guest") ?? undefined;
-  const reduce = useReducedMotion();
-  // Vụ nổ khi mở phong bì (spec §4h): hạt vàng bay ra + phong bì nở/phai
-  // dần rồi mới hiện thiệp — khoảnh khắc "wow" đầu tiên. Giảm chuyển động
-  // thì mở ngay, không nổ.
-  const [bursting, setBursting] = useState(false);
-  const [burstKey, setBurstKey] = useState(0);
-  const fx = getTemplateEffects(data?.templateId ?? "");
-  const handleOpen = () => {
-    if (reduce) {
-      setOpened(true);
-      return;
-    }
-    setBurstKey((k) => k + 1);
-    setBursting(true);
-    window.setTimeout(() => setOpened(true), 650);
-    window.setTimeout(() => setBursting(false), 1100);
-  };
-  // Lớp phủ vụ nổ: cố định giữa màn hình, không chặn chạm, sống qua cả lúc
-  // phong bì đổi sang thiệp (render ở cả 2 nhánh) để hạt bay hết đà.
-  const burstOverlay = bursting ? (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center">
-      <div className="relative">
-        <BurstParticles
-          key={burstKey}
-          count={fx.burst?.count ?? 26}
-          colors={["#c9a86a", "#e8c87e", "#f6d365", "#fff0e7", "#710001"]}
-          duration={fx.burst?.duration ?? 0.9}
-          spread={fx.burst?.spread ?? 160}
-        />
-      </div>
-    </div>
-  ) : null;
+const FEATURES = (d: ReturnType<typeof useLanguage>["dict"]) => [
+  { icon: "⇄", title: d.fKeep, desc: d.fKeepDesc },
+  { icon: "🔗", title: d.fLink, desc: d.fLinkDesc },
+  { icon: "🌐", title: d.fLang, desc: d.fLangDesc },
+  { icon: "📷", title: d.fQr, desc: d.fQrDesc },
+  { icon: "🖼️", title: d.fAlbum, desc: d.fAlbumDesc },
+  { icon: "🗺️", title: d.fSchedule, desc: d.fScheduleDesc },
+];
 
-  useEffect(() => {
-    try {
-      // Ưu tiên dữ liệu ?d= trong URL trước: link chia sẻ mang dữ liệu tường
-      // minh phải thắng dữ liệu cũ trong localStorage cùng id (tránh trường
-      // hợp sửa mẫu chưa lưu mà mở ra vẫn thấy bản lưu cũ).
-      const d = search.get("d");
-      if (d) {
-        const decoded = decodeShare(d);
-        if (decoded) {
-          setData(decoded);
-          setStatus("found");
-          return;
-        }
-      }
-      const fromStorage = loadInvitationById(id);
-      if (fromStorage) {
-        setData(fromStorage);
-        setStatus("found");
-        return;
-      }
-      if (id === "demo") {
-        setData(defaultInvitation("minimal-do-do"));
-        setStatus("found");
-        return;
-      }
-      setStatus("notfound");
-    } catch {
-      setStatus(id === "demo" ? "found" : "notfound");
-      if (id === "demo") setData(defaultInvitation("minimal-do-do"));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+const FAQS = [
+  {
+    q: "Thiệp cưới online là gì?",
+    a: "Là một trang thiệp riêng trên mạng do cô dâu chú rể tạo một lần. Khách chỉ cần mở link là xem được toàn bộ: lời mời, ngày giờ, địa điểm, album và lịch trình. Không cần in và gửi từng tấm thiệp giấy, cũng không cần khách cài thêm ứng dụng.",
+  },
+  {
+    q: "Cần chuẩn bị gì trước khi tạo thiệp?",
+    a: "Tên cặp đôi, tên bố mẹ hai bên, ngày giờ và địa điểm tổ chức, một lời mời ngắn và vài tấm ảnh cưới đẹp. Nếu muốn, bạn có thể thêm lịch trình trong ngày và tài khoản nhận mừng cưới.",
+  },
+  {
+    q: "Đổi mẫu có phải nhập lại thông tin không?",
+    a: "Không. Đổi mẫu giữ nguyên toàn bộ dữ liệu: tên, ngày, địa điểm, lời mời và ảnh đã chọn.",
+  },
+  {
+    q: "Mỗi khách có link riêng thật không?",
+    a: "Có. Tại trang Quản lý khách, mỗi khách có nút “Sao chép link riêng” dạng /thiep/<id>?guest=<tên>. Khách mở thiệp sẽ thấy tên mình trên phong bì.",
+  },
+  {
+    q: "Khách mở thiệp bằng điện thoại có cần cài app không?",
+    a: "Không. Khách mở link bằng trình duyệt trên điện thoại là xem được thiệp đầy đủ.",
+  },
+  {
+    q: "QR mừng cưới lấy từ đâu?",
+    a: "Từ chính tài khoản ngân hàng bạn nhập trong editor (mã ngân hàng + số tài khoản + chủ tài khoản). Thiệp hiển thị mã VietQR thật qua img.vietqr.io, chỉ khi bạn đã nhập đủ thông tin.",
+  },
+];
 
-  const qr = useMemo(
-    () => (data ? vietQrUrl(data.bankCode, data.accountNumber, data.accountName) : null),
-    [data]
-  );
+export default function Home() {
+  const { dict: d } = useLanguage();
+  const [preview, setPreview] = useState<Template | null>(null);
+  const [faqOpen, setFaqOpen] = useState<number | null>(0);
 
-  // Cột thiệp trang khách: bản gốc rộng ~872px, bắt đầu sát mép trên
-  // viewport (full-bleed, QA vòng 8). Khung cũ max-w-3xl (768px) + px-4
-  // py-10 cho cột chỉ ~737px và thừa 40px kem phía trên — chỉ mẫu deco
-  // dùng cột rộng không padding trên; mẫu khác giữ nguyên.
-  const isDeco = !!getTemplate(data?.templateId ?? "").decorationImages;
-
-  if (status === "loading") {
-    return <p className="mx-auto max-w-3xl px-4 py-16 text-center">Đang mở thiệp…</p>;
-  }
-
-  if (status === "notfound" || !data) {
-    return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center">
-        <p className="font-display text-6xl text-[#c9a86a]" aria-hidden="true">♥</p>
-        <h1 className="mt-4 font-display text-3xl font-bold text-[#7a1f2b]">Không tìm thấy thiệp này</h1>
-        <p className="mt-2 text-[#5a4a48]">
-          Link có thể đã hết hạn, sai id, hoặc thiệp được tạo trên một trình duyệt khác mà không kèm dữ liệu ?d=.
-          Hãy xin lại link từ cô dâu chú rể, hoặc xem thiệp demo bên dưới.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/thiep/demo" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white">Xem thiệp demo</Link>
-          <Link href="/tao-thiep" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b]">Tạo thiệp mới</Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!opened) {
-    const tpl = getTemplate(data.templateId);
-    const p = tpl.palette;
-    const deco = tpl.decorationImages;
-    return (
-      <div
-        className={`relative flex items-center justify-center px-4 py-16 ${deco ? "min-h-screen overflow-hidden" : "min-h-[80vh]"}`}
-        style={deco ? { background: "linear-gradient(to bottom right, #710001, #5a0001, #450001)" } : undefined}
-      >
-        {burstOverlay}
-        {/* Chữ Hỷ mờ bay trên nền phong bì (bản gốc: gradient đỏ + Hỷ mờ). */}
-        {deco && (
-          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-            <span className="envelope-xi-float absolute left-[8%] top-[12%] text-7xl font-bold" style={{ color: "#fff0e7", opacity: 0.08 }}>囍</span>
-            <span className="envelope-xi-float absolute right-[10%] top-[30%] text-8xl font-bold" style={{ color: "#fff0e7", opacity: 0.07, animationDelay: "1.5s" }}>囍</span>
-            <span className="envelope-xi-float absolute bottom-[14%] left-[16%] text-6xl font-bold" style={{ color: "#fff0e7", opacity: 0.09, animationDelay: "3s" }}>囍</span>
-            <span className="envelope-xi-float absolute bottom-[26%] right-[6%] text-5xl font-bold" style={{ color: "#fff0e7", opacity: 0.08, animationDelay: "2s" }}>囍</span>
-          </div>
-        )}
-        <motion.button
-          type="button"
-          onClick={handleOpen}
-          className={`relative w-full overflow-hidden rounded-3xl border-2 text-center shadow-xl transition-shadow hover:shadow-2xl ${deco ? "max-w-[600px]" : "max-w-md"}`}
-          style={{ borderColor: tpl.envelope, background: deco ? "#710001" : p.card, padding: deco ? 12 : 0 }}
-          aria-label={`Mở thiệp cưới của ${data.groomName} và ${data.brideName}`}
-          animate={bursting ? { scale: [1, 1.04, 0.94], opacity: [1, 1, 0], rotate: [0, -1, 1.5] } : { scale: 1, opacity: 1, rotate: 0 }}
-          transition={{ duration: 0.65, ease: "easeInOut" }}
-        >
-          {!deco && <div className="h-3 w-full" style={{ background: tpl.envelope }} aria-hidden="true" />}
-          {/* Phụng + hoa phong bì theo đúng số liệu bản gốc (mục 2 spec):
-              phụng dùng Phuong.webp cho cả 2 góc; hoa HOA.webp 2 góc đối diện.
-              Ảnh nằm trực tiếp dưới nút (phủ cả viền đỏ), không nằm trong
-              thẻ kem để không bị thẻ kem cắt ở mép. */}
-          {deco && (
-            <>
-              <img src={deco.phuongRight} alt="Phụng góc trên-trái" loading="eager" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="pointer-events-none absolute left-[-20px] top-[-20px] z-20 w-[120px] rotate-[10deg] object-contain opacity-90 md:left-[-50px] md:w-[220px]" />
-              <img src={deco.phuongRight} alt="Phụng góc dưới-phải" loading="eager" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="pointer-events-none absolute bottom-[-120px] right-[-40px] z-20 w-[140px] object-contain opacity-90 md:bottom-[-110px] md:right-[-50px] md:w-[220px]" style={{ transform: "scaleX(-1) rotate(5deg)" }} />
-              <img src={deco.hoa} alt="Họa tiết hoa trang trí góc dưới-trái" loading="eager" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="pointer-events-none absolute bottom-[-20px] left-[-20px] z-20 w-[120px] object-contain opacity-60 md:bottom-[-30px] md:left-[-30px] md:w-[160px]" />
-              <img src={deco.hoa} alt="Họa tiết hoa trang trí góc trên-phải" loading="eager" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="pointer-events-none absolute right-[-15px] top-[-15px] z-20 w-[100px] rotate-180 object-contain opacity-60 md:right-[-20px] md:top-[-20px] md:w-[140px]" />
-            </>
-          )}
-          <div className={`relative z-10 ${deco ? "px-6 pb-14 pt-28 md:pb-8 md:pt-24" : "p-10"}`} style={deco ? { background: "#f9ede3", borderRadius: 20, overflow: "hidden" } : undefined}>
-            {/* Con dấu Hỷ: tròn 56px, tâm ở top 50px của thẻ (chồng lên mép
-                trên thẻ), gradient tỏa tròn #710001 — theo đúng spec. */}
-            {deco && (
-              <Shimmer disabled={!!reduce} duration={2.4} intensity="strong" className="absolute left-1/2 top-[50px] z-30 -translate-x-1/2 -translate-y-1/2">
-                <span
-                  className="flex h-14 w-14 items-center justify-center rounded-full"
-                  style={{ background: "radial-gradient(circle at 30% 30%, #710001, rgb(83,0,0))" }}
-                >
-                  {sealFailed ? (
-                    <span className="font-bold text-[#fff0e7]">囍</span>
-                  ) : (
-                    <img src={deco.chuHy} alt="Chữ Hỷ" loading="eager" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; setSealFailed(true); }} className="h-9 w-9 object-contain" />
-                  )}
-                </span>
-              </Shimmer>
-            )}
-            <div className="relative">
-              {/* Phong bì bản gốc KHÔNG có nhãn "THIỆP MỜI CƯỚI" và KHÔNG có
-                  dòng gợi ý bấm — 2 dòng này chỉ giữ cho mẫu không-deco. */}
-              {!deco && (
-                <>
-                  <p className="mt-4 text-xs uppercase tracking-[0.35em]" style={{ color: p.accent }}>Thiệp mời cưới</p>
-                  <div className="mt-6 flex justify-center">
-                    <TemplateMotif motif={tpl.motif} accent={p.accent} gold={p.gold} size="sm" />
-                  </div>
-                </>
-              )}
-              {deco ? (
-                <>
-                  {/* Tên phong bì: Playfair Display, CĂN GIỮA, 3 dòng với dấu
-                      & riêng một dòng, weight 400, text-3xl/sm:text-4xl. */}
-                  {/* Tên phong bì: cô dâu trước rồi chú rể (bản gốc "Ngọc Ánh
-                      & Thế Bảo", brideFirst) — vòng 11 sửa từ chú rể trước. */}
-                  <p className="font-display text-3xl uppercase leading-snug sm:text-4xl" style={{ color: "#710001", fontWeight: 400 }}>
-                    <span className="block w-full text-center">{data.brideName}</span>
-                    {/* Trạng thái trống (vòng 14): chỉ render "&" khi CẢ 2
-                        tên đều có chữ. */}
-                    {data.brideName?.trim() && data.groomName?.trim() ? (
-                      <span className="block w-full text-center text-lg sm:text-xl">&amp;</span>
-                    ) : null}
-                    <span className="block w-full text-center">{data.groomName}</span>
-                  </p>
-                  {data.date && (
-                    <p className="mt-4 text-base" style={{ color: "#710001" }}>{formatDateVi(data.date)}</p>
-                  )}
-                  <p className="mt-2 text-sm" style={{ color: p.muted }}>Thân Mời</p>
-                  {guestName && (
-                    <p className="mx-auto mt-3 inline-block rounded-full px-4 py-2 text-sm" style={{ background: "#fff0e7", border: "1px solid #710001", color: "#710001" }}>
-                      {guestName}
-                    </p>
-                  )}
-                  {/* Dòng này là chữ cố định của phong bì gốc, hiện cả khi
-                      không có tên khách (vòng 11): trước đây chỉ hiện khi có
-                      ?guest= nên QA tưởng thiếu. */}
-                  <p className="mt-2 text-sm" style={{ color: p.muted }}>đến dự buổi tiệc chung vui cùng gia đình</p>
-                </>
-              ) : (
-                <>
-                  <p className={`${TEMPLATE_FONT_CLASS[tpl.font]} mt-6 text-3xl font-bold`} style={{ color: p.accent }}>
-                    {data.groomName} &amp; {data.brideName}
-                  </p>
-                  {guestName && (
-                    <p className="mt-3 rounded-full px-4 py-2 text-sm" style={{ background: p.bg }}>
-                      Trân trọng kính mời <strong>{guestName}</strong>
-                    </p>
-                  )}
-                  <span
-                    className="mx-auto mt-6 flex h-14 w-14 items-center justify-center rounded-full text-2xl text-white"
-                    style={{ background: tpl.envelope }}
-                    aria-hidden="true"
-                  >
-                    ❦
-                  </span>
-                </>
-              )}
-              <span className="mt-6 inline-block rounded-full px-8 py-3 font-semibold text-white" style={{ background: p.accent }}>
-                Mở thiệp
-              </span>
-              {!deco && (
-                <p className="mt-3 text-xs" style={{ color: p.muted }}>Bấm vào phong bì để xem thiệp</p>
-              )}
-            </div>
-          </div>
-        </motion.button>
-      </div>
-    );
-  }
+  const featured = ["song-phung-do", "nhat-binh-do", "minimal-do-do", "song-hy-do", "hoa-moc", "cam-thach-vang"].map((id) => getTemplate(id));
+  const sample = defaultInvitation("minimal-do-do");
 
   return (
-    <SmoothScroll lerp={0.09}>
-      <ScrollProgress color="#710001" disabled={fx.progressBar === false} />
-      <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
-        {burstOverlay}
-        <InvitationPreview data={data} guestName={guestName} motion />
+    <div>
+      {/* HERO */}
+      <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-2">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[#c9a86a]">Thiệp cưới online</p>
+          <h1 className="mt-3 font-display text-4xl font-bold leading-tight text-[#7a1f2b] sm:text-5xl">{d.heroTitle}</h1>
+          <p className="mt-4 text-base leading-relaxed text-[#5a4a48] sm:text-lg">{d.heroSub}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link href="/tao-thiep" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white hover:bg-[#5e1620]">
+              {d.heroCta1}
+            </Link>
+            <Link href="/mau-thiep" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b] hover:bg-[#f3e8d8]">
+              {d.heroCta2}
+            </Link>
+          </div>
+          <ul className="mt-6 space-y-1 text-sm text-[#5a4a48]">
+            <li>✓ Tạo miễn phí — không cần đăng nhập</li>
+            <li>✓ Mỗi khách một link riêng</li>
+            <li>✓ Đổi mẫu không mất dữ liệu</li>
+          </ul>
+        </div>
+        <div>
+          <InvitationPreview data={sample} />
+          <p className="mt-2 text-center text-xs text-[#7a6a68]">Thiệp mẫu xem trước — bấm “Tạo thiệp miễn phí” để tạo thiệp của riêng bạn.</p>
+        </div>
+      </section>
 
-      {/* Album — mẫu deco đã có album ngay sau khối THÔNG TIN trong
-          InvitationPreview nên ẩn section riêng này để không trùng (vòng 11). */}
-      {!isDeco && (
-      <section className="mt-10" aria-labelledby="album-title">
-        <h2 id="album-title" className="text-center font-display text-2xl font-bold text-[#7a1f2b]">Album ảnh cưới</h2>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {PRESET_PHOTOS.map((p) => (
-            <img key={p.url} src={p.url} alt={p.label} loading="lazy" className="aspect-square w-full rounded-2xl object-cover shadow-sm" />
+      {/* MẪU NỔI BẬT */}
+      <section className="mx-auto max-w-6xl px-4 py-8" aria-labelledby="featured-title">
+        <h2 id="featured-title" className="font-display text-3xl font-bold text-[#7a1f2b]">{d.featured}</h2>
+        <p className="mt-2 text-[#5a4a48]">{d.featuredSub}</p>
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {featured.map((tpl) => (
+            <TemplateCard key={tpl.id} template={tpl} onPreview={setPreview} />
           ))}
         </div>
-        <p className="mt-2 text-center text-xs text-[#7a6a68]">Ảnh minh họa từ Unsplash (ảnh cưới công khai).</p>
+        <div className="mt-6 text-center">
+          <Link href="/mau-thiep" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b]">
+            Xem tất cả mẫu →
+          </Link>
+        </div>
       </section>
+
+      {/* TÍNH NĂNG */}
+      <section className="mx-auto max-w-6xl px-4 py-10" aria-labelledby="features-title">
+        <h2 id="features-title" className="text-center font-display text-3xl font-bold text-[#7a1f2b]">{d.featuresTitle}</h2>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES(d).map((f) => (
+            <div key={f.title} className="rounded-2xl border border-[#e8dcc8] bg-white p-5 shadow-sm">
+              <span className="text-2xl" aria-hidden="true">{f.icon}</span>
+              <h3 className="mt-2 font-semibold text-[#7a1f2b]">{f.title}</h3>
+              <p className="mt-1 text-sm text-[#5a4a48]">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* 3 BƯỚC */}
+      <section className="bg-[#f7efe2] py-12" aria-labelledby="steps-title">
+        <div className="mx-auto max-w-6xl px-4">
+          <h2 id="steps-title" className="text-center font-display text-3xl font-bold text-[#7a1f2b]">{d.stepsTitle}</h2>
+          <ol className="mt-8 grid gap-5 md:grid-cols-3">
+            {[
+              { n: "1", t: d.step1, desc: d.step1Desc, href: "/mau-thiep" },
+              { n: "2", t: d.step2, desc: d.step2Desc, href: "/tao-thiep" },
+              { n: "3", t: d.step3, desc: d.step3Desc, href: "/quan-ly" },
+            ].map((s) => (
+              <li key={s.n} className="rounded-2xl bg-white p-6 text-center shadow-sm">
+                <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#7a1f2b] font-display text-xl font-bold text-white">{s.n}</span>
+                <h3 className="mt-3 font-semibold text-[#7a1f2b]">{s.t}</h3>
+                <p className="mt-1 text-sm text-[#5a4a48]">{s.desc}</p>
+                <Link href={s.href} className="mt-3 inline-block text-sm font-semibold text-[#7a1f2b] underline">Bắt đầu bước này →</Link>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* DÀNH CHO AI */}
+      <section className="mx-auto max-w-6xl px-4 py-10" aria-labelledby="forwho-title">
+        <h2 id="forwho-title" className="text-center font-display text-3xl font-bold text-[#7a1f2b]">{d.forWhoTitle}</h2>
+        <div className="mt-8 grid gap-5 md:grid-cols-3">
+          {[
+            { t: d.forWho1, desc: d.forWho1Desc },
+            { t: d.forWho2, desc: d.forWho2Desc },
+            { t: d.forWho3, desc: d.forWho3Desc },
+          ].map((c) => (
+            <div key={c.t} className="rounded-2xl border border-[#e8dcc8] bg-white p-5 shadow-sm">
+              <h3 className="font-semibold text-[#7a1f2b]">{c.t}</h3>
+              <p className="mt-1 text-sm text-[#5a4a48]">{c.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="mx-auto max-w-3xl px-4 py-10" aria-labelledby="faq-title">
+        <h2 id="faq-title" className="text-center font-display text-3xl font-bold text-[#7a1f2b]">{d.faqTitle}</h2>
+        <div className="mt-6 space-y-3">
+          {FAQS.map((f, i) => (
+            <div key={f.q} className="overflow-hidden rounded-2xl border border-[#e8dcc8] bg-white">
+              <button
+                type="button"
+                onClick={() => setFaqOpen(faqOpen === i ? null : i)}
+                aria-expanded={faqOpen === i}
+                className="flex w-full items-center justify-between px-5 py-4 text-left font-semibold"
+              >
+                {f.q}
+                <span aria-hidden="true">{faqOpen === i ? "−" : "+"}</span>
+              </button>
+              {faqOpen === i && <p className="px-5 pb-4 text-sm leading-relaxed text-[#5a4a48]">{f.a}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Modal xem trước mẫu */}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={`Xem trước mẫu ${preview.name}`} onClick={() => setPreview(null)}>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#fdf8f1] p-4" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="font-display text-xl font-bold text-[#7a1f2b]">{preview.name}</h3>
+              <button type="button" onClick={() => setPreview(null)} className="rounded-full border px-3 py-1 text-sm" aria-label="Đóng xem trước">✕</button>
+            </div>
+            <InvitationPreview data={{ ...defaultInvitation(preview.id), groomName: "Minh Quân", brideName: "Thu An" }} />
+            <Link href={`/tao-thiep?template=${preview.id}`} className="mt-4 block rounded-full bg-[#7a1f2b] py-3 text-center font-semibold text-white">
+              Dùng mẫu này
+            </Link>
+          </div>
+        </div>
       )}
-
-      {/* Mừng cưới */}
-      {qr && (
-        <section className="mt-10 rounded-2xl border bg-white p-6 text-center shadow-sm" aria-labelledby="gift-title">
-          <h2 id="gift-title" className="font-display text-2xl font-bold text-[#7a1f2b]">Mừng cưới</h2>
-          <p className="mt-2 text-sm text-[#5a4a48]">
-            Quét mã VietQR để chuyển khoản mừng cưới tới {data.accountName} — {data.bankCode} {data.accountNumber}.
-          </p>
-          <img src={qr} alt={`Mã QR VietQR mừng cưới tới tài khoản ${data.accountNumber} ngân hàng ${data.bankCode}`} loading="lazy" className="mx-auto mt-4 h-56 w-56 rounded-2xl border object-contain" />
-          <p className="mt-2 text-sm"><strong>{data.accountName}</strong> • {data.bankCode} • {data.accountNumber}</p>
-        </section>
-      )}
-
-      <p className="mt-10 text-center text-xs text-[#7a6a68]">
-        Thiệp được tạo bằng Thiệp Đôi.{" "}
-        <Link href="/" className="underline">Tạo thiệp của riêng bạn</Link>
-      </p>
-      </div>
-    </SmoothScroll>
-  );
-}
-
-export default function CardPage() {
-  return (
-    <MotionConfig reducedMotion="user">
-      <Suspense fallback={<p className="mx-auto max-w-3xl px-4 py-16 text-center">Đang mở thiệp…</p>}>
-        <CardInner />
-      </Suspense>
-    </MotionConfig>
+    </div>
   );
 }
