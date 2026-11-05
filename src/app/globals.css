@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #fdf8f1;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Khung hero mẫu Song Phụng Đỏ: container cho đơn vị cqw của tên.
+   Khai báo bằng class CSS thuần (không chỉ dựa vào inline style của React)
+   để chắc chắn container-type luôn được áp dụng, tránh trường hợp cqw
+   rơi về đơn vị viewport làm chữ tên quá to và ngắt dòng. */
+.songphung-hero {
+  container-type: inline-size;
+}
+
+/* Chữ Hỷ mờ bay trên nền phong bì Song Phụng Đỏ (bản gốc: Hỷ mờ
+   ambient-rise trên gradient đỏ). Trôi nhẹ lên xuống, không xoay. */
+@keyframes envelope-xi-float {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-20px); }
+}
+.envelope-xi-float {
+  animation: envelope-xi-float 8s ease-in-out infinite alternate;
+}
