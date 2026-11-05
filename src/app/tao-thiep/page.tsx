@@ -242,9 +242,7 @@ function EditorInner() {
         <div className={tab === "form" ? "block" : "hidden lg:block"}>{form}</div>
         <div className={`${tab === "preview" ? "block" : "hidden"} lg:sticky lg:top-24 lg:block`}>
           <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#7a6a68]">Xem trước trực tiếp</p>
-          {/* Cột xem trước dính ở top-24 (96px) nên deck cao 100dvh trừ 6rem
-              để vừa đúng màn hình, không tràn xuống dưới. */}
-          <InvitationPreview data={data} deckHeightClass="h-[calc(100dvh-6rem)]" />
+          <InvitationPreview data={data} />
         </div>
       </div>
     </div>
