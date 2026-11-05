@@ -41,6 +41,12 @@ export function BurstParticles({
   onDone,
   className,
 }: BurstParticlesProps) {
+  // Mẹo ổn định: colors/size thường là array literal mới mỗi lần render ở
+  // nơi gọi (vd ["#c9a86a", ...] viết trực tiếp trong JSX) — nếu để nguyên
+  // mảng vào deps thì useMemo tính lại hạt mỗi lần render, vụ nổ bị xáo
+  // giữa chừng. Chỉ tính lại khi GIÁ TRỊ đổi (nối chuỗi làm khóa).
+  const colorsKey = colors.join("|");
+  const sizeKey = size.join(",");
   const particles = useMemo<Particle[]>(() => {
     const rand = seed !== undefined ? mulberry32(seed) : Math.random;
     return Array.from({ length: count }, () => ({
@@ -52,7 +58,8 @@ export function BurstParticles({
       rotate: (rand() - 0.5) * 540,
       delay: rand() * 0.08,
     }));
-  }, [count, colors, size, spread, seed]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, colorsKey, sizeKey, spread, seed]);
 
   useEffect(() => {
     if (!onDone) return;

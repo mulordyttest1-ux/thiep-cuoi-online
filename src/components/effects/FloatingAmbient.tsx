@@ -36,8 +36,12 @@ export function FloatingAmbient({
     const rand = mulberry32(typeof seed === "number" ? seed : hashSeed(seed));
     return Array.from({ length: count }, () => ({
       left: rand() * 100,
-      top: 15 + rand() * 85,
-      size: 3 + rand() * 4,
+      // Rải khắp CHIỀU CAO bài thiệp (0–100%), không bắt đầu từ 15% nữa:
+      // trước đây hero (0–18% chiều cao) gần như không có hạt nào nên mắt
+      // thấy "không có bụi vàng" dù component đã mount. Hạt to hơn
+      // (5–10px thay vì 3–7px) để vàng trên nền kem nhìn rõ mà vẫn nhẹ.
+      top: rand() * 100,
+      size: 5 + rand() * 5,
       color: colors[Math.floor(rand() * colors.length)],
       duration: 8 + rand() * 8,
       delay: -rand() * 14, // delay âm: đã bay giữa chừng ngay khi mở trang
