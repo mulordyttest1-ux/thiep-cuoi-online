@@ -292,31 +292,82 @@ props; không có code riêng theo mẫu bên trong thư viện). Tất cả đ�
   trả effects khai báo, không có thì `defaultEffectsFor(id)` sinh từ hash
   của id (mulberry32, src/lib/seeded.ts) — mỗi mẫu một combo khác nhau
   nhưng ổn định, không xáo lại mỗi lần render.
-- **Song Phụng Đỏ (bộ đầy đủ):** burst 30 hạt / 1.0s / spread 170; ambient
-  14 hạt; shimmer strong 3s; Ken Burns 8s scale 1.12; reveal standard;
-  parallax trái −0.15 / phải +0.08 / hoa +0.05; progress bar bật.
+- **Song Phụng Đỏ (bộ đầy đủ):** burst 40 hạt / 1.1s / spread 220 (+ chớp
+  vàng, sống tới 1600ms); ambient 22 hạt, mờ 0.65; shimmer strong 3s;
+  Ken Burns 8s scale 1.12 (gắn trực tiếp lên img); reveal standard;
+  parallax trái range [900, −180] / phải +0.08 / hoa +0.05; progress bar bật.
 - Mẫu không-deco: bộ mặc định theo id (reveal + progress bar + Ken Burns
   ảnh + ambient/shimmer theo tỉ lệ) — vẫn chạy, không vỡ bố cục.
 
 ### Trang khách — những gì chạy khi mở thiệp
-- **Vụ nổ phong bì:** chạm "Mở thiệp" → 30 hạt vàng bay ra từ giữa màn hình
-  + phong bì nở nhẹ rồi phai (scale 1→1.04→0.94, opacity→0, 650ms) rồi mới
-  hiện thiệp; hạt bay tiếp 350ms trên nền thiệp mới. Giảm chuyển động: mở ngay.
+- **Vụ nổ phong bì:** chạm "Mở thiệp" → 40 hạt vàng bay ra từ giữa màn hình
+  (portal ra body, sống qua lúc đổi nhánh) + chớp vàng tỏa tròn + phong bì
+  nở nhẹ rồi phai (scale 1→1.04→0.94, opacity→0, 650ms) rồi mới hiện thiệp;
+  hạt bay hết đà tới ~1.6s trên nền thiệp mới. Giảm chuyển động: mở ngay.
 - **Cuộn mượt Lenis** (lerp 0.09) + **thanh tiến trình** #710001 trên cùng.
 - **Cross-dissolve** từng section (hero, thông tin, album, tiệc, bản đồ,
-  dress code, lịch trình) + **chữ hiện dần** (tên hero 2 dòng; tiêu đề các
-  section từng từ).
-- **Parallax:** phụng trái −0.15 (đuôi rút lên khi cuộn, giữ đúng hành vi
-  vòng 13), phụng phải +0.08, hoa HOA +0.05.
-- **Ken Burns** ảnh album đang ở giữa (hướng đổi theo ảnh) + ảnh mẫu
-  không-deco. Coverflow album giữ nguyên code tay vòng 12–14 (đã đạt QA17).
-- **Bụi vàng trôi** trong article (z-30, pointer-events-none, hạt 3–7px,
-  mờ 0.45) + **Hỷ shimmer** + **con dấu phong bì phát sáng**.
+  dress code, lịch trình) + **chữ hiện dần** (tên hero 2 dòng — chỉ mờ/nét,
+  không dịch y; tiêu đề các section từng từ).
+- **Parallax:** phụng trái range [900, −180] (đuôi rút thành chấm nhỏ khi
+  chỗ nối vào khung, giữ nguyên sau đó), phụng phải +0.08, hoa HOA +0.05.
+- **Ken Burns** gắn trực tiếp lên ảnh album đang ở giữa (hướng đổi theo ảnh)
+  + ảnh mẫu không-deco. Coverflow album giữ nguyên code tay vòng 12–14
+  (đã đạt QA17).
+- **Bụi vàng trôi** trong article (z-30, pointer-events-none, hạt 5–10px,
+  mờ 0.65, rải khắp chiều cao) + **Hỷ shimmer** + **con dấu phong bì phát sáng**.
 - Tất cả hiệu ứng trong InvitationPreview chỉ bật khi prop `motion` (trang
   khách truyền motion) — editor/thumbnail/dialog preview render tĩnh như
   QA17, không đổi.
-- **TapBurst (thư viện):** chạm thẻ demo → vụ nổ nhỏ 16 hạt tại điểm chạm,
-  300ms sau mới mở hộp xem trước. Giảm chuyển động: mở ngay.
+- **TapBurst (thư viện):** chạm thẻ demo → vụ nổ 20 hạt tại điểm chạm
+  (portal ra body, z-70, trên cả hộp xem trước), 300ms sau mới mở hộp xem
+  trước. Giảm chuyển động: mở ngay.
+
+### Vòng 19 — sửa 6 lỗi QA19 (không deploy, chỉ build local + kiểm tra bundle)
+QA19 chê "không thấy hiệu ứng nào" dù các hiệu ứng đã chạy (Lenis mượt,
+progress bar mọc, cross-dissolve + shimmer thấy rõ). Nguyên nhân + sửa:
+
+1. **Vụ nổ phong bì không thấy.** Overlay cũ render trong từng nhánh (phong
+   bì / thiệp) ở 2 vị trí khác nhau trong cây → khi `opened` đổi ở 650ms,
+   React tháo + gắn lại, vụ nổ khởi động lại giữa chừng rồi bị cắt ở 1100ms
+   (chỉ bay ~450ms). Sửa: portal ra `document.body`, render MỘT LẦN ở vị trí
+   ổn định (con đầu của fragment trả về, cả 2 nhánh cùng vị trí) để sống qua
+   lúc đổi nhánh; hạt to hơn (40 hạt, 6–12px, spread 220, 1.1s) + chớp vàng
+   tỏa tròn; sống tới 1600ms. `BurstParticles` cũng sửa deps useMemo (nối
+   chuỗi colors/size làm khóa) để hạt không xáo lại mỗi lần render.
+2. **TapBurst thư viện không thấy.** Vụ nổ cũ nằm trong `article`
+   (overflow-hidden, z-40); hộp xem trước (fixed z-50, nền đen 60%) mở ở
+   300ms đã che mất nó trong khi hạt cần 700ms. Sửa: portal ra
+   `document.body` tại đúng tọa độ chạm trên màn hình (clientX/clientY),
+   z-70 (trên cả hộp xem trước), 20 hạt 5–11px, spread 130, 0.8s, sống tới
+   khi bay xong (onDone) dù hộp đã mở.
+3. **Tên hero chồng nhau (ưu tiên cao nhất).** `marginTop: 1.1%` của dòng tên
+   2 nằm trên `<span>` inline bên trong wrapper block của StaggeredText —
+   margin dọc trên inline bị bỏ qua nên dòng 2 mất ~10px; cộng thêm dịch
+   `y: 26` và `whileInView` kích lại làm 2 dòng xê/chồng. Sửa:
+   StaggeredText thêm `itemStyles` (margin đặt vào chính wrapper block),
+   `shift={false}` (chỉ opacity/blur, không dịch y), `once`; tên hero dùng
+   cả 3, giữ đúng spec (leading 1.11, tên 1 ml 1.7%, tên 2 ml 5.5% +
+   mt 1.1%) — 2 dòng là 2 block xếp chồng, không thể chạm nhau.
+4. **Ken Burns không thấy.** Animation đặt trên div bọc ngoài `<img>`; div
+   nằm trong khung overflow-hidden (nút coverflow / hộp ảnh) nên zoom bị
+   cắt trong khung, khung đo không đổi, mắt thấy ảnh đứng yên. Sửa: KenBurns
+   gắn class/animation TRỰC TIẾP lên `<img>` (cloneElement, gộp className +
+   CSS vars), chỉ bọc div khi con không phải element; chỗ gọi không-deco
+   thêm div layout riêng (aspect/max-w/rounded/overflow) vì trước đây dựa
+   vào div bọc của KenBurns.
+5. **Bụi vàng không thấy.** FloatingAmbient đã mount nhưng hạt quá ít/nhỏ/
+   mờ/thưa: 14 hạt 3–7px, mờ 0.45, rải trên article ~5000px với top từ 15%
+   → hero (0–18%) gần như không có hạt nào, vàng trên kem tương phản thấp.
+   Sửa: hạt 5–10px, top rải khắp 0–100%, Song Phụng Đỏ 22 hạt mờ 0.65
+   (thêm `opacity` vào kiểu effects.ambient, InvitationPreview truyền qua).
+6. **Đuôi phụng không rút.** `useScroll` toàn trang VẪN chạy (thanh tiến
+   trình mọc dài theo cuộn là bằng chứng) — lỗi không phải nguồn scroll mà
+   là độ rút: −0.15 rút quá chậm ở tầm cuộn xem chỗ nối (450px đuôi còn thò
+   ~104px, 600px còn ~82px — mắt vẫn đọc là "đuôi dài nguyên"). Sửa:
+   ParallaxLayer thêm `range=[tớiScrollY, tớiY]` (y đi 0 → tớiY khi scrollY
+   đi 0 → tớiScrollY rồi giữ nguyên, clamp); phụng trái dùng range
+   [900, −180] — đuôi thành chấm nhỏ ngay khi chỗ nối vào khung, không bay
+   đi xa khi cuộn tiếp. Phụng phải +0.08 / HOA +0.05 giữ nguyên speed.
 
 ## 5. Không tìm được trong file đã tải (không bịa)
 
