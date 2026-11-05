@@ -29,3 +29,88 @@ body {
 .envelope-xi-float {
   animation: envelope-xi-float 8s ease-in-out infinite alternate;
 }
+
+/* Lenis smooth scroll — class cần thiết (nội dung chính của
+   lenis/dist/lenis.css, viết trực tiếp vào đây để không phải import CSS
+   global của gói ngoài root layout). */
+html.lenis, html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Ken Burns — zoom/pan chậm trên ảnh tĩnh, kiểu phim tài liệu. Hướng đổi
+   theo ảnh (vào / ra / lia trái / lia phải) để không lặp đơn điệu. */
+@keyframes kenburns-in {
+  from { transform: scale(1) translate(0, 0); }
+  to { transform: scale(var(--kb-scale, 1.12)) translate(-1.5%, -1%); }
+}
+@keyframes kenburns-out {
+  from { transform: scale(var(--kb-scale, 1.12)) translate(1.5%, 1%); }
+  to { transform: scale(1) translate(0, 0); }
+}
+@keyframes kenburns-pan-left {
+  from { transform: scale(1.1) translate(2%, 0); }
+  to { transform: scale(1.1) translate(-2%, 0); }
+}
+@keyframes kenburns-pan-right {
+  from { transform: scale(1.1) translate(-2%, 0); }
+  to { transform: scale(1.1) translate(2%, 0); }
+}
+.kenburns {
+  animation: kenburns-in var(--kb-duration, 8s) ease-in-out infinite alternate;
+  will-change: transform;
+}
+.kenburns-out { animation-name: kenburns-out; }
+.kenburns-pan-left { animation-name: kenburns-pan-left; }
+.kenburns-pan-right { animation-name: kenburns-pan-right; }
+
+/* Bụi vàng / cánh hoa trôi nhẹ (FloatingAmbient): bay lên chậm, mờ dần ở
+   hai đầu vòng đời. Mỗi hạt có --amb-duration/--amb-dx/--amb-opacity riêng. */
+@keyframes ambient-drift {
+  0% { transform: translate3d(0, 10px, 0); opacity: 0; }
+  12% { opacity: var(--amb-opacity, 0.45); }
+  85% { opacity: var(--amb-opacity, 0.45); }
+  100% { transform: translate3d(var(--amb-dx, 24px), -140px, 0); opacity: 0; }
+}
+.ambient-particle {
+  animation: ambient-drift var(--amb-duration, 9s) linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Ánh kim / phát sáng nhẹ (Shimmer): chữ Hỷ, con dấu phong bì. */
+@keyframes shimmer-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(201, 168, 106, 0.35)) brightness(1); }
+  50% { filter: drop-shadow(0 0 10px rgba(201, 168, 106, 0.8)) brightness(1.12); }
+}
+@keyframes shimmer-glow-strong {
+  0%, 100% { filter: drop-shadow(0 0 3px rgba(201, 168, 106, 0.45)) brightness(1); }
+  50% { filter: drop-shadow(0 0 16px rgba(201, 168, 106, 0.95)) brightness(1.15); }
+}
+.shimmer-glow {
+  animation: shimmer-glow var(--shimmer-duration, 3s) ease-in-out infinite;
+}
+.shimmer-glow-strong {
+  animation-name: shimmer-glow-strong;
+  animation-duration: var(--shimmer-duration, 2.4s);
+}
+
+/* Giảm chuyển động: tắt hết hiệu ứng nền (Ken Burns, bụi trôi, shimmer,
+   Hỷ bay). Hiệu ứng cuộn của Framer Motion cũng tự tắt qua
+   MotionConfig reducedMotion="user" + useReducedMotion. */
+@media (prefers-reduced-motion: reduce) {
+  .kenburns,
+  .ambient-particle,
+  .shimmer-glow,
+  .shimmer-glow-strong,
+  .envelope-xi-float {
+    animation: none !important;
+  }
+}
