@@ -3,11 +3,12 @@
 import { useState } from "react";
 import type { InvitationData } from "@/lib/types";
 import { formatDateVi, minusMinutes, parseDressCode, parseSchedule } from "@/lib/types";
-import { getTemplate, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
+import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
 import { getDateParts } from "@/lib/lunar";
 import Countdown from "./Countdown";
 import TemplateMotif from "./TemplateMotif";
 import { SongPhungBand } from "./SongPhungDecor";
+import { FloatingAmbient, KenBurns, ParallaxLayer, ScrollReveal, StaggeredText } from "./effects";
 
 const FRAME_OUTER: Record<string, number> = { single: 2, double: 3, triple: 4, scallop: 2, band: 2 };
 const FRAME_INNER: Record<string, string> = {
@@ -18,10 +19,14 @@ const FRAME_INNER: Record<string, string> = {
   band: "1px solid",
 };
 
-export default function InvitationPreview({ data, guestName }: { data: InvitationData; guestName?: string }) {
+export default function InvitationPreview({ data, guestName, motion }: { data: InvitationData; guestName?: string; motion?: boolean }) {
   const tpl = getTemplate(data.templateId);
   const p = tpl.palette;
   const deco = tpl.decorationImages;
+  // Bộ hiệu ứng của mẫu (khai báo trong templates.ts, không có thì sinh theo
+  // id — xem specs/song-phung-do.md §4h). motion=true chỉ ở trang khách:
+  // editor/thumbnail/dialog preview để false để bố cục đứng yên như QA17.
+  const fx = getTemplateEffects(data.templateId);
   const fontClass = TEMPLATE_FONT_CLASS[tpl.font];
   const nameSize = tpl.font === "script" ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl";
   const schedule = parseSchedule(data.scheduleText);
@@ -136,6 +141,7 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
         )}
         {deco ? (
           <>
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
           <section className="songphung-hero relative -mx-6 -mt-6 sm:-mx-8 sm:-mt-8" style={{ containerType: "inline-size" }}>
             {/* Hero phần chính: section RIÊNG (vòng 7). -mt-6/-mt-8 kéo mép
                 trên section trùng mép thẻ (bù padding p-6/p-8 của khung
@@ -193,11 +199,19 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
               className="font-display relative z-20 mt-[7%] w-fit text-left text-2xl uppercase leading-[1.11] sm:text-3xl"
               style={{ color: "#710001", fontWeight: 400, fontSize: "clamp(20px, 5.96cqw, 52px)", marginLeft: "12.3%" }}
             >
-              <span className="block whitespace-nowrap" style={{ marginLeft: "1.7%" }}>{data.brideName}</span>
-              <span className="block whitespace-nowrap" style={{ marginLeft: "5.5%", marginTop: "1.1%" }}>{data.groomName}</span>
+              <StaggeredText
+                disabled={!motion}
+                stagger={0.18}
+                className="block"
+                itemClassName="block whitespace-nowrap"
+                items={[
+                  <span key="bride" style={{ marginLeft: "1.7%" }}>{data.brideName}</span>,
+                  <span key="groom" style={{ marginLeft: "5.5%", marginTop: "1.1%" }}>{data.groomName}</span>,
+                ]}
+              />
             </h2>
             <div className="relative z-0" style={{ marginTop: "6.2%" }}>
-              <SongPhungBand deco={deco} />
+              <SongPhungBand deco={deco} motion={motion} parallax={fx.parallax} />
             </div>
             {/* Khoảng kem dưới dải: 26.5% chiều rộng (= 240px gốc, header
                 pb-240, spec §1). Vòng 12 sửa từ 50%: 50% khiến đuôi phụng
@@ -206,6 +220,7 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
                 QA11 nêu (thực chất là đuôi phụng, không phải hoa). */}
             <div className="relative w-full" style={{ aspectRatio: "100 / 26.5" }} />
             </section>
+            </ScrollReveal>
             {/* Khối THÔNG TIN LỄ CƯỚI — trích đúng code bản gốc vòng 10 (spec §4,
                 module 22705): thứ tự tiêu đề → cha mẹ → lời mời → tên lớn
                 xếp chồng → hàng ngày có cấu trúc. Pill khách KHÔNG có trong
@@ -215,11 +230,14 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
                 với đầu khối này), góc phải, rộng 39.7%, opacity-100 — đúng
                 vị trí bản gốc (hoa thò lên vùng kem và chạm nhẹ vùng tiêu đề
                 phía phải, KHÔNG nằm trong khoảng kem dưới dải). */}
+            <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
             <div className="relative z-20 mt-14 text-center">
-              <img src={deco.hoa} alt="Họa tiết hoa lớn góc dưới-phải" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="pointer-events-none absolute right-0 -z-10 w-[39.7%] object-contain" style={{ top: "-39.7cqw" }} />
+              <ParallaxLayer speed={fx.parallax?.hoa ?? 0.05} disabled={!motion} className="pointer-events-none absolute right-0 -z-10 w-[39.7%]" style={{ top: "-39.7cqw" }}>
+                <img src={deco.hoa} alt="Họa tiết hoa lớn góc dưới-phải" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="w-full object-contain" />
+              </ParallaxLayer>
               {/* Tiêu đề gốc: uppercase, font-bold, 20px md:24px. */}
               <p className="font-display text-[20px] font-bold uppercase md:text-[24px]" style={{ color: "#710001" }}>
-                {vi ? "THÔNG TIN LỄ CƯỚI" : "CEREMONY INFO"}
+                <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "THÔNG TIN LỄ CƯỚI" : "CEREMONY INFO").split(" ")} />
               </p>
               {/* Cha mẹ (cD gốc): lưới 2 bên + vạch 1px cao 60px ở giữa, 4 hàng
                   (nhãn / cha / mẹ / địa chỉ) căn hàng nhau bằng subgrid.
@@ -314,6 +332,7 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
                 </div>
               )}
             </div>
+            </ScrollReveal>
             {/* Album ảnh (gallery gốc, spec §4: nằm ngay sau khối THÔNG TIN,
                 trước section tiệc). Trang khách ẩn section Album riêng khi
                 mẫu deco để không trùng — xem thiep/[id]/page.tsx.
@@ -332,9 +351,10 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
                 như bản gốc (~320×485) — vòng 13 khung ngang 300×220.
                 Ảnh stock ngang bị crop dọc bằng object-cover, chấp nhận
                 được, đúng định dạng gốc; hình học xòe ngang giữ nguyên. */}
+            <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
             <section className="relative z-20 mx-auto mt-10 w-full max-w-[560px]" aria-label={vi ? "Album ảnh cưới" : "Wedding album"}>
               <h3 className="font-display text-center text-[20px] font-bold uppercase md:text-[24px]" style={{ color: "#710001" }}>
-                {vi ? "ALBUM ẢNH" : "ALBUM"}
+                <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "ALBUM ẢNH" : "ALBUM").split(" ")} />
               </h3>
               <div className="relative mx-auto mt-4 h-[470px] w-full" style={{ perspective: "1000px" }}>
                 {PRESET_PHOTOS.map((p, i) => {
@@ -359,7 +379,9 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
                         transition: "transform 0.45s ease, opacity 0.45s ease",
                       }}
                     >
-                      <img src={p.url} alt={p.label} loading="lazy" className="h-full w-full object-cover" />
+                      <KenBurns disabled={!motion || a !== 0} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
+                        <img src={p.url} alt={p.label} loading="lazy" className="h-full w-full object-cover" />
+                      </KenBurns>
                     </button>
                   );
                 })}
@@ -372,16 +394,19 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
                 ))}
               </div>
             </section>
+            </ScrollReveal>
           </>
         ) : (
           <>
             {data.photoUrl && (
-              <img
-                src={data.photoUrl}
-                alt={`Ảnh cưới của ${data.groomName} và ${data.brideName}`}
-                loading="lazy"
-                className="mx-auto mt-5 aspect-[4/3] w-full max-w-md rounded-2xl object-cover"
-              />
+              <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} className="mx-auto mt-5 aspect-[4/3] w-full max-w-md overflow-hidden rounded-2xl">
+                <img
+                  src={data.photoUrl}
+                  alt={`Ảnh cưới của ${data.groomName} và ${data.brideName}`}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              </KenBurns>
             )}
             <h2 className={`mt-6 ${fontClass} ${nameSize} font-bold leading-tight`} style={{ color: p.accent }}>
               {data.groomName} <span style={{ color: p.gold }}>&amp;</span> {data.brideName}
@@ -454,9 +479,10 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
             QA11 ghi "bản gốc không có đếm ngược ở đâu cả" nên bỏ với deco
             cho khớp hình demo; mẫu không-deco giữ đếm ngược như cũ. */}
         {deco && (
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
           <section className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Thông tin tiệc cưới" : "Reception info"}>
             <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: "#710001" }}>
-              {vi ? "THÔNG TIN TIỆC CƯỚI" : "RECEPTION INFO"}
+              <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "THÔNG TIN TIỆC CƯỚI" : "RECEPTION INFO").split(" ")} />
             </h3>
             <p className="mt-3 text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>
               {vi ? "Tiệc cưới sẽ diễn ra vào lúc:" : "The reception will take place at:"}
@@ -550,6 +576,7 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
               </div>
             )}
           </section>
+          </ScrollReveal>
         )}
         {/* Địa điểm / bản đồ (ie gốc, sau section tiệc): tiêu đề
             "TIỆC CƯỚI SẼ TỔ CHỨC TẠI", tên địa điểm nghiêng serif 20/24px
@@ -560,9 +587,10 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
             card), cao 280px md:380px, tối đa 340px md:560px, bo 16px —
             đúng số gốc, link "Xem bản đồ". */}
         {deco && (
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
           <section className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Địa điểm tiệc cưới" : "Reception venue"}>
             <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: "#710001" }}>
-              {vi ? "TIỆC CƯỚI SẼ TỔ CHỨC TẠI" : "THE RECEPTION WILL BE HELD AT"}
+              <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "TIỆC CƯỚI SẼ TỔ CHỨC TẠI" : "THE RECEPTION WILL BE HELD AT").split(" ")} />
             </h3>
             {/* Tên địa điểm (vòng 16): bản gốc là chữ NGHIÊNG serif, viết
                 thường xen hoa — KHÔNG sans đậm IN HOA như trước. Giữ nguyên
@@ -589,14 +617,18 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
               </a>
             </div>
           </section>
+          </ScrollReveal>
         )}
         {/* Dress code (bản gốc: showDresscode=true, 3 màu, tiêu đề
             "DRESS CODE", phụ đề "Trang phục dự tiệc" / "Party Attire").
             Chỉ hiện khi dữ liệu có màu; thứ tự gốc: sau bản đồ, trước
             timeline. */}
         {deco && dressColors.length > 0 && (
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
           <section className="relative z-20 mx-auto mt-10 text-center" aria-label="Dress code">
-            <h3 className="font-display text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>DRESS CODE</h3>
+            <h3 className="font-display text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
+              <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={"DRESS CODE".split(" ")} />
+            </h3>
             <p className="mt-1 text-sm md:text-base" style={{ color: "#710001" }}>{vi ? "Trang phục dự tiệc" : "Party Attire"}</p>
             <div className="mt-5 flex items-center justify-center gap-4">
               {dressColors.map((c) => (
@@ -604,6 +636,7 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
               ))}
             </div>
           </section>
+          </ScrollReveal>
         )}
         {/* Lịch trình (timeline gốc, sau bản đồ + dress code): timeline dọc
             có chấm — đường kẻ dọc chấm + chấm tròn + giờ/mô tả từng mốc.
@@ -638,9 +671,10 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
             thường căn phải, nhãn italic serif.
             Tiêu đề gốc "LỊCH TRÌNH NGÀY CƯỚI" / "WEDDING DAY SCHEDULE". */}
         {deco && schedule.length > 0 && (
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
           <section className="relative z-20 mx-auto mt-10 w-full text-left" aria-label={vi ? "Lịch trình ngày cưới" : "Wedding day schedule"}>
             <h3 className="font-display text-center text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
-              {vi ? "LỊCH TRÌNH NGÀY CƯỚI" : "WEDDING DAY SCHEDULE"}
+              <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "LỊCH TRÌNH NGÀY CƯỚI" : "WEDDING DAY SCHEDULE").split(" ")} />
             </h3>
             <ol className="relative mt-6 space-y-11">
               <span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: "#710001" }} />
@@ -655,6 +689,7 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
               ))}
             </ol>
           </section>
+          </ScrollReveal>
         )}
         {/* Câu chuyện chỉ giữ cho mẫu không-deco; bản gốc không có section
             này với mẫu Song Phụng Đỏ nên ẩn với deco (vòng 12). */}
@@ -675,6 +710,11 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
         <div className="px-4 pb-3">
           <TemplateMotif motif={tpl.motif} accent={p.accent} gold={p.gold} size="sm" />
         </div>
+      )}
+      {/* Bụi vàng trôi khắp thiệp (chỉ trang khách, theo effects.ambient của
+          mẫu; hạt nhỏ, mờ, không chặn chạm/đọc — xem §4h). */}
+      {motion && fx.ambient && (
+        <FloatingAmbient count={fx.ambient.count ?? 12} colors={[p.gold, "#e8c87e", "#fff0e7"]} seed={data.templateId} className="z-30" />
       )}
     </article>
     </div>
