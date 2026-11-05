@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, MotionConfig, useReducedMotion } from "framer-motion";
@@ -38,22 +39,40 @@ function CardInner() {
     setBurstKey((k) => k + 1);
     setBursting(true);
     window.setTimeout(() => setOpened(true), 650);
-    window.setTimeout(() => setBursting(false), 1100);
+    // Vụ nổ sống tới ~1.6s (hạt bay 1.1s + tàn) — dài hơn lúc phong bì mở
+    // (650ms) để hạt bay hết đà trên nền thiệp mới, không bị cắt giữa chừng.
+    window.setTimeout(() => setBursting(false), 1600);
   };
-  // Lớp phủ vụ nổ: cố định giữa màn hình, không chặn chạm, sống qua cả lúc
-  // phong bì đổi sang thiệp (render ở cả 2 nhánh) để hạt bay hết đà.
-  const burstOverlay = bursting ? (
-    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center">
+  // Lớp phủ vụ nổ — PORTAL ra document.body, render MỘT LẦN ở vị trí ổn
+  // định (con đầu của fragment trả về, cả 2 nhánh phong bì/thiệp đều có
+  // cùng vị trí) để sống qua lúc phong bì đổi sang thiệp. Bài học QA19:
+  // để overlay trong từng nhánh như trước thì khi opened đổi, React tháo
+  // nhánh cũ + gắn nhánh mới → BurstParticles bị gắn lại từ đầu ở 650ms
+  // rồi bị cắt ở 1100ms (chỉ bay được ~450ms) nên mắt không thấy hạt nào.
+  // Portal cũng tránh bị overflow-hidden của phong bì/cột thiệp cắt và luôn
+  // nằm trên cùng (z-70). Chỉ render khi bursting (sau cú chạm, client).
+  const burstOverlay = bursting && typeof document !== "undefined" ? createPortal(
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center">
+      {/* Chớp vàng tỏa tròn — "pop" nhìn rõ ngay cả trước khi hạt bay xa. */}
+      <motion.div
+        className="absolute h-72 w-72 rounded-full"
+        style={{ background: "radial-gradient(circle, rgba(246,211,101,0.55) 0%, rgba(201,168,106,0.25) 45%, transparent 70%)" }}
+        initial={{ scale: 0.4, opacity: 0.9 }}
+        animate={{ scale: 1.6, opacity: 0 }}
+        transition={{ duration: 0.9, ease: "easeOut" }}
+      />
       <div className="relative">
         <BurstParticles
           key={burstKey}
-          count={fx.burst?.count ?? 26}
+          count={fx.burst?.count ?? 40}
+          size={[6, 12]}
           colors={["#c9a86a", "#e8c87e", "#f6d365", "#fff0e7", "#710001"]}
-          duration={fx.burst?.duration ?? 0.9}
-          spread={fx.burst?.spread ?? 160}
+          duration={fx.burst?.duration ?? 1.1}
+          spread={fx.burst?.spread ?? 220}
         />
       </div>
-    </div>
+    </div>,
+    document.body
   ) : null;
 
   useEffect(() => {
@@ -126,11 +145,12 @@ function CardInner() {
     const p = tpl.palette;
     const deco = tpl.decorationImages;
     return (
+      <>
+      {burstOverlay}
       <div
         className={`relative flex items-center justify-center px-4 py-16 ${deco ? "min-h-screen overflow-hidden" : "min-h-[80vh]"}`}
         style={deco ? { background: "linear-gradient(to bottom right, #710001, #5a0001, #450001)" } : undefined}
       >
-        {burstOverlay}
         {/* Chữ Hỷ mờ bay trên nền phong bì (bản gốc: gradient đỏ + Hỷ mờ). */}
         {deco && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -248,14 +268,16 @@ function CardInner() {
           </div>
         </motion.button>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+      {burstOverlay}
     <SmoothScroll lerp={0.09}>
       <ScrollProgress color="#710001" disabled={fx.progressBar === false} />
       <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
-        {burstOverlay}
         <InvitationPreview data={data} guestName={guestName} motion />
 
       {/* Album — mẫu deco đã có album ngay sau khối THÔNG TIN trong
@@ -290,6 +312,7 @@ function CardInner() {
       </p>
       </div>
     </SmoothScroll>
+    </>
   );
 }
 
