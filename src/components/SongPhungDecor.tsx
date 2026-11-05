@@ -61,6 +61,16 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
   // overflow-hidden (vòng 7) thì đuôi bị cắt ngang ở phần rộng nhất thành
   // vệt đỏ thẳng — chính là "motif" QA11/12 thấy. Phụng phải/HOA trôi
   // cùng chiều, chậm hơn (tốc độ dương nhỏ) để có chiều sâu.
+  // Vòng 19 (QA19): tốc độ −0.15 tuy đúng số gốc nhưng rút quá chậm ở tầm
+  // cuộn xem chỗ nối (cuộn 450px đuôi còn thò ~104px vào khối thông tin,
+  // 600px còn ~82px — mắt vẫn đọc là "đuôi dài nguyên"; chỉ tới ~900px
+  // mới còn ~37px mà lúc đó hero đã gần ra khỏi khung + mờ dần vì
+  // ScrollReveal). useScroll toàn trang VẪN chạy (thanh tiến trình mọc
+  // dài theo cuộn là bằng chứng) nên lỗi không phải nguồn scroll mà là
+  // độ rút. Sửa bằng range [900, −180]: y đi 0 → −180 khi scrollY đi
+  // 0 → 900 rồi giữ nguyên (clamp) — đuôi rút dứt khoát thành chấm nhỏ
+  // ngay khi chỗ nối vào khung và không bay đi xa khi cuộn tiếp. Phụng
+  // phải +0.08 / HOA +0.05 giữ nguyên dạng speed tuyến tính.
   // Vòng 17: KHÔNG parallax trong thumbnail thư viện (data-deco-thumbnail):
   // thumbnail là ảnh tĩnh thu nhỏ, phụng phải đứng yên ở vị trí scroll-top
   // như trang khách lúc chưa cuộn. Parallax chạy theo scroll của TRANG
@@ -136,7 +146,7 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
           (ParallaxLayer, tốc độ từ effects.parallax.left), không che chữ
           vì tên ở trên hàng dải và chữ khối THÔNG TIN căn giữa, cách đuôi
           ≥60px. */}
-      <ParallaxLayer speed={parallax?.left ?? -0.15} disabled={parallaxOff} className="pointer-events-none absolute left-[-18.6%] top-0 z-10 w-[47.5%]">
+      <ParallaxLayer range={[900, -180]} disabled={parallaxOff} className="pointer-events-none absolute left-[-18.6%] top-0 z-10 w-[47.5%]">
         <img
           src={deco.phuongLeft}
           alt="Phụng lớn bên trái"

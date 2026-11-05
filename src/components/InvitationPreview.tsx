@@ -199,15 +199,22 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
               className="font-display relative z-20 mt-[7%] w-fit text-left text-2xl uppercase leading-[1.11] sm:text-3xl"
               style={{ color: "#710001", fontWeight: 400, fontSize: "clamp(20px, 5.96cqw, 52px)", marginLeft: "12.3%" }}
             >
+              {/* Tên hero — StaggeredText chỉ mờ/nét dần (shift={false},
+                  once): KHÔNG dịch y để 2 dòng không xê/chồng nhau; margin
+                  của từng dòng đặt ở WRAPPER (itemStyles) vì marginTop trên
+                  span inline bên trong bị bỏ qua — đó là lý do QA19 thấy
+                  "THU AN"/"MINH QUÂN" dính nhau (dòng 2 mất mt 1.1% ~10px).
+                  Bố cục giữ đúng spec: leading 1.11, tên 1 ml 1.7%, tên 2
+                  ml 5.5% + mt 1.1%. */}
               <StaggeredText
                 disabled={!motion}
                 stagger={0.18}
+                shift={false}
+                once
                 className="block"
                 itemClassName="block whitespace-nowrap"
-                items={[
-                  <span key="bride" style={{ marginLeft: "1.7%" }}>{data.brideName}</span>,
-                  <span key="groom" style={{ marginLeft: "5.5%", marginTop: "1.1%" }}>{data.groomName}</span>,
-                ]}
+                itemStyles={[{ marginLeft: "1.7%" }, { marginLeft: "5.5%", marginTop: "1.1%" }]}
+                items={[data.brideName, data.groomName]}
               />
             </h2>
             <div className="relative z-0" style={{ marginTop: "6.2%" }}>
@@ -399,14 +406,16 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
         ) : (
           <>
             {data.photoUrl && (
-              <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} className="mx-auto mt-5 aspect-[4/3] w-full max-w-md overflow-hidden rounded-2xl">
-                <img
-                  src={data.photoUrl}
-                  alt={`Ảnh cưới của ${data.groomName} và ${data.brideName}`}
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              </KenBurns>
+              <div className="mx-auto mt-5 aspect-[4/3] w-full max-w-md overflow-hidden rounded-2xl">
+                <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12}>
+                  <img
+                    src={data.photoUrl}
+                    alt={`Ảnh cưới của ${data.groomName} và ${data.brideName}`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </KenBurns>
+              </div>
             )}
             <h2 className={`mt-6 ${fontClass} ${nameSize} font-bold leading-tight`} style={{ color: p.accent }}>
               {data.groomName} <span style={{ color: p.gold }}>&amp;</span> {data.brideName}
@@ -714,7 +723,7 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
       {/* Bụi vàng trôi khắp thiệp (chỉ trang khách, theo effects.ambient của
           mẫu; hạt nhỏ, mờ, không chặn chạm/đọc — xem §4h). */}
       {motion && fx.ambient && (
-        <FloatingAmbient count={fx.ambient.count ?? 12} colors={[p.gold, "#e8c87e", "#fff0e7"]} seed={data.templateId} className="z-30" />
+        <FloatingAmbient count={fx.ambient.count ?? 12} opacity={fx.ambient.opacity ?? 0.65} colors={[p.gold, "#e8c87e", "#fff0e7"]} seed={data.templateId} className="z-30" />
       )}
     </article>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useReducedMotion } from "framer-motion";
 import type { Template } from "@/lib/templates";
@@ -152,26 +153,34 @@ export default function TemplateCard({
   // TapBurst (spec §4h): chạm vào thẻ demo thì nổ một chùm hạt vàng nhỏ ngay
   // điểm chạm rồi mới mở hộp xem trước (300ms để kịp thấy vụ nổ). Giảm
   // chuyển động thì mở ngay, không nổ. Chỉ chạm nhẹ, không đổi bố cục thư viện.
+  // Bài học QA19: để vụ nổ TRONG thẻ (article overflow-hidden, z-40) thì hộp
+  // xem trước (fixed z-50, nền đen 60%) mở ra ở 300ms đã che mất nó, trong
+  // khi hạt cần 700ms mới bay hết — mắt chỉ thấy ~0. Sửa: portal ra
+  // document.body tại đúng tọa độ chạm TRÊN MÀN HÌNH (clientX/clientY),
+  // z-70 (trên cả hộp xem trước), hạt to/rộng hơn, sống tới khi bay xong
+  // (onDone) dù hộp đã mở.
   const [burst, setBurst] = useState<{ x: number; y: number; key: number } | null>(null);
   const handlePreview = (e: React.MouseEvent) => {
     if (reduce) {
       onPreview(template);
       return;
     }
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setBurst({ x: e.clientX - rect.left, y: e.clientY - rect.top, key: Date.now() });
+    setBurst({ x: e.clientX, y: e.clientY, key: Date.now() });
     window.setTimeout(() => onPreview(template), 300);
   };
+  const tapBurstOverlay = burst && typeof document !== "undefined" ? createPortal(
+    <div aria-hidden="true" className="pointer-events-none fixed z-[70]" style={{ left: burst.x, top: burst.y }}>
+      <BurstParticles key={burst.key} count={20} size={[5, 11]} duration={0.8} spread={130} onDone={() => setBurst(null)} />
+    </div>,
+    document.body
+  ) : null;
   return (
+    <>
+    {tapBurstOverlay}
     <article
       className="relative overflow-hidden rounded-2xl border shadow-sm transition hover:shadow-md"
       style={{ borderColor: template.decorationImages ? "#e8d5c0" : p.gold, background: p.card }}
     >
-      {burst && (
-        <div aria-hidden="true" className="pointer-events-none absolute z-40" style={{ left: burst.x, top: burst.y }}>
-          <BurstParticles key={burst.key} count={16} duration={0.7} spread={90} onDone={() => setBurst(null)} />
-        </div>
-      )}
       <button type="button" onClick={handlePreview} className="block w-full text-left" aria-label={`Xem trước mẫu ${template.name}`}>
         {template.decorationImages ? (
           <DecoThumbnail template={template} />
@@ -217,5 +226,6 @@ export default function TemplateCard({
         </div>
       </div>
     </article>
+    </>
   );
 }
