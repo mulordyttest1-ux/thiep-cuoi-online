@@ -73,7 +73,9 @@ export default function TemplatesPage() {
               <button type="button" onClick={() => setPreview(null)} className="rounded-full border px-3 py-1 text-sm" aria-label="Đóng xem trước">✕</button>
             </div>
             <p className="mb-3 text-sm text-[#5a4a48]">{preview.description} {preview.pattern}</p>
-            <InvitationPreview data={defaultInvitation(preview.id)} />
+            {/* Dialog cao tối đa 90vh nên deck thấp hơn (78vh) để vừa khung,
+                không tràn khỏi dialog. */}
+            <InvitationPreview data={defaultInvitation(preview.id)} deckHeightClass="h-[78vh]" />
             <Link href={`/tao-thiep?template=${preview.id}`} className="mt-4 block rounded-full bg-[#7a1f2b] py-3 text-center font-semibold text-white">
               Dùng mẫu này
             </Link>
