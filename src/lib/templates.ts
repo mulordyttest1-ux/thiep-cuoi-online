@@ -1,3 +1,5 @@
+import { hashSeed, mulberry32 } from "./seeded";
+
 export type TemplateStyle = "minimal" | "traditional" | "floral" | "luxury";
 
 export type TemplateMotif =
@@ -39,6 +41,20 @@ export interface TemplateDecorationImages {
   phuongRight: string; // Phụng Phải
 }
 
+// Bộ hiệu ứng của một mẫu — chọn từ thư viện src/components/effects (mỗi
+// hiệu ứng nhận thông số riêng, xem specs/song-phung-do.md §4h). Mẫu nào
+// không khai báo thì tự nhận một bộ khác nhau nhưng ổn định theo id
+// (defaultEffectsFor) để mỗi mẫu trông hơi khác nhau mà không cần cấu hình.
+export interface TemplateEffects {
+  burst?: { count?: number; colors?: string[]; duration?: number; spread?: number };
+  ambient?: { count?: number; colors?: string[]; speed?: number };
+  shimmer?: { duration?: number; intensity?: "soft" | "strong" };
+  kenBurns?: { duration?: number; scale?: number };
+  reveal?: { strength?: "subtle" | "standard" };
+  parallax?: { left?: number; right?: number; hoa?: number };
+  progressBar?: boolean;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -55,6 +71,7 @@ export interface Template {
   font: TemplateFont;
   envelope: string; // màu phong bì của mẫu
   paper: string; // tông giấy của mẫu
+  effects?: TemplateEffects; // bộ hiệu ứng của mẫu (không có = tự sinh theo id)
 }
 
 export const STYLE_LABELS: Record<TemplateStyle, string> = {
@@ -313,6 +330,18 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#710001",
     paper: "Giấy kem",
+    // Bộ hiệu ứng đầy đủ của thư viện (spec §4h): vụ nổ vàng khi mở phong
+    // bì, bụi vàng trôi, Hỷ/con dấu phát sáng, Ken Burns album, cross-dissolve
+    // khi cuộn, parallax phụng/hoa, thanh tiến trình.
+    effects: {
+      burst: { count: 30, duration: 1.0, spread: 170 },
+      ambient: { count: 14 },
+      shimmer: { duration: 3, intensity: "strong" },
+      kenBurns: { duration: 8, scale: 1.12 },
+      reveal: { strength: "standard" },
+      parallax: { left: -0.15, right: 0.08, hoa: 0.05 },
+      progressBar: true,
+    },
     // Same-origin proxy URLs (see src/app/api/songphung/[file]/route.ts).
     // Original source URLs, kept here for reference:
     // https://chungdoi.com/images/themes/songphung-red/Phuong%20line.webp
@@ -572,4 +601,29 @@ export const TEMPLATES: Template[] = [
 
 export function getTemplate(id: string): Template {
   return TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
+}
+
+// Bộ hiệu ứng mặc định cho mẫu không khai báo effects: sinh từ hash của id
+// nên mỗi mẫu nhận một combo khác nhau (mật độ bụi, có/không shimmer, độ
+// mạnh reveal, tốc độ parallax, thời lượng Ken Burns...) nhưng ỔN ĐỊNH —
+// cùng một mẫu luôn ra cùng một bộ, không xáo lại mỗi lần render.
+export function defaultEffectsFor(id: string): TemplateEffects {
+  const rand = mulberry32(hashSeed(id));
+  const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(rand() * arr.length)];
+  return {
+    burst: { count: 20 + Math.floor(rand() * 12), duration: 0.8 + rand() * 0.3 },
+    ambient: rand() < 0.6 ? { count: 8 + Math.floor(rand() * 8) } : undefined,
+    shimmer: rand() < 0.5 ? { duration: 2.6 + rand() * 1.4, intensity: pick(["soft", "strong"] as const) } : undefined,
+    kenBurns: { duration: 7 + rand() * 4, scale: 1.08 + rand() * 0.06 },
+    reveal: { strength: pick(["subtle", "standard"] as const) },
+    parallax: { left: -(0.1 + rand() * 0.08), right: 0.05 + rand() * 0.05, hoa: 0.03 + rand() * 0.04 },
+    progressBar: rand() < 0.8,
+  };
+}
+
+// Bộ hiệu ứng thực tế của một mẫu: dùng effects khai báo sẵn, nếu không có
+// thì sinh mặc định theo id.
+export function getTemplateEffects(id: string): TemplateEffects {
+  const t = getTemplate(id);
+  return t.effects ?? defaultEffectsFor(id);
 }
