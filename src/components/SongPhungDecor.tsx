@@ -57,6 +57,16 @@ export function SongPhungBand({ deco, small }: { deco: TemplateDecorationImages;
   useEffect(() => {
     const el = leftPhoenixRef.current;
     if (!el) return;
+    // Vòng 17: KHÔNG parallax trong thumbnail thư viện (data-deco-thumbnail,
+    // xem TemplateCard): thumbnail là ảnh tĩnh thu nhỏ, phụng phải đứng yên
+    // ở vị trí scroll-top như trang khách lúc chưa cuộn. Parallax chạy theo
+    // scroll của TRANG GALLERY là sai ở đây — thẻ ở giữa trang, scrollY
+    // ~1000–2000px kéo đuôi phụng trượt lên −150–−300px, lọt vào vùng tên
+    // hero và che/cắt mất chữ đầu dòng ("THU AN" → "U AN" QA16 thấy; chỉ
+    // xuất hiện ở thumbnail, trang khách ở scroll-top không bị). Tắt hẳn
+    // listener trong thumbnail; trang khách/editor/dialog preview giữ
+    // nguyên parallax.
+    if (el.closest("[data-deco-thumbnail]")) return;
     const update = () => {
       el.style.transform = `translateY(${window.scrollY * -0.15}px)`;
     };

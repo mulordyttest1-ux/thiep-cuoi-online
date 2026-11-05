@@ -33,7 +33,28 @@ const SP_HERO_ASPECT = "907 / 1187";
 // tụ sau 1 lần đo: tên đang ở y < 12 thì dời xuống đúng (12 − y), lần đo
 // sau y ≈ 12 nên không dời thêm. Chiều cao khung = đáy hero (đo thật) +
 // top inset hiện tại nên đáy cắt vẫn đúng vị trí cũ.
+// Vòng 17: QA16 đo rõ vết cắt ở BÊN TRÁI chứ không phải trên ("THU AN" →
+// "U AN", "MINH QUÂN" → "NH QUÂN" — mất T,H,M,I ở mép trái; đỉnh chữ còn
+// nguyên, top offset ~23px đã đủ) — đo dọc vòng 16 bỏ sót trục ngang.
+// Mở rộng cơ chế đo-thật sang TRỤC NGANG: đo mép TRÁI của h2 tên hero
+// (getBoundingClientRect, px màn hình đã tính scale) và dời bản xem trước
+// sang PHẢI thêm đúng phần thiếu cho tới khi mép trái tên cách mép khung
+// ≥ THUMB_LEFT_PAD (12px). Hai trục độc lập (top/left đều là offset
+// trước transform, dịch 1:1 ra px màn hình vì transform-origin top left)
+// nên hội tụ riêng từng trục như vòng 16. Chẩn đoán nguyên nhân cắt trái:
+// nghi phạm chính là parallax phụng trái (xem SongPhungDecor): trong
+// thumbnail nó chạy theo scroll của TRANG GALLERY — thẻ ở giữa trang,
+// scrollY ~1000–2000px kéo đuôi phụng trượt lên −150–−300px, lọt vào vùng
+// tên hero; vùng này chỉ xuất hiện trong thumbnail (trang khách ở
+// scroll-top thì đuôi còn ở dưới tên), đúng khớp QA16 chỉ thấy cắt ở
+// thumbnail mà không thấy ở trang khách. Sửa tận gốc: tắt hẳn parallax
+// trong thumbnail (data-deco-thumbnail, xem SongPhungDecor) để phụng đứng
+// yên ở vị trí scroll-top như trang khách lúc chưa cuộn; đo ngang chỉ là
+// lưới an toàn nếu còn lệch vị trí vì lý do khác. Dời phải tối đa ~vài
+// chục px màn hình, mép phải hero (hoa/phụng phải) có thể mất một vệt
+// nhỏ tương đương — chấp nhận được so với tên bị cắt.
 const THUMB_TOP_PAD = 12;
+const THUMB_LEFT_PAD = 12;
 
 function DecoThumbnail({ template }: { template: Template }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -41,6 +62,8 @@ function DecoThumbnail({ template }: { template: Template }) {
   const [heroH, setHeroH] = useState(0);
   const [topInset, setTopInset] = useState(6);
   const topInsetRef = useRef(6);
+  const [leftInset, setLeftInset] = useState(0);
+  const leftInsetRef = useRef(0);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -59,6 +82,15 @@ function DecoThumbnail({ template }: { template: Template }) {
             const next = topInsetRef.current + (THUMB_TOP_PAD - nameTop);
             topInsetRef.current = next;
             setTopInset(next);
+          }
+          // Vòng 17 — trục ngang: nếu mép trái tên sát/cắt ở mép trái
+          // khung thì dời bản xem trước sang phải thêm đúng phần thiếu,
+          // sao cho mép trái tên cách mép khung 12px.
+          const nameLeft = name.getBoundingClientRect().left - el.getBoundingClientRect().left;
+          if (nameLeft < THUMB_LEFT_PAD) {
+            const next = leftInsetRef.current + (THUMB_LEFT_PAD - nameLeft);
+            leftInsetRef.current = next;
+            setLeftInset(next);
           }
         }
       }
@@ -89,9 +121,11 @@ function DecoThumbnail({ template }: { template: Template }) {
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-0"
+        data-deco-thumbnail
+        className="pointer-events-none absolute"
         style={{
           top: topInset,
+          left: leftInset,
           width: SP_DESIGN_W,
           transform: scale > 0 ? `scale(${scale})` : undefined,
           transformOrigin: "top left",

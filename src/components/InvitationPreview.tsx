@@ -35,8 +35,13 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
   // (mẫu bản gốc: đón 17:30 / tiệc 18:00), màu dress code, bản đồ nhúng.
   const welcomeTime = deco ? minusMinutes(data.time, 30) : "";
   const dressColors = deco ? parseDressCode(data.dressCode) : [];
-  const mapEmbedUrl = deco
-    ? `https://www.google.com/maps?q=${encodeURIComponent(`${data.venue} ${data.address}`.trim())}&z=16&output=embed`
+  // Vòng 17: query embed CHỈ lấy địa chỉ (data.address) — query kèm tên
+  // địa điểm ("Trung tâm Tiệc cưới Sen Hồng 123 Đường Láng...") khiến
+  // Google match nhầm sang khu Hồ Tây/Thụy Khuê (có địa điểm tên Sen Hồng
+  // ở đó), không có ghim; địa chỉ thuần "123 Đường Láng, Đống Đa, Hà Nội"
+  // thì ghim đỏ đúng vị trí. Giữ z=16.
+  const mapEmbedUrl = deco && data.address?.trim()
+    ? `https://www.google.com/maps?q=${encodeURIComponent(data.address.trim())}&z=16&output=embed`
     : "";
   // Phần ngày có cấu trúc (thứ | số ngày | tháng, năm, ghi chú âm lịch) theo
   // đúng code bản gốc (vòng 10, spec §4): chỉ tính cho mẫu deco.
@@ -518,8 +523,14 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
                       // tươi" ở vòng 14 là sai, #c1272d sai theo. Đổi fill
                       // VỀ #710001, tim 30px trong ô ~52px (≈ 59% ô, gốc
                       // ~30px trong ô ~51px).
+                      // Vòng 17: tim vẫn nhỏ hơn gốc — QA16 đo chiều rộng
+                      // đỏ nhìn thấy chỉ ~23px: path tim Material trong
+                      // viewBox 24 chỉ chiếm ~83% chiều rộng hộp nên 30px
+                      // hộp ≈ 25px nhìn thấy. Đặt hộp 35px → nhìn thấy
+                      // ≈ 35 × 0.83 ≈ 29px (≈ 55% ô ~53px, gốc ~54%).
+                      // Giữ fill #710001 đặc, số trắng 15px extrabold.
                       <span key={i} className="relative flex aspect-square items-center justify-center">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[30px] w-[30px]" style={{ fill: "#710001" }}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[35px] w-[35px]" style={{ fill: "#710001" }}>
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                         </svg>
                         <span className="absolute inset-0 flex items-center justify-center text-[15px] font-extrabold" style={{ color: "#ffffff" }}>{c}</span>
@@ -609,21 +620,37 @@ export default function InvitationPreview({ data, guestName }: { data: Invitatio
             lệch ~150px so với giữa cột, bên phải trống lớn), giãn dòng
             space-y-7, giờ/nhãn 16px (trước 15px). Giữ nguyên thứ tự giờ
             | chấm | nhãn, đường kẻ chấm, nhãn italic serif.
+            Vòng 17: vòng 16 vẫn FAIL — chấm còn lệch ~210px so với giữa
+            cột (QA16 đo). Nguyên nhân hình học: [giờ 54px][chấm 24px]
+            [nhãn flex-1] trong hộp max-w-540 căn giữa → mép hộp ở
+            (872−540)/2 = 166px, chấm ở 166+66 = 232px của cột 872px,
+            lệch 436−232 = 204px so với giữa cột. Sửa tận gốc: bỏ max-w,
+            hàng thành flex full chiều rộng cột — [cột giờ flex-1, giờ
+            căn phải] | [chấm cố định 14px] | [cột nhãn flex-1]. Hai cột
+            flex-1 chia đều phần còn lại nên tâm chấm = đúng 50% chiều
+            rộng cột: cột 872px, padding 32px mỗi bên → section 808px,
+            mỗi cột (808−14)/2 = 397px, tâm chấm ở 32+397+7 = 436px =
+            872/2. Đường kẻ dọc chấm ở left calc(50%−1px) (viền 2px nên
+            tâm đường kẻ trùng tâm chấm), top/bottom 13px (= nửa chiều
+            cao hàng 26px, đúng tâm chấm đầu/cuối). Giãn dòng: hàng cao
+            26px (leading-[26px]) + space-y-11 (44px) = 70px tâm-tâm,
+            giờ/nhãn 17px. Giữ thứ tự giờ | chấm | nhãn, giờ serif
+            thường căn phải, nhãn italic serif.
             Tiêu đề gốc "LỊCH TRÌNH NGÀY CƯỚI" / "WEDDING DAY SCHEDULE". */}
         {deco && schedule.length > 0 && (
-          <section className="relative z-20 mx-auto mt-10 w-full max-w-[540px] text-left" aria-label={vi ? "Lịch trình ngày cưới" : "Wedding day schedule"}>
+          <section className="relative z-20 mx-auto mt-10 w-full text-left" aria-label={vi ? "Lịch trình ngày cưới" : "Wedding day schedule"}>
             <h3 className="font-display text-center text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
               {vi ? "LỊCH TRÌNH NGÀY CƯỚI" : "WEDDING DAY SCHEDULE"}
             </h3>
-            <ol className="relative mt-6 space-y-7">
-              <span aria-hidden="true" className="absolute bottom-[11px] left-[66px] top-[11px] border-l-2 border-dotted" style={{ borderColor: "#710001" }} />
+            <ol className="relative mt-6 space-y-11">
+              <span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: "#710001" }} />
               {schedule.map((s, i) => (
-                <li key={i} className="relative flex items-baseline">
-                  <span className="w-[54px] shrink-0 text-right font-eb-garamond text-[16px]" style={{ color: "#710001" }}>{s.time}</span>
-                  <span className="flex w-6 shrink-0 items-center justify-center self-center">
+                <li key={i} className="relative flex items-baseline leading-[26px]">
+                  <span className="min-w-0 flex-1 pr-4 text-right font-eb-garamond text-[17px]" style={{ color: "#710001" }}>{s.time}</span>
+                  <span className="flex w-[14px] shrink-0 items-center justify-center self-center">
                     <span className="block h-3 w-3 rounded-full" style={{ background: "#710001" }} />
                   </span>
-                  <span className="min-w-0 flex-1 font-eb-garamond text-[16px] italic" style={{ color: "#710001" }}>{s.label}</span>
+                  <span className="min-w-0 flex-1 pl-4 font-eb-garamond text-[17px] italic" style={{ color: "#710001" }}>{s.label}</span>
                 </li>
               ))}
             </ol>
