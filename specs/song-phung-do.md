@@ -249,6 +249,69 @@ gallery `Rq`, rồi section tiệc `zp` + bản đồ `ie`).
 - **Thumbnail cắt TRÁI (không phải trên):** QA16 đo rõ "THU AN"→"U AN", "MINH QUÂN"→"NH QUÂN" (mất T,H,M,I ở mép trái; đỉnh chữ còn nguyên, top offset ~23px đã đủ) — đo dọc vòng 16 bỏ sót trục ngang. Vòng 17: (1) mở rộng đo-thật sang trục ngang trong DecoThumbnail — đo mép trái h2 bằng getBoundingClientRect và dời bản xem trước sang phải cho tới khi mép trái tên cách mép khung ≥12px (giữ mép trên ≥12px); (2) tắt hẳn parallax phụng trái trong thumbnail (data-deco-thumbnail): parallax chạy theo scroll trang gallery là sai cho ảnh tĩnh — thẻ ở giữa trang, scrollY lớn kéo đuôi phụng trượt lên −150–−300px, lọt vào vùng tên hero. Đây là nghi phạm chính của vết cắt trái (chỉ xuất hiện ở thumbnail, trang khách ở scroll-top không bị).
 - **Tim lịch 35px:** path tim Material trong viewBox 24 chỉ chiếm ~83% chiều rộng hộp nên 30px hộp ≈ 25px nhìn thấy (QA16 đo ~23px). Vòng 17: hộp 35px → nhìn thấy ≈ 35 × 0.83 ≈ 29px (≈ 55% ô ~53px, gốc ~54%). Giữ fill #710001 đặc, số trắng 15px extrabold, lịch max-w 388px + khung viền bo tròn.
 
+## 4g. Bổ sung — slide deck điện ảnh (thay cột cuộn dài)
+
+Quyết định của chủ thương hiệu 2026-11-05 15:24: trang thiệp "chỉ scroll
+nhìn chán quá" — đổi sang slide deck điện ảnh, không dùng scroll làm điều
+hướng. Hiệu ứng lấy từ thư viện cộng đồng, không tự viết tay (chính sách
+hiệu ứng 2026-11-05): **Swiper v12** (slide/fade/coverflow/autoplay/
+pagination/keyboard/touch) + **Framer Motion** (hiện chữ stagger), Ken
+Burns bằng CSS keyframes (thư viện không có sẵn hiệu ứng này cho ảnh tĩnh).
+
+- **Cấu trúc 7 màn hình, đúng thứ tự (nội dung cũ giữ nguyên, không bỏ gì):**
+  1. Phong bì — màn hình mở đầu sẵn có ở `thiep/[id]/page.tsx`, bấm "Mở
+     thiệp" thì vào deck (phong bì KHÔNG nằm trong Swiper, vẫn là cổng vào).
+  2. Hero — tên lệch trái, dải đỏ + chữ Hỷ, phụng hai bên, hoa (số đo cũ).
+  3. Thông tin lễ cưới — cha mẹ, tên lớn, hàng ngày + âm lịch.
+  4. Album — carousel coverflow CÓ SẴN của Swiper (thay coverflow CSS 3D
+     tự viết tay vòng 12–13): ảnh giữa 300×450 (2:3), ảnh kề nghiêng 38°,
+     depth 160; ảnh đang xem có Ken Burns (zoom 1→1.08, 6s, đổi hướng
+     pan theo chẵn/lẻ); Swiper con lồng trong deck dọc (`nested: true`).
+  5. Tiệc + địa điểm — nhãn, cặp ĐÓN KHÁCH/KHAI TIỆC, hàng ngày, lịch
+     tháng tim đỏ đô, tên địa điểm nghiêng serif, bản đồ nhúng z=16.
+  6. Dress code — 3 màu mẫu.
+  7. Lịch trình — timeline giờ | chấm | nhãn, tâm chấm 50% cột.
+- **Deck (Swiper, `src/components/InvitationDeck.tsx`):** dọc, 1 slide/lần,
+  hiệu ứng fade + crossFade 700ms; cột thiệp giữ ~872px trong mỗi slide;
+  slide cao 100dvh (trang khách), editor `h-[calc(100dvh-6rem)]` (cột xem
+  trước dính top-24), dialog thư viện `h-[78vh]` (dialog cao tối đa 90vh).
+  Nền giấy + vân NENGIAY phủ toàn deck; đơn vị cqw trong slide tính theo
+  chiều rộng deck (`containerType: inline-size` ở khung deck).
+- **Hiệu ứng vào slide (Framer Motion):** tên hero hiện từng dòng (cô dâu
+  rồi chú rể, stagger 0.18s, mờ dần + nổi lên); các mục còn lại mờ dần +
+  nổi lên theo từng khối (delay 0–0.3s); hàng lịch trình và màu dress code
+  stagger từng hàng/màu. Slide không active ở trạng thái ẩn, vào lại thì
+  chạy lại hiệu ứng.
+- **Điều hướng:** chấm dọc mép TRÁI (Swiper pagination, clickable) +
+  thanh tiến trình mỏng 3px trên cùng + cụm nút dưới giữa (lùi / phát-dừng
+  / số slide / tới) + vuốt + phím mũi tên (Keyboard module; Swiper tự bỏ
+  qua phím khi đang gõ trong ô nhập). Số hiển thị tính cả phong bì: Hero
+  là "2 / 7". Tự chạy TẮT mặc định (Swiper Autoplay 6s/slide, dừng ở slide
+  cuối, dừng khi người dùng tự vuốt/bấm); nút phát/tạm dừng gọi
+  `autoplay.start()/stop()`. `touchReleaseOnEdges` để vuốt qua mép cuối
+  deck thì cuộn được trang (tới dòng credit / QR mừng cưới bên dưới).
+- **Slide Tiệc dài hơn màn hình điện thoại** (~1200px nội dung): nội dung
+  tự cuộn trong slide (`swiper-no-swiping` — vuốt dọc ở slide này cuộn
+  nội dung thay vì đổi slide; đổi slide bằng chấm/nút). Các slide khác
+  vuốt dọc để đổi slide. Bản đồ và lịch vẫn dùng được trong slide cuộn.
+- **prefers-reduced-motion:** chuyển slide tức thì (speed 0), tắt Ken
+  Burns + hiệu ứng bay của Hỷ phong bì, ẩn nút tự chạy, hiệu ứng chữ hiện
+  ngay không chuyển động.
+- **Dùng chung section (`src/components/InvitationSections.tsx`):** 6
+  section deco (Hero/Info/Album/Party/DressCode/Schedule) dùng cho cả deck
+  và bố cục dọc tĩnh — một nguồn sự thật, không lệch nhau. Bố cục tĩnh chỉ
+  còn dùng cho thumbnail thư viện (TemplateCard, hero only, KHÔNG đổi) —
+  InvitationPreview tự nhận biết qua `closest("[data-deco-thumbnail]")`
+  sau mount rồi đổi sang tĩnh (lần render đầu là deck, thumbnail đang ẩn
+  nên không thấy nháy). Mẫu không-deco giữ bố cục dọc tĩnh như cũ (không
+  deck). Editor preview và dialog xem trước đều hiện deck.
+- **Giữ nguyên:** decode `?d=` (trang khách ưu tiên `?d=` trước
+  localStorage), header/footer ẩn ở `/thiep/*`, dòng credit "Thiệp được
+  tạo bằng Thiệp Đôi", không RSVP / sổ lời chúc / thanh toán, không chuỗi
+  cấm. Ảnh trang trí vẫn qua proxy `/api/songphung/` (đã kiểm chứng 200,
+  đúng dung lượng). Khung chung + hiệu ứng tái sử dụng cho mẫu sau: mẫu
+  mới chỉ đổi section/màu/số đo, deck và điều hướng dùng lại nguyên.
+
 ## 5. Không tìm được trong file đã tải (không bịa)
 
 - Bảng đăng ký templateId "double_phoenix_red" → component nào: không nằm trong các chunk
