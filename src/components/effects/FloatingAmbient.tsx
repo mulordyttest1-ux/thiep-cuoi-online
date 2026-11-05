@@ -34,14 +34,15 @@ export function FloatingAmbient({
 }: FloatingAmbientProps) {
   const motes = useMemo<Mote[]>(() => {
     const rand = mulberry32(typeof seed === "number" ? seed : hashSeed(seed));
-    return Array.from({ length: count }, () => ({
+    return Array.from({ length: count }, (_, i) => ({
       left: rand() * 100,
-      // Rải khắp CHIỀU CAO bài thiệp (0–100%), không bắt đầu từ 15% nữa:
-      // trước đây hero (0–18% chiều cao) gần như không có hạt nào nên mắt
-      // thấy "không có bụi vàng" dù component đã mount. Hạt to hơn
-      // (5–10px thay vì 3–7px) để vàng trên nền kem nhìn rõ mà vẫn nhẹ.
-      top: rand() * 100,
-      size: 5 + rand() * 5,
+      // 30% đầu hạt dành RIÊNG cho dải hero (0–16% chiều cao): QA20 thấy
+      // hero không có hạt nào vì 22 hạt rải đều trên ~5000px, mỗi viewport
+      // chỉ ~4 hạt mà 1/3 trong số đó màu kem trên nền kem. Hạt to hơn
+      // (8–16px thay vì 5–10px) + phát sáng nhẹ để vàng trên nền kem
+      // nhìn rõ mà vẫn nhẹ, không át chữ.
+      top: i < Math.ceil(count * 0.3) ? rand() * 16 : rand() * 100,
+      size: 8 + rand() * 8,
       color: colors[Math.floor(rand() * colors.length)],
       duration: 8 + rand() * 8,
       delay: -rand() * 14, // delay âm: đã bay giữa chừng ngay khi mở trang
@@ -63,6 +64,9 @@ export function FloatingAmbient({
             width: m.size,
             height: m.petal ? m.size * 1.7 : m.size,
             background: m.color,
+            // Hào quang vàng nhẹ: hạt vàng trên nền kem cần phát sáng mới
+            // nhìn thấy rõ, nếu không chỉ là chấm mờ (QA20).
+            boxShadow: `0 0 8px 2px ${m.color}`,
             borderRadius: "50%",
             ["--amb-duration" as string]: `${m.duration}s`,
             ["--amb-dx" as string]: `${m.dx}px`,
