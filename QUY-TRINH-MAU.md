@@ -1,7 +1,8 @@
 # Quy trình làm mẫu thiệp — bản nâng cấp (sau 5 vòng Song Phụng Đỏ)
 
 Mục tiêu: mỗi mẫu còn lại làm NHANH và CHÍNH XÁC ngay từ đầu, thay vì sửa đi
-sửa lại nhiều vòng như Song Phụng Đỏ (5 vòng QA mới gần giống).
+sửa lại nhiều vòng như Song Phụng Đỏ (17 vòng QA mới gần giống — xem bài học
+ở dưới và quy định mới ở mục Tiêu chí "đạt").
 
 ## Bài học rút ra (vì sao lần trước lâu)
 
@@ -55,6 +56,17 @@ sửa lại nhiều vòng như Song Phụng Đỏ (5 vòng QA mới gần giốn
   (không đoán), không sửa mò.
 
 ## Tiêu chí "đạt" (ghi rõ để khỏi tranh cãi)
+
+### Quy định mới 2026-11-05 (quyết định của chị, áp dụng cho Song Phụng Đỏ
+### và mọi mẫu sau — thay cho yêu cầu "giống hệt" trước đây)
+- **Giữ khung chung + hiệu ứng, tái sử dụng.** Khung chung (phong bì, tên,
+  lịch, album, tiệc, lịch trình) và hiệu ứng đã làm xong một lần thì mẫu sau
+  dùng lại, chỉ đổi họa tiết/màu/số đo.
+- **Không cần giống hệt — gần giống là được.** Lệch tọa độ một chút, lệch
+  font một chút thì vẫn đạt.
+- **Không được sai hẳn về concept, không được lỗi.** Chữ bị cắt mất, bản đồ
+  sai khu vực, tim rỗng/không đọc được số, sai thứ tự/sai cấu trúc bố cục,
+  thiếu mục, vỡ layout — vẫn là CHƯA đạt.
 - Tên: đúng vị trí (trái/giữa), đúng số dòng, đúng độ đậm, không dấu & (trừ
   phong bì).
 - Phụng/hoa: đúng vị trí, đúng tầm cao (đuôi phụng qua dải tới đâu), không
@@ -73,7 +85,8 @@ sửa lại nhiều vòng như Song Phụng Đỏ (5 vòng QA mới gần giốn
   mỗi mẫu).
 
 ## Thứ tự làm các mẫu còn lại
-- Làm xong Song Phụng Đỏ trước (đang ở vòng 6: chờ số thật + thẻ thư viện).
+- Làm xong Song Phụng Đỏ trước (đang ở vòng 17, kiểm tra theo tiêu chí mới
+  ở trên).
 - Mẫu tiếp theo ưu tiên: Nhật Bình Đỏ (mẫu truyền thống, chị đã nhắc tới).
 - Mỗi mẫu đi hết 5 bước mới sang mẫu sau; không làm nhiều mẫu cùng lúc để
   khỏi lẫn số liệu.

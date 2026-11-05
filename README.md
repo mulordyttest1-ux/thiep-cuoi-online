@@ -4,9 +4,9 @@
 (project Vercel `chung-doi`; link cũ `thiep-cuoi-online-mulordyttest1-ux.vercel.app`
 vẫn mở được, chưa gỡ. Bảo vệ SSO của project đang đặt ở chế độ "preview" nên trang
 production mở công khai được. Thư mục code trên máy vẫn tên `thiep-cuoi-online`, chỉ
-tên project/domain trên Vercel là `chung-doi`. Bản deploy hiện tại đẩy code trực tiếp
-lên Vercel, chưa gắn repo GitHub — muốn deploy lại bằng git thì làm theo mục
-"Deploy lên Vercel" bên dưới.)
+tên project/domain trên Vercel là `chung-doi`. Code đã gắn repo GitHub riêng
+**mulordyttest1-ux/thiep-cuoi-online** (public, tách riêng với các project khác),
+Vercel tự deploy mỗi lần push lên nhánh `main` — không cần đẩy file tay nữa.
 
 Thiệp Đôi là trang thiệp cưới online: chọn một mẫu thiệp, điền thông tin cặp đôi và
 ngày cưới, rồi chia sẻ link riêng cho từng khách trong một trang thiệp duy nhất.
@@ -49,6 +49,22 @@ font Playfair Display + Be Vietnam Pro qua `next/font/google`, màu kem `#fdf8f1
 đỏ đô `#7a1f2b`, vàng gold `#c9a86a`. Ảnh album dùng thẻ `<img>` trỏ tới
 `images.unsplash.com` (ảnh cưới công khai) với `loading="lazy"`; `next.config.mjs` cũng
 cho phép `images.unsplash.com` nếu sau này chuyển sang `next/image`.
+
+## Mẫu Song Phụng Đỏ — ghi chú độ giống bản gốc
+
+- Mẫu này làm theo số đo thật trích từ trang demo gốc của chính chủ (file ghi
+  chép `specs/song-phung-do.md`): tên lệch trái, dải đỏ + chữ Hỷ, phụng hai bên,
+  lịch trình dạng timeline có chấm ở giữa, lịch tháng có tim đỏ đô.
+- Ảnh trang trí gốc của mẫu (phụng, hoa, chữ Hỷ, nền giấy) được phục vụ qua
+  route cùng nguồn `src/app/api/songphung/[file]/route.ts` (danh sách cho phép
+  cố định; khi lấy từ trang gốc phải gửi đúng User-Agent trình duyệt).
+- **Kiểm tra đạt 2026-11-05 (vòng 17):** phong bì, hero, khối thông tin lễ cưới,
+  album coverflow, phần tiệc + bản đồ có ghim đúng địa chỉ, dress code, lịch trình
+  căn giữa, tim lịch, thẻ thư viện — tất cả đã đối chiếu với bản gốc và đạt.
+- Tiêu chí đạt hiện tại (quyết định của chủ thương hiệu 2026-11-05): giữ khung
+  chung + hiệu ứng để tái sử dụng; không cần giống hệt — gần giống là được,
+  lệch tọa độ/font một chút vẫn đạt; nhưng không được sai hẳn về ý tưởng và
+  không được lỗi. Xem `QUY-TRINH-MAU.md`.
 
 ## Cấu trúc thư mục
 
@@ -106,6 +122,5 @@ chưa bắt buộc — hiện code không gọi Supabase.
 - Chưa có Supabase: muốn đồng bộ đa thiết bị cần triển khai backend + bảng dữ liệu thật
   (bước tiếp theo, không phải chỉ điền key).
 - Ảnh tải lên lưu dạng dataURL trong localStorage nên bị giới hạn dung lượng trình duyệt.
-- Bản deploy hiện tại chưa gắn GitHub nên mỗi lần cập nhật code cần deploy lại bằng
-  cùng cách đẩy file, hoặc chuyển sang gắn repo GitHub theo hướng dẫn ở trên rồi để
-  Vercel tự deploy mỗi lần push.
+- Đã gắn GitHub: push lên nhánh `main` của repo `mulordyttest1-ux/thiep-cuoi-online`
+  là Vercel tự deploy bản production mới.
