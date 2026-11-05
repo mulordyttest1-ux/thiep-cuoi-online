@@ -249,6 +249,75 @@ gallery `Rq`, rồi section tiệc `zp` + bản đồ `ie`).
 - **Thumbnail cắt TRÁI (không phải trên):** QA16 đo rõ "THU AN"→"U AN", "MINH QUÂN"→"NH QUÂN" (mất T,H,M,I ở mép trái; đỉnh chữ còn nguyên, top offset ~23px đã đủ) — đo dọc vòng 16 bỏ sót trục ngang. Vòng 17: (1) mở rộng đo-thật sang trục ngang trong DecoThumbnail — đo mép trái h2 bằng getBoundingClientRect và dời bản xem trước sang phải cho tới khi mép trái tên cách mép khung ≥12px (giữ mép trên ≥12px); (2) tắt hẳn parallax phụng trái trong thumbnail (data-deco-thumbnail): parallax chạy theo scroll trang gallery là sai cho ảnh tĩnh — thẻ ở giữa trang, scrollY lớn kéo đuôi phụng trượt lên −150–−300px, lọt vào vùng tên hero. Đây là nghi phạm chính của vết cắt trái (chỉ xuất hiện ở thumbnail, trang khách ở scroll-top không bị).
 - **Tim lịch 35px:** path tim Material trong viewBox 24 chỉ chiếm ~83% chiều rộng hộp nên 30px hộp ≈ 25px nhìn thấy (QA16 đo ~23px). Vòng 17: hộp 35px → nhìn thấy ≈ 35 × 0.83 ≈ 29px (≈ 55% ô ~53px, gốc ~54%). Giữ fill #710001 đặc, số trắng 15px extrabold, lịch max-w 388px + khung viền bo tròn.
 
+## 4h. Thư viện hiệu ứng + cuộn điện ảnh trên 1 trang dài (2026-11-05)
+
+Bối cảnh: bản slide deck 7 màn hình (vòng 18) bị chủ từ chối — "quá xấu,
+không mượt mà, scroll không đi". Hướng mới (chủ nói): TikTok-style, chuyển
+cảnh video mượt trên MỘT TRANG DÀI, không tách slide. Trang thiệp vẫn là
+một cột dài (phong bì → hero → thông tin → album → tiệc → bản đồ → dress
+code → lịch trình); cuộn phải luôn chạy, không bao giờ nhốt cuộn trong
+khung 100dvh như deck.
+
+### Thư viện hiệu ứng dùng chung — src/components/effects/
+Làm một lần, mọi mẫu remix lại (mỗi mẫu chọn hiệu ứng + chỉnh thông số qua
+props; không có code riêng theo mẫu bên trong thư viện). Tất cả đều nhẹ
+(transform/opacity, 60fps), tinh tế, tôn trọng prefers-reduced-motion.
+
+- **SmoothScroll** (Lenis, `lenis/react`): bọc cuộn gốc — thanh cuộn, phím,
+  sticky vẫn chạy như thường, chỉ thêm độ trượt (lerp 0.09). Chỉ trang
+  khách (/thiep/*), không dùng ở editor/thumbnail.
+- **ScrollReveal**: cross-dissolve theo vị trí cuộn (useScroll với ref của
+  section): vào thì mờ dần + scale 0.96→1 + nét dần từ blur 6px; ra thì mờ
+  một phần (0.55 standard / 0.75 subtle, không mờ hẳn). Ngưỡng thoát
+  "end 0" để section cuối không bị mờ khi cuộn tới đáy. Props: strength.
+- **ParallaxLayer**: parallax theo scrollY toàn trang (useScroll/
+  useTransform), tốc độ qua props. Có chặn thumbnail
+  (useInsideThumbnail — tắt hẳn trong [data-deco-thumbnail], bài học vòng 17).
+- **StaggeredText**: chữ hiện dần từng dòng/từng từ khi vào khung nhìn
+  (whileInView, once: false để chạy lại khi cuộn vào). Props: items, stagger, delay.
+- **KenBurns**: zoom/pan chậm trên ảnh tĩnh (CSS keyframes, hướng in/out/
+  pan-left/pan-right). Props: duration, scale, direction.
+- **BurstParticles**: vụ nổ hạt vàng/cánh hoa (Framer Motion) — mở phong bì
+  và chạm thẻ demo. Props: count, colors, size, duration, spread, seed, onDone.
+- **FloatingAmbient**: bụi vàng/cánh hoa trôi nhẹ khắp trang (CSS animation,
+  vị trí ổn định theo seed). Props: count, colors, seed, opacity.
+- **Shimmer**: ánh kim/phát sáng nhẹ (CSS drop-shadow + brightness) — chữ Hỷ,
+  con dấu phong bì. Props: duration, intensity (soft/strong).
+- **ScrollProgress**: thanh tiến trình mỏng trên cùng trang (useScroll +
+  useSpring scaleX). Props: color, height.
+
+### Gán hiệu ứng theo mẫu — src/lib/templates.ts
+- Trường `effects?: TemplateEffects` trên mỗi mẫu (burst/ambient/shimmer/
+  kenBurns/reveal/parallax/progressBar + thông số). `getTemplateEffects(id)`
+  trả effects khai báo, không có thì `defaultEffectsFor(id)` sinh từ hash
+  của id (mulberry32, src/lib/seeded.ts) — mỗi mẫu một combo khác nhau
+  nhưng ổn định, không xáo lại mỗi lần render.
+- **Song Phụng Đỏ (bộ đầy đủ):** burst 30 hạt / 1.0s / spread 170; ambient
+  14 hạt; shimmer strong 3s; Ken Burns 8s scale 1.12; reveal standard;
+  parallax trái −0.15 / phải +0.08 / hoa +0.05; progress bar bật.
+- Mẫu không-deco: bộ mặc định theo id (reveal + progress bar + Ken Burns
+  ảnh + ambient/shimmer theo tỉ lệ) — vẫn chạy, không vỡ bố cục.
+
+### Trang khách — những gì chạy khi mở thiệp
+- **Vụ nổ phong bì:** chạm "Mở thiệp" → 30 hạt vàng bay ra từ giữa màn hình
+  + phong bì nở nhẹ rồi phai (scale 1→1.04→0.94, opacity→0, 650ms) rồi mới
+  hiện thiệp; hạt bay tiếp 350ms trên nền thiệp mới. Giảm chuyển động: mở ngay.
+- **Cuộn mượt Lenis** (lerp 0.09) + **thanh tiến trình** #710001 trên cùng.
+- **Cross-dissolve** từng section (hero, thông tin, album, tiệc, bản đồ,
+  dress code, lịch trình) + **chữ hiện dần** (tên hero 2 dòng; tiêu đề các
+  section từng từ).
+- **Parallax:** phụng trái −0.15 (đuôi rút lên khi cuộn, giữ đúng hành vi
+  vòng 13), phụng phải +0.08, hoa HOA +0.05.
+- **Ken Burns** ảnh album đang ở giữa (hướng đổi theo ảnh) + ảnh mẫu
+  không-deco. Coverflow album giữ nguyên code tay vòng 12–14 (đã đạt QA17).
+- **Bụi vàng trôi** trong article (z-30, pointer-events-none, hạt 3–7px,
+  mờ 0.45) + **Hỷ shimmer** + **con dấu phong bì phát sáng**.
+- Tất cả hiệu ứng trong InvitationPreview chỉ bật khi prop `motion` (trang
+  khách truyền motion) — editor/thumbnail/dialog preview render tĩnh như
+  QA17, không đổi.
+- **TapBurst (thư viện):** chạm thẻ demo → vụ nổ nhỏ 16 hạt tại điểm chạm,
+  300ms sau mới mở hộp xem trước. Giảm chuyển động: mở ngay.
+
 ## 5. Không tìm được trong file đã tải (không bịa)
 
 - Bảng đăng ký templateId "double_phoenix_red" → component nào: không nằm trong các chunk
