@@ -723,7 +723,7 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
       {/* Bụi vàng trôi khắp thiệp (chỉ trang khách, theo effects.ambient của
           mẫu; hạt nhỏ, mờ, không chặn chạm/đọc — xem §4h). */}
       {motion && fx.ambient && (
-        <FloatingAmbient count={fx.ambient.count ?? 12} opacity={fx.ambient.opacity ?? 0.65} colors={[p.gold, "#e8c87e", "#fff0e7"]} seed={data.templateId} className="z-30" />
+        <FloatingAmbient count={fx.ambient.count ?? 12} opacity={fx.ambient.opacity ?? 0.65} colors={["#c9a86a", "#e8c87e", "#f6d365", "#d4af37"]} seed={data.templateId} className="z-30" />
       )}
     </article>
     </div>
