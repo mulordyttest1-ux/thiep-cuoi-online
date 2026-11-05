@@ -3,10 +3,12 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation, formatDateVi } from "@/lib/types";
-import { getTemplate, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
+import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
 import TemplateMotif from "@/components/TemplateMotif";
+import { BurstParticles, ScrollProgress, Shimmer, SmoothScroll } from "@/components/effects";
 import { decodeShare, loadInvitationById, vietQrUrl } from "@/lib/store";
 import InvitationPreview from "@/components/InvitationPreview";
 
@@ -21,6 +23,38 @@ function CardInner() {
   // dưới ảnh như trước — cùng lỗi viền như chữ Hỷ ở dải).
   const [sealFailed, setSealFailed] = useState(false);
   const guestName = search.get("guest") ?? undefined;
+  const reduce = useReducedMotion();
+  // Vụ nổ khi mở phong bì (spec §4h): hạt vàng bay ra + phong bì nở/phai
+  // dần rồi mới hiện thiệp — khoảnh khắc "wow" đầu tiên. Giảm chuyển động
+  // thì mở ngay, không nổ.
+  const [bursting, setBursting] = useState(false);
+  const [burstKey, setBurstKey] = useState(0);
+  const fx = getTemplateEffects(data?.templateId ?? "");
+  const handleOpen = () => {
+    if (reduce) {
+      setOpened(true);
+      return;
+    }
+    setBurstKey((k) => k + 1);
+    setBursting(true);
+    window.setTimeout(() => setOpened(true), 650);
+    window.setTimeout(() => setBursting(false), 1100);
+  };
+  // Lớp phủ vụ nổ: cố định giữa màn hình, không chặn chạm, sống qua cả lúc
+  // phong bì đổi sang thiệp (render ở cả 2 nhánh) để hạt bay hết đà.
+  const burstOverlay = bursting ? (
+    <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center">
+      <div className="relative">
+        <BurstParticles
+          key={burstKey}
+          count={fx.burst?.count ?? 26}
+          colors={["#c9a86a", "#e8c87e", "#f6d365", "#fff0e7", "#710001"]}
+          duration={fx.burst?.duration ?? 0.9}
+          spread={fx.burst?.spread ?? 160}
+        />
+      </div>
+    </div>
+  ) : null;
 
   useEffect(() => {
     try {
@@ -96,6 +130,7 @@ function CardInner() {
         className={`relative flex items-center justify-center px-4 py-16 ${deco ? "min-h-screen overflow-hidden" : "min-h-[80vh]"}`}
         style={deco ? { background: "linear-gradient(to bottom right, #710001, #5a0001, #450001)" } : undefined}
       >
+        {burstOverlay}
         {/* Chữ Hỷ mờ bay trên nền phong bì (bản gốc: gradient đỏ + Hỷ mờ). */}
         {deco && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
@@ -105,12 +140,14 @@ function CardInner() {
             <span className="envelope-xi-float absolute bottom-[26%] right-[6%] text-5xl font-bold" style={{ color: "#fff0e7", opacity: 0.08, animationDelay: "2s" }}>囍</span>
           </div>
         )}
-        <button
+        <motion.button
           type="button"
-          onClick={() => setOpened(true)}
-          className={`relative w-full overflow-hidden rounded-3xl border-2 text-center shadow-xl transition hover:shadow-2xl ${deco ? "max-w-[600px]" : "max-w-md"}`}
+          onClick={handleOpen}
+          className={`relative w-full overflow-hidden rounded-3xl border-2 text-center shadow-xl transition-shadow hover:shadow-2xl ${deco ? "max-w-[600px]" : "max-w-md"}`}
           style={{ borderColor: tpl.envelope, background: deco ? "#710001" : p.card, padding: deco ? 12 : 0 }}
           aria-label={`Mở thiệp cưới của ${data.groomName} và ${data.brideName}`}
+          animate={bursting ? { scale: [1, 1.04, 0.94], opacity: [1, 1, 0], rotate: [0, -1, 1.5] } : { scale: 1, opacity: 1, rotate: 0 }}
+          transition={{ duration: 0.65, ease: "easeInOut" }}
         >
           {!deco && <div className="h-3 w-full" style={{ background: tpl.envelope }} aria-hidden="true" />}
           {/* Phụng + hoa phong bì theo đúng số liệu bản gốc (mục 2 spec):
@@ -129,16 +166,18 @@ function CardInner() {
             {/* Con dấu Hỷ: tròn 56px, tâm ở top 50px của thẻ (chồng lên mép
                 trên thẻ), gradient tỏa tròn #710001 — theo đúng spec. */}
             {deco && (
-              <span
-                className="absolute left-1/2 top-[50px] z-30 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full"
-                style={{ background: "radial-gradient(circle at 30% 30%, #710001, rgb(83,0,0))" }}
-              >
-                {sealFailed ? (
-                  <span className="font-bold text-[#fff0e7]">囍</span>
-                ) : (
-                  <img src={deco.chuHy} alt="Chữ Hỷ" loading="eager" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; setSealFailed(true); }} className="h-9 w-9 object-contain" />
-                )}
-              </span>
+              <Shimmer disabled={!!reduce} duration={2.4} intensity="strong" className="absolute left-1/2 top-[50px] z-30 -translate-x-1/2 -translate-y-1/2">
+                <span
+                  className="flex h-14 w-14 items-center justify-center rounded-full"
+                  style={{ background: "radial-gradient(circle at 30% 30%, #710001, rgb(83,0,0))" }}
+                >
+                  {sealFailed ? (
+                    <span className="font-bold text-[#fff0e7]">囍</span>
+                  ) : (
+                    <img src={deco.chuHy} alt="Chữ Hỷ" loading="eager" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; setSealFailed(true); }} className="h-9 w-9 object-contain" />
+                  )}
+                </span>
+              </Shimmer>
             )}
             <div className="relative">
               {/* Phong bì bản gốc KHÔNG có nhãn "THIỆP MỜI CƯỚI" và KHÔNG có
@@ -207,14 +246,17 @@ function CardInner() {
               )}
             </div>
           </div>
-        </button>
+        </motion.button>
       </div>
     );
   }
 
   return (
-    <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
-      <InvitationPreview data={data} guestName={guestName} />
+    <SmoothScroll lerp={0.09}>
+      <ScrollProgress color="#710001" disabled={fx.progressBar === false} />
+      <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
+        {burstOverlay}
+        <InvitationPreview data={data} guestName={guestName} motion />
 
       {/* Album — mẫu deco đã có album ngay sau khối THÔNG TIN trong
           InvitationPreview nên ẩn section riêng này để không trùng (vòng 11). */}
@@ -246,14 +288,17 @@ function CardInner() {
         Thiệp được tạo bằng Thiệp Đôi.{" "}
         <Link href="/" className="underline">Tạo thiệp của riêng bạn</Link>
       </p>
-    </div>
+      </div>
+    </SmoothScroll>
   );
 }
 
 export default function CardPage() {
   return (
-    <Suspense fallback={<p className="mx-auto max-w-3xl px-4 py-16 text-center">Đang mở thiệp…</p>}>
-      <CardInner />
-    </Suspense>
+    <MotionConfig reducedMotion="user">
+      <Suspense fallback={<p className="mx-auto max-w-3xl px-4 py-16 text-center">Đang mở thiệp…</p>}>
+        <CardInner />
+      </Suspense>
+    </MotionConfig>
   );
 }
