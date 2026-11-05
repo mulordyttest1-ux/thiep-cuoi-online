@@ -335,7 +335,7 @@ export const TEMPLATES: Template[] = [
     // khi cuộn, parallax phụng/hoa, thanh tiến trình.
     effects: {
       burst: { count: 40, duration: 1.1, spread: 220 },
-      ambient: { count: 22, opacity: 0.65 },
+      ambient: { count: 36, opacity: 0.9 },
       shimmer: { duration: 3, intensity: "strong" },
       kenBurns: { duration: 8, scale: 1.12 },
       reveal: { strength: "standard" },
