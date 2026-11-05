@@ -293,7 +293,8 @@ props; không có code riêng theo mẫu bên trong thư viện). Tất cả đ�
   của id (mulberry32, src/lib/seeded.ts) — mỗi mẫu một combo khác nhau
   nhưng ổn định, không xáo lại mỗi lần render.
 - **Song Phụng Đỏ (bộ đầy đủ):** burst 40 hạt / 1.1s / spread 220 (+ chớp
-  vàng, sống tới 1600ms); ambient 22 hạt, mờ 0.65; shimmer strong 3s;
+  vàng, sống tới 1600ms); ambient 36 hạt, mờ 0.9 (30% hạt ở dải hero);
+  shimmer strong 3s;
   Ken Burns 8s scale 1.12 (gắn trực tiếp lên img); reveal standard;
   parallax trái range [900, −180] / phải +0.08 / hoa +0.05; progress bar bật.
 - Mẫu không-deco: bộ mặc định theo id (reveal + progress bar + Ken Burns
@@ -313,8 +314,10 @@ props; không có code riêng theo mẫu bên trong thư viện). Tất cả đ�
 - **Ken Burns** gắn trực tiếp lên ảnh album đang ở giữa (hướng đổi theo ảnh)
   + ảnh mẫu không-deco. Coverflow album giữ nguyên code tay vòng 12–14
   (đã đạt QA17).
-- **Bụi vàng trôi** trong article (z-30, pointer-events-none, hạt 5–10px,
-  mờ 0.65, rải khắp chiều cao) + **Hỷ shimmer** + **con dấu phong bì phát sáng**.
+- **Bụi vàng trôi** trong article (z-30, pointer-events-none, hạt 8–16px,
+  mờ 0.9, 36 hạt, 30% hạt ở dải hero 0–16%, phát sáng nhẹ, chỉ vàng đậm
+  — bỏ màu kem #fff0e7 vì tàng hình trên nền kem) + **Hỷ shimmer** +
+  **con dấu phong bì phát sáng**.
 - Tất cả hiệu ứng trong InvitationPreview chỉ bật khi prop `motion` (trang
   khách truyền motion) — editor/thumbnail/dialog preview render tĩnh như
   QA17, không đổi.
@@ -360,6 +363,12 @@ progress bar mọc, cross-dissolve + shimmer thấy rõ). Nguyên nhân + sửa:
    → hero (0–18%) gần như không có hạt nào, vàng trên kem tương phản thấp.
    Sửa: hạt 5–10px, top rải khắp 0–100%, Song Phụng Đỏ 22 hạt mờ 0.65
    (thêm `opacity` vào kiểu effects.ambient, InvitationPreview truyền qua).
+   QA20 (16:35): 5/6 lỗi đã sửa đều ĐẠT, chỉ bụi vàng vẫn CHƯA ĐẠT — hạt
+   có render nhưng quá mờ/thưa (2–6 chấm nhạt/viewport, hero 0 hạt) vì 1/3
+   hạt màu kem #fff0e7 tàng hình trên nền kem và 22 hạt trên ~5000px quá
+   thưa. Sửa lần 2: 36 hạt, mờ 0.9, hạt 8–16px, 30% hạt đầu dành riêng cho
+   dải hero (top 0–16%), hào quang vàng nhẹ (box-shadow 0 0 8px 2px), bỏ
+   màu kem khỏi bảng màu (chỉ #c9a86a/#e8c87e/#f6d365/#d4af37).
 6. **Đuôi phụng không rút.** `useScroll` toàn trang VẪN chạy (thanh tiến
    trình mọc dài theo cuộn là bằng chứng) — lỗi không phải nguồn scroll mà
    là độ rút: −0.15 rút quá chậm ở tầm cuộn xem chỗ nối (450px đuôi còn thò
