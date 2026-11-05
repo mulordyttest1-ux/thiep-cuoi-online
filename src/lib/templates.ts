@@ -47,7 +47,7 @@ export interface TemplateDecorationImages {
 // (defaultEffectsFor) để mỗi mẫu trông hơi khác nhau mà không cần cấu hình.
 export interface TemplateEffects {
   burst?: { count?: number; colors?: string[]; duration?: number; spread?: number };
-  ambient?: { count?: number; colors?: string[]; speed?: number };
+  ambient?: { count?: number; colors?: string[]; speed?: number; opacity?: number };
   shimmer?: { duration?: number; intensity?: "soft" | "strong" };
   kenBurns?: { duration?: number; scale?: number };
   reveal?: { strength?: "subtle" | "standard" };
@@ -334,8 +334,8 @@ export const TEMPLATES: Template[] = [
     // bì, bụi vàng trôi, Hỷ/con dấu phát sáng, Ken Burns album, cross-dissolve
     // khi cuộn, parallax phụng/hoa, thanh tiến trình.
     effects: {
-      burst: { count: 30, duration: 1.0, spread: 170 },
-      ambient: { count: 14 },
+      burst: { count: 40, duration: 1.1, spread: 220 },
+      ambient: { count: 22, opacity: 0.65 },
       shimmer: { duration: 3, intensity: "strong" },
       kenBurns: { duration: 8, scale: 1.12 },
       reveal: { strength: "standard" },
