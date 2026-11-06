@@ -21,13 +21,24 @@ body {
 }
 
 /* Chữ Hỷ mờ bay trên nền phong bì Song Phụng Đỏ (bản gốc: Hỷ mờ
-   ambient-rise trên gradient đỏ). Trôi nhẹ lên xuống, không xoay. */
+   ambient-rise trên gradient đỏ). Trôi nhẹ lên xuống, không xoay.
+   Đo độ rõ 2026-11-06: trôi 2.5px/s coi như đứng yên — nay nhanh hơn
+   (5s) và xa hơn (-36px) để mắt thấy nó "sống" trước khi mở. */
 @keyframes envelope-xi-float {
   0% { transform: translateY(0); }
-  100% { transform: translateY(-20px); }
+  100% { transform: translateY(-36px); }
 }
 .envelope-xi-float {
-  animation: envelope-xi-float 8s ease-in-out infinite alternate;
+  animation: envelope-xi-float 5s ease-in-out infinite alternate;
+}
+
+/* Nút "Mở thiệp" thở nhẹ để điểm vào chuyển động ngay từ màn hình phong bì. */
+@keyframes open-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.open-pulse {
+  animation: open-pulse 1.6s ease-in-out infinite;
 }
 
 /* Lenis smooth scroll — class cần thiết (nội dung chính của
@@ -57,12 +68,12 @@ html.lenis, html.lenis body {
   to { transform: scale(1) translate(0, 0); }
 }
 @keyframes kenburns-pan-left {
-  from { transform: scale(1.1) translate(2%, 0); }
-  to { transform: scale(1.1) translate(-2%, 0); }
+  from { transform: scale(var(--kb-scale, 1.12)) translate(2%, 0); }
+  to { transform: scale(var(--kb-scale, 1.12)) translate(-2%, 0); }
 }
 @keyframes kenburns-pan-right {
-  from { transform: scale(1.1) translate(-2%, 0); }
-  to { transform: scale(1.1) translate(2%, 0); }
+  from { transform: scale(var(--kb-scale, 1.12)) translate(-2%, 0); }
+  to { transform: scale(var(--kb-scale, 1.12)) translate(2%, 0); }
 }
 .kenburns {
   animation: kenburns-in var(--kb-duration, 8s) ease-in-out infinite alternate;
@@ -73,15 +84,42 @@ html.lenis, html.lenis body {
 .kenburns-pan-right { animation-name: kenburns-pan-right; }
 
 /* Bụi vàng / cánh hoa trôi nhẹ (FloatingAmbient): bay lên chậm, mờ dần ở
-   hai đầu vòng đời. Mỗi hạt có --amb-duration/--amb-dx/--amb-opacity riêng. */
+   hai đầu vòng đời. Mỗi hạt có --amb-duration/--amb-dx/--amb-opacity riêng.
+   Đo độ rõ 2026-11-06: bụi cũ trôi ~15px/s — quá chậm để nhận ra; nay
+   chu kỳ 5–8s + nhịp phồng scale 1→1.25 giữa vòng để mắt bắt được. */
 @keyframes ambient-drift {
-  0% { transform: translate3d(0, 10px, 0); opacity: 0; }
+  0% { transform: translate3d(0, 10px, 0) scale(1); opacity: 0; }
   12% { opacity: var(--amb-opacity, 0.45); }
+  50% { transform: translate3d(calc(var(--amb-dx, 24px) / 2), -65px, 0) scale(1.25); opacity: var(--amb-opacity, 0.45); }
   85% { opacity: var(--amb-opacity, 0.45); }
-  100% { transform: translate3d(var(--amb-dx, 24px), -140px, 0); opacity: 0; }
+  100% { transform: translate3d(var(--amb-dx, 24px), -140px, 0) scale(1); opacity: 0; }
 }
 .ambient-particle {
   animation: ambient-drift var(--amb-duration, 9s) linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Cánh hoa rơi (PetalFall): rơi hơn một chiều cao viewport mỗi vòng,
+   đung đưa ngang, xoay nhẹ. */
+@keyframes petal-fall {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 0; }
+  8% { opacity: 0.85; }
+  85% { opacity: 0.85; }
+  100% { transform: translate3d(var(--petal-dx, 40px), 105vh, 0) rotate(300deg); opacity: 0; }
+}
+.petal-fall {
+  animation: petal-fall var(--petal-duration, 11s) linear infinite;
+  will-change: transform, opacity;
+}
+
+/* Ngôi sao 4 cánh lấp lánh (Twinkle): scale + xoay + chớp sáng. */
+@keyframes twinkle {
+  0% { transform: scale(0) rotate(0deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(45deg); opacity: 1; }
+  100% { transform: scale(0) rotate(90deg); opacity: 0; }
+}
+.twinkle {
+  animation: twinkle var(--tw-duration, 2.2s) ease-in-out infinite;
   will-change: transform, opacity;
 }
 
@@ -92,7 +130,7 @@ html.lenis, html.lenis body {
 }
 @keyframes shimmer-glow-strong {
   0%, 100% { filter: drop-shadow(0 0 3px rgba(201, 168, 106, 0.45)) brightness(1); }
-  50% { filter: drop-shadow(0 0 16px rgba(201, 168, 106, 0.95)) brightness(1.15); }
+  50% { filter: drop-shadow(0 0 28px rgba(201, 168, 106, 1)) brightness(1.35); }
 }
 .shimmer-glow {
   animation: shimmer-glow var(--shimmer-duration, 3s) ease-in-out infinite;
@@ -102,15 +140,18 @@ html.lenis, html.lenis body {
   animation-duration: var(--shimmer-duration, 2.4s);
 }
 
-/* Giảm chuyển động: tắt hết hiệu ứng nền (Ken Burns, bụi trôi, shimmer,
-   Hỷ bay). Hiệu ứng cuộn của Framer Motion cũng tự tắt qua
-   MotionConfig reducedMotion="user" + useReducedMotion. */
+/* Giảm chuyển động: tắt hết hiệu ứng nền (Ken Burns, bụi trôi, cánh rơi,
+   lấp lánh, shimmer, Hỷ bay, nút thở). Hiệu ứng cuộn của Framer Motion
+   cũng tự tắt qua MotionConfig reducedMotion="user" + useReducedMotion. */
 @media (prefers-reduced-motion: reduce) {
   .kenburns,
   .ambient-particle,
+  .petal-fall,
+  .twinkle,
   .shimmer-glow,
   .shimmer-glow-strong,
-  .envelope-xi-float {
+  .envelope-xi-float,
+  .open-pulse {
     animation: none !important;
   }
 }
