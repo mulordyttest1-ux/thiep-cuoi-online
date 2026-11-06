@@ -36,18 +36,25 @@ function CardInner() {
   // thì mở ngay, không nổ.
   const [bursting, setBursting] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
+  // "Đang mở" — pha đầu của biên đạo mở phong bì (~1.2s, giai đoạn A):
+  // con dấu nở + xoay nhẹ → phong bì mở dần (clip-path wipe) → vụ nổ
+  // → tên nhảy lên khi thiệp hiện. Giảm chuyển động thì mở ngay, không nổ.
+  const [opening, setOpening] = useState(false);
   const fx = getTemplateEffects(data?.templateId ?? "");
   const handleOpen = () => {
     if (reduce) {
       setOpened(true);
       return;
     }
+    setOpening(true);
     setBurstKey((k) => k + 1);
-    setBursting(true);
+    // Vụ nổ chờ con dấu nở xong (~350ms) rồi mới bắn.
+    window.setTimeout(() => setBursting(true), 350);
     window.setTimeout(() => setOpened(true), 650);
-    // Vụ nổ sống tới ~1.6s (hạt bay 1.1s + tàn) — dài hơn lúc phong bì mở
-    // (650ms) để hạt bay hết đà trên nền thiệp mới, không bị cắt giữa chừng.
-    window.setTimeout(() => setBursting(false), 1600);
+    // Vụ nổ sống tới ~1.9s (bắt đầu 350ms + hạt bay 1.4s + tàn) — dài hơn
+    // lúc phong bì mở (650ms) để hạt bay hết đà trên nền thiệp mới,
+    // không bị cắt giữa chừng.
+    window.setTimeout(() => { setBursting(false); setOpening(false); }, 2000);
   };
   // Lớp phủ vụ nổ — PORTAL ra document.body, render MỘT LẦN ở vị trí ổn
   // định (con đầu của fragment trả về, cả 2 nhánh phong bì/thiệp đều có
@@ -61,17 +68,17 @@ function CardInner() {
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center">
       {/* Chớp vàng tỏa tròn — "pop" nhìn rõ ngay cả trước khi hạt bay xa. */}
       <motion.div
-        className="absolute h-72 w-72 rounded-full"
+        className="absolute h-96 w-96 rounded-full"
         style={{ background: "radial-gradient(circle, rgba(246,211,101,0.55) 0%, rgba(201,168,106,0.25) 45%, transparent 70%)" }}
         initial={{ scale: 0.4, opacity: 0.9 }}
-        animate={{ scale: 1.6, opacity: 0 }}
+        animate={{ scale: 2.0, opacity: 0 }}
         transition={{ duration: 0.9, ease: "easeOut" }}
       />
       <div className="relative">
         <BurstParticles
           key={burstKey}
           count={fx.burst?.count ?? 40}
-          size={[6, 12]}
+          size={[8, 16]}
           colors={["#c9a86a", "#e8c87e", "#f6d365", "#fff0e7", "#710001"]}
           duration={fx.burst?.duration ?? 1.1}
           spread={fx.burst?.spread ?? 220}
@@ -246,10 +253,10 @@ function CardInner() {
         {/* Chữ Hỷ mờ bay trên nền phong bì (bản gốc: gradient đỏ + Hỷ mờ). */}
         {deco && (
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
-            <span className="envelope-xi-float absolute left-[8%] top-[12%] text-7xl font-bold" style={{ color: "#fff0e7", opacity: 0.08 }}>囍</span>
-            <span className="envelope-xi-float absolute right-[10%] top-[30%] text-8xl font-bold" style={{ color: "#fff0e7", opacity: 0.07, animationDelay: "1.5s" }}>囍</span>
-            <span className="envelope-xi-float absolute bottom-[14%] left-[16%] text-6xl font-bold" style={{ color: "#fff0e7", opacity: 0.09, animationDelay: "3s" }}>囍</span>
-            <span className="envelope-xi-float absolute bottom-[26%] right-[6%] text-5xl font-bold" style={{ color: "#fff0e7", opacity: 0.08, animationDelay: "2s" }}>囍</span>
+            <span className="envelope-xi-float absolute left-[8%] top-[12%] text-7xl font-bold" style={{ color: "#fff0e7", opacity: 0.12 }}>囍</span>
+            <span className="envelope-xi-float absolute right-[10%] top-[30%] text-8xl font-bold" style={{ color: "#fff0e7", opacity: 0.14, animationDelay: "1.5s" }}>囍</span>
+            <span className="envelope-xi-float absolute bottom-[14%] left-[16%] text-6xl font-bold" style={{ color: "#fff0e7", opacity: 0.15, animationDelay: "3s" }}>囍</span>
+            <span className="envelope-xi-float absolute bottom-[26%] right-[6%] text-5xl font-bold" style={{ color: "#fff0e7", opacity: 0.13, animationDelay: "2s" }}>囍</span>
           </div>
         )}
         <motion.button
@@ -258,7 +265,7 @@ function CardInner() {
           className={`relative w-full overflow-hidden rounded-3xl border-2 text-center shadow-xl transition-shadow hover:shadow-2xl ${deco ? "max-w-[600px]" : "max-w-md"}`}
           style={{ borderColor: tpl.envelope, background: deco ? "#710001" : p.card, padding: deco ? 12 : 0 }}
           aria-label={`Mở thiệp cưới của ${data.groomName} và ${data.brideName}`}
-          animate={bursting ? { scale: [1, 1.04, 0.94], opacity: [1, 1, 0], rotate: [0, -1, 1.5] } : { scale: 1, opacity: 1, rotate: 0 }}
+          animate={opening ? { scale: [1, 1.04, 0.94], opacity: [1, 1, 0], rotate: [0, -1, 1.5], clipPath: ["inset(0% 0% 0% 0%)", "inset(0% 0% 0% 0%)", "inset(0% 0% 100% 0%)"] } : { scale: 1, opacity: 1, rotate: 0, clipPath: "inset(0% 0% 0% 0%)" }}
           transition={{ duration: 0.65, ease: "easeInOut" }}
         >
           {!deco && <div className="h-3 w-full" style={{ background: tpl.envelope }} aria-hidden="true" />}
@@ -278,7 +285,13 @@ function CardInner() {
             {/* Con dấu Hỷ: tròn 56px, tâm ở top 50px của thẻ (chồng lên mép
                 trên thẻ), gradient tỏa tròn #710001 — theo đúng spec. */}
             {deco && (
-              <Shimmer disabled={!!reduce} duration={2.4} intensity="strong" className="absolute left-1/2 top-[50px] z-30 -translate-x-1/2 -translate-y-1/2">
+              <motion.span
+                className="absolute left-1/2 top-[50px] z-30"
+                initial={{ x: "-50%", y: "-50%" }}
+                animate={opening ? { x: "-50%", y: "-50%", scale: [1, 1.25, 1], rotate: [0, 12, 0] } : { x: "-50%", y: "-50%", scale: 1, rotate: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+              >
+              <Shimmer disabled={!!reduce} duration={1.8} intensity="strong">
                 <span
                   className="flex h-14 w-14 items-center justify-center rounded-full"
                   style={{ background: "radial-gradient(circle at 30% 30%, #710001, rgb(83,0,0))" }}
@@ -290,6 +303,7 @@ function CardInner() {
                   )}
                 </span>
               </Shimmer>
+              </motion.span>
             )}
             <div className="relative">
               {/* Phong bì bản gốc KHÔNG có nhãn "THIỆP MỜI CƯỚI" và KHÔNG có
@@ -350,7 +364,7 @@ function CardInner() {
                   </span>
                 </>
               )}
-              <span className="mt-6 inline-block rounded-full px-8 py-3 font-semibold text-white" style={{ background: p.accent }}>
+              <span className="open-pulse mt-6 inline-block rounded-full px-8 py-3 font-semibold text-white" style={{ background: p.accent }}>
                 Mở thiệp
               </span>
               {!deco && (
@@ -368,7 +382,7 @@ function CardInner() {
     <>
       {burstOverlay}
     <SmoothScroll lerp={0.09}>
-      <ScrollProgress color="#710001" disabled={fx.progressBar === false} />
+      <ScrollProgress color="linear-gradient(90deg,#c9a86a,#710001)" disabled={fx.progressBar === false} />
       <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
         <InvitationPreview data={data} guestName={guestName} motion />
 
