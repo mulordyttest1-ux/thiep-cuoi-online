@@ -9,6 +9,8 @@ import { buildShareUrl, copyText, decodeShare, encodeShare, loadInvitation, save
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostText, parseCepPlainText } from "@/lib/cep";
 import InvitationPreview from "@/components/InvitationPreview";
 import OnlineDemoWizard from "@/components/OnlineDemoWizard";
+import SvgTemplateSection from "@/components/SvgTemplateSection";
+import { decodeSvgShare, type SvgSharePayload } from "@/lib/svg-template";
 import { useLanguage } from "@/components/LanguageProvider";
 
 function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
@@ -35,6 +37,9 @@ function EditorInner() {
   const [importText, setImportText] = useState("");
   const [importMeta, setImportMeta] = useState("");
   const [plainImportText, setPlainImportText] = useState("");
+  // Link khách chốt xong gửi lại (?d= dạng mẫu SVG): dữ liệu áp vào form,
+  // mẫu SVG thì mục "Mẫu thiệp SVG" tự chọn.
+  const [svgPayload, setSvgPayload] = useState<SvgSharePayload | null>(null);
   // Trạng thái máy chủ (luồng khóa + thanh toán): link xem trước / link
   // khách / QR trả tiền đều do máy chủ cấp, không nằm trong ?d= nữa.
   const [serverId, setServerId] = useState("");
@@ -122,6 +127,17 @@ function EditorInner() {
       }
       const dParam = params.get("d");
       if (dParam) {
+        // Link mẫu SVG (?d= dạng v:1): dữ liệu áp thẳng vào form, mẫu SVG
+        // thì mục "Mẫu thiệp SVG" tự chọn. decodeShare thường sẽ trả null
+        // với dạng này nên thử SVG trước.
+        const svgP = decodeSvgShare(dParam);
+        if (svgP) {
+          setSvgPayload(svgP);
+          setData(svgP.data);
+          if (svgP.data.id) setSavedId(svgP.data.id);
+          appliedTemplate.current = true;
+          return;
+        }
         const decoded = decodeShare(dParam);
         if (decoded) {
           setData(decoded);
@@ -683,6 +699,7 @@ function EditorInner() {
           khách, blur tên/ngày/giờ/địa điểm, wizard 3 bước mua online. */}
       {serverPanel}
       {cepSection}
+      <SvgTemplateSection data={data} initialPayload={svgPayload} />
       <OnlineDemoWizard
         data={data}
         onPatch={(patch) => setData((prev) => ({ ...prev, ...patch }))}
