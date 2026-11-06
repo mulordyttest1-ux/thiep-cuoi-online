@@ -23,6 +23,42 @@ export interface DateParts {
   lunarNote: string | null; // "Tức ngày 17 tháng 3 năm Bính Ngọ"
 }
 
+export interface LunarParts {
+  day: number; // ngày âm
+  month: number; // tháng âm (âm = tháng nhuận)
+  yearName: string; // tên năm can chi, VD "Bính Ngọ"
+}
+
+/** Âm lịch của một ngày dương (dùng chung cho ghi chú + xuất CEP). */
+function toLunar(year: number, month: number, day: number): LunarParts | null {
+  try {
+    const lunar = Solar.fromYmd(year, month, day).getLunar();
+    const ganZhi = lunar.getYearInGanZhi();
+    return {
+      day: lunar.getDay(),
+      month: lunar.getMonth(),
+      yearName: `${STEMS[ganZhi[0]] ?? ganZhi[0]} ${BRANCHES[ganZhi[1]] ?? ganZhi[1]}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Ngày/tháng/năm âm + tên năm can chi của một ngày dương, hoặc null khi
+    ngày không hợp lệ. */
+export function getLunarParts(dateStr: string): LunarParts | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || "");
+  if (!m) return null;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(year, month - 1, day);
+  if (isNaN(d.getTime()) || d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) {
+    return null;
+  }
+  return toLunar(year, month, day);
+}
+
 export function getDateParts(dateStr: string): DateParts | null {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr || "");
   if (!m) return null;
@@ -34,16 +70,10 @@ export function getDateParts(dateStr: string): DateParts | null {
     return null;
   }
   const weekday = new Intl.DateTimeFormat("vi-VN", { weekday: "long" }).format(d);
-  let lunarNote: string | null = null;
-  try {
-    const lunar = Solar.fromYmd(year, month, day).getLunar();
-    const ganZhi = lunar.getYearInGanZhi();
-    const yearName = `${STEMS[ganZhi[0]] ?? ganZhi[0]} ${BRANCHES[ganZhi[1]] ?? ganZhi[1]}`;
-    const lunarMonth = lunar.getMonth(); // âm = tháng nhuận
-    lunarNote = `Tức ngày ${lunar.getDay()} tháng ${Math.abs(lunarMonth)}${lunarMonth < 0 ? " nhuận" : ""} năm ${yearName}`;
-  } catch {
-    lunarNote = null;
-  }
+  const lunar = toLunar(year, month, day);
+  const lunarNote = lunar
+    ? `Tức ngày ${lunar.day} tháng ${Math.abs(lunar.month)}${lunar.month < 0 ? " nhuận" : ""} năm ${lunar.yearName}`
+    : null;
   return {
     weekday,
     day: String(day).padStart(2, "0"),

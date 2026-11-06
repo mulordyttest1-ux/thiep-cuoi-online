@@ -31,6 +31,15 @@ export interface InvitationData {
   // "Trang phục dự tiệc"). App lưu danh sách mã màu, cách nhau bằng dấu
   // phẩy. Để trống thì ẩn mục Dress Code (chỉ mẫu deco render mục này).
   dressCode?: string;
+  // Nối Illustrator/CEP (Wedding Scripter): loại lễ + nhà chủ tiệc quyết
+  // định pos1/pos2 (nhà chủ tiệc đứng trước); lễ có thể khác ngày/giờ tiệc.
+  // Tất cả tùy chọn — link cũ không có các trường này vẫn mở bình thường,
+  // ngày/giờ lễ trống thì dùng ngày/giờ tiệc.
+  ceremonyType?: "Thành Hôn" | "Vu Quy" | "Tân Hôn" | "Báo Hỷ";
+  hostType?: "Nhà Trai" | "Nhà Gái";
+  ceremonyDate?: string; // YYYY-MM-DD; trống = dùng ngày tiệc
+  ceremonyTime?: string; // HH:MM; trống = dùng giờ tiệc
+  ceremonyVenue?: string; // nơi làm lễ; trống = không ghi
   date: string; // YYYY-MM-DD
   time: string; // HH:MM
   venue: string;
@@ -74,6 +83,10 @@ export function defaultInvitation(templateId = "minimal-do-do"): InvitationData 
     brideParentsAddress: "56 Đường Xuân Thủy, Cầu Giấy, Hà Nội",
     // Màu dress code mẫu của bản gốc (showDresscode=true).
     dressCode: "#651212, #8d3a3a, #ffb2b2",
+    // Mặc định cho nối CEP: lễ Thành Hôn, nhà trai chủ tiệc; ngày/giờ lễ
+    // để trống thì dùng ngày/giờ tiệc.
+    ceremonyType: "Thành Hôn",
+    hostType: "Nhà Trai",
     date: "2026-12-20",
     time: "11:00",
     venue: "Trung tâm Tiệc cưới Sen Hồng",

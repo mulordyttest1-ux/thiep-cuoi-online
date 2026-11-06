@@ -23,6 +23,12 @@ function CardInner() {
   // Con dấu Hỷ phong bì: ký tự dự phòng chỉ hiện khi ảnh lỗi (không chồng
   // dưới ảnh như trước — cùng lỗi viền như chữ Hỷ ở dải).
   const [sealFailed, setSealFailed] = useState(false);
+  // Chốt chặn máy chủ: nếu thiệp đã lên máy chủ thì link ?d=/localStorage cũ
+  // không còn giá trị — chỉ token khách hợp lệ + đã trả tiền mới xem được,
+  // TRỪ link xịn v3-final (?d= mã hóa dữ liệu, đúng mẫu đã trả) khi thiệp
+  // đã paid_online.
+  const [gate, setGate] = useState<{ blocked: boolean; reason?: string; status?: string } | null>(null);
+  const [serverMode, setServerMode] = useState(false);
   const guestName = search.get("guest") ?? undefined;
   const reduce = useReducedMotion();
   // Vụ nổ khi mở phong bì (spec §4h): hạt vàng bay ra + phong bì nở/phai
@@ -76,35 +82,92 @@ function CardInner() {
   ) : null;
 
   useEffect(() => {
-    try {
-      // Ưu tiên dữ liệu ?d= trong URL trước: link chia sẻ mang dữ liệu tường
-      // minh phải thắng dữ liệu cũ trong localStorage cùng id (tránh trường
-      // hợp sửa mẫu chưa lưu mà mở ra vẫn thấy bản lưu cũ).
-      const d = search.get("d");
-      if (d) {
-        const decoded = decodeShare(d);
-        if (decoded) {
-          setData(decoded);
+    let alive = true;
+    (async () => {
+      // BẢN GHI MÁY CHỦ THẮNG LINK ?d=/localStorage: thiệp đã đưa lên máy chủ
+      // (gửi khách duyệt / chốt / trả tiền) thì chỉ máy chủ quyết định ai
+      // được xem — link ?d= cũ không mở được nữa, kể cả khách đã lưu link.
+      try {
+        if (id !== "demo") {
+          const stRes = await fetch(`/api/invitations/${encodeURIComponent(id)}/status`);
+          const st = (await stRes.json()) as { exists?: boolean; status?: string; paidTemplateId?: string };
+          if (alive && st.exists) {
+            const gt = search.get("gt");
+            if (gt) {
+              const gRes = await fetch(
+                `/api/invitations/${encodeURIComponent(id)}?kind=guest&t=${encodeURIComponent(gt)}&guest=${encodeURIComponent(search.get("guest") ?? "")}`
+              );
+              const gj = (await gRes.json()) as Record<string, unknown>;
+              if (!alive) return;
+              if (gRes.ok && gj.ok) {
+                setData(gj.data as InvitationData);
+                setServerMode(true);
+                setStatus("found");
+                return;
+              }
+              setGate({ blocked: true, reason: String(gj.reason ?? "not_paid"), status: st.status });
+              setStatus("found");
+              return;
+            }
+            // Link xịn v3-final: /thiep/<id>?d=<base64url JSON> — chỉ mở khi
+            // máy chủ đã ghi paid_online cho đúng thiệp + đúng mẫu đã trả.
+            // Trước khi trả tiền, link ?d= cũ KHÔNG mở được thiệp đã lên máy chủ.
+            const d = search.get("d");
+            if (d && st.status === "paid_online") {
+              const decoded = decodeShare(d);
+              if (decoded && (!st.paidTemplateId || decoded.templateId === st.paidTemplateId)) {
+                setData(decoded);
+                setServerMode(true);
+                setStatus("found");
+                return;
+              }
+            }
+            setGate({
+              blocked: true,
+              reason: st.status === "paid_online" ? "need_guest_link" : "not_paid",
+              status: st.status,
+            });
+            setStatus("found");
+            return;
+          }
+        }
+      } catch {
+        // Máy chủ không trả lời: rơi về luồng cũ (?d=/localStorage/demo).
+      }
+      if (!alive) return;
+      try {
+        // Ưu tiên dữ liệu ?d= trong URL trước: link chia sẻ mang dữ liệu tường
+        // minh phải thắng dữ liệu cũ trong localStorage cùng id (tránh trường
+        // hợp sửa mẫu chưa lưu mà mở ra vẫn thấy bản lưu cũ).
+        const d = search.get("d");
+        if (d) {
+          const decoded = decodeShare(d);
+          if (decoded) {
+            setData(decoded);
+            setStatus("found");
+            return;
+          }
+        }
+        const fromStorage = loadInvitationById(id);
+        if (fromStorage) {
+          setData(fromStorage);
           setStatus("found");
           return;
         }
+        if (id === "demo") {
+          setData(defaultInvitation("minimal-do-do"));
+          setStatus("found");
+          return;
+        }
+        setStatus("notfound");
+      } catch {
+        setStatus(id === "demo" ? "found" : "notfound");
+        if (id === "demo") setData(defaultInvitation("minimal-do-do"));
       }
-      const fromStorage = loadInvitationById(id);
-      if (fromStorage) {
-        setData(fromStorage);
-        setStatus("found");
-        return;
-      }
-      if (id === "demo") {
-        setData(defaultInvitation("minimal-do-do"));
-        setStatus("found");
-        return;
-      }
-      setStatus("notfound");
-    } catch {
-      setStatus(id === "demo" ? "found" : "notfound");
-      if (id === "demo") setData(defaultInvitation("minimal-do-do"));
-    }
+    })();
+    return () => {
+      alive = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -135,6 +198,35 @@ function CardInner() {
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/thiep/demo" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white">Xem thiệp demo</Link>
           <Link href="/tao-thiep" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b]">Tạo thiệp mới</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Thiệp đã lên máy chủ nhưng người mở không có link khách hợp lệ / chưa
+  // trả tiền: KHÔNG hiện thiệp, chỉ hiện lý do. Đây là chốt chặn chính
+  // chống xài chùa (kể cả khi khách còn giữ link ?d= cũ).
+  if (gate?.blocked) {
+    const reasonText =
+      gate.reason === "expired"
+        ? "Link khách đã hết hạn (quá 30 ngày sau ngày cưới)."
+        : gate.reason === "need_guest_link"
+          ? "Thiệp này đã được mua online. Hãy mở bằng link xịn (link có dữ liệu mã hóa trong link) hoặc link khách chính thức do Nancy gửi — link cũ không mở được nữa."
+          : gate.reason === "invalid_token"
+            ? "Link khách không hợp lệ. Hãy xin lại link khách chính thức từ Nancy."
+            : "Thiệp này chưa được mua online nên chưa mở link mời khách. Khách mua thiệp online (quét QR, chuyển đúng số tiền + đúng mã) thì link sẽ tự mở.";
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <p className="font-display text-6xl text-[#c9a86a]" aria-hidden="true">♥</p>
+        <h1 className="mt-4 font-display text-3xl font-bold text-[#7a1f2b]">Thiệp chưa mở</h1>
+        <p className="mt-2 text-[#5a4a48]">{reasonText}</p>
+        <p className="mt-2 text-sm text-[#7a6a68]">
+          Trạng thái: {gate.status === "locked_for_print" ? "đã chốt in — chỉ đọc" : gate.status === "paid_online" ? "đã trả tiền" : gate.status ?? "—"}.
+          Liên hệ Nancy để nhận link xem trước hoặc mua thiệp online.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link href="/thiep/demo" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white">Xem thiệp demo</Link>
+          <Link href="/" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b]">Về trang chủ</Link>
         </div>
       </div>
     );
@@ -307,8 +399,11 @@ function CardInner() {
       )}
 
       <p className="mt-10 text-center text-xs text-[#7a6a68]">
-        Thiệp được tạo bằng Thiệp Đôi.{" "}
-        <Link href="/" className="underline">Tạo thiệp của riêng bạn</Link>
+        {serverMode ? (
+          <>Thiệp online chính thức • Thiệp Đôi.</>
+        ) : (
+          <>Thiệp được tạo bằng Thiệp Đôi.{" "}<Link href="/" className="underline">Tạo thiệp của riêng bạn</Link></>
+        )}
       </p>
       </div>
     </SmoothScroll>

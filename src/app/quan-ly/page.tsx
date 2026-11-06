@@ -114,9 +114,32 @@ export default function ManagePage() {
 
   const copyGuestLink = async (g: Guest) => {
     try {
+      // Thiệp đã lên máy chủ: link riêng chỉ tạo được khi đã trả tiền —
+      // máy chủ từ chối khi chưa trả, nên khách không thể xài chùa.
+      // Thiệp chưa lên máy chủ (nháp/demo cũ): dùng link cũ, kèm cảnh báo
+      // là link này không được máy chủ bảo vệ.
+      const stRes = await fetch(`/api/invitations?id=${encodeURIComponent(invitationId)}`);
+      const st = (await stRes.json()) as { exists?: boolean; status?: string };
+      if (st.exists) {
+        const admin = prompt("Token admin (để trống khi chạy local):") ?? "";
+        const res = await fetch(`/api/invitations/${encodeURIComponent(invitationId)}/guests`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(admin ? { "x-admin-token": admin } : {}) },
+          body: JSON.stringify({ guestName: g.name }),
+        });
+        const j = (await res.json()) as Record<string, unknown>;
+        if (!res.ok || !j.ok) {
+          setNotice(typeof j.error === "string" ? j.error : "Không tạo được link khách.");
+          return;
+        }
+        const url = String(j.guestUrl ?? "");
+        const r = await copyText(url);
+        setNotice(r.ok ? `Đã sao chép link riêng của “${g.name}”.` : `Không sao chép tự động được. Link: ${url}`);
+        return;
+      }
       const url = `${window.location.origin}/thiep/${encodeURIComponent(invitationId)}?guest=${encodeURIComponent(g.name)}`;
       const res = await copyText(url);
-      setNotice(res.ok ? `Đã sao chép link riêng của “${g.name}”.` : `Không sao chép tự động được. Link: ${url}`);
+      setNotice(res.ok ? `Đã sao chép link riêng của “${g.name}” (link cũ — thiệp chưa lên máy chủ nên chưa được bảo vệ, đồng bộ lên máy chủ để khóa lại).` : `Không sao chép tự động được. Link: ${url}`);
     } catch {
       setNotice("Không tạo được link riêng.");
     }

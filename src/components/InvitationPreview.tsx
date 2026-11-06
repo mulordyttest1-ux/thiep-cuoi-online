@@ -19,7 +19,19 @@ const FRAME_INNER: Record<string, string> = {
   band: "1px solid",
 };
 
-export default function InvitationPreview({ data, guestName, motion }: { data: InvitationData; guestName?: string; motion?: boolean }) {
+export type SensitiveField = "names" | "date" | "time" | "venue";
+
+export default function InvitationPreview({ data, guestName, motion, blurred, revealedField, onSensitiveClick }: {
+  data: InvitationData;
+  guestName?: string;
+  motion?: boolean;
+  /** Demo online (v3-final): blur tên/ngày/giờ/địa điểm. Không truyền = thiệp rõ như cũ (trang khách, editor thường). */
+  blurred?: boolean;
+  /** Trường đang được bấm xem rõ / sửa trong demo — hiện rõ lại. */
+  revealedField?: SensitiveField | null;
+  /** Bấm vào một ô đang blur trong demo. */
+  onSensitiveClick?: (field: SensitiveField) => void;
+}) {
   const tpl = getTemplate(data.templateId);
   const p = tpl.palette;
   const deco = tpl.decorationImages;
@@ -34,11 +46,41 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
     `${data.venue} ${data.address}`.trim()
   )}`;
   const vi = data.language !== "en";
+  // Blur demo online (v3-final): chỉ blur 4 nhóm nhạy cảm — tên cặp đôi,
+  // ngày, giờ, địa điểm. Họa tiết/màu sắc/hiệu ứng giữ sắc nét. Khi không
+  // blur hoặc trường đang được sửa thì render y hệt như cũ (không bọc thêm
+  // phần tử nào) để bố cục QA17 không đổi.
+  const blurField = (field: SensitiveField, children: React.ReactNode, className?: string) => {
+    if (!blurred || revealedField === field) return <>{children}</>;
+    return (
+      <span
+        role="button"
+        tabIndex={0}
+        title="Bấm để xem rõ khi sửa"
+        aria-label="Bấm để xem rõ khi sửa"
+        onClick={(e) => { e.stopPropagation(); onSensitiveClick?.(field); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSensitiveClick?.(field); } }}
+        className={`inline-block cursor-pointer select-none blur-[7px] ${className ?? ""}`}
+      >
+        {children}
+      </span>
+    );
+  };
+  // Blur cho khối lớn (lịch tháng): gắn trực tiếp class + onClick vào khối,
+  // không bọc thêm phần tử.
+  const blurCls = (field: SensitiveField) =>
+    blurred && revealedField !== field ? "cursor-pointer select-none blur-[7px]" : "";
+  const blurClick = (field: SensitiveField) => (e: React.MouseEvent) => {
+    if (blurred && revealedField !== field) { e.stopPropagation(); onSensitiveClick?.(field); }
+  };
   // Coverflow album (chỉ mẫu deco): chỉ số ảnh đang ở giữa.
   const [coverIdx, setCoverIdx] = useState(0);
   // Section tiệc (chỉ mẫu deco): giờ đón khách = giờ cưới trừ 30 phút
   // (mẫu bản gốc: đón 17:30 / tiệc 18:00), màu dress code, bản đồ nhúng.
   const welcomeTime = deco ? minusMinutes(data.time, 30) : "";
+  // Giờ lễ (mặc định = giờ tiệc): dòng "VÀO LÚC" trong khối THÔNG TIN dùng
+  // giờ lễ; các mục tiệc vẫn dùng giờ tiệc.
+  const ceremonyTime = data.ceremonyTime?.trim() ? data.ceremonyTime : data.time;
   const dressColors = deco ? parseDressCode(data.dressCode) : [];
   // Vòng 17: query embed CHỈ lấy địa chỉ (data.address) — query kèm tên
   // địa điểm ("Trung tâm Tiệc cưới Sen Hồng 123 Đường Láng...") khiến
@@ -206,6 +248,7 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
                   "THU AN"/"MINH QUÂN" dính nhau (dòng 2 mất mt 1.1% ~10px).
                   Bố cục giữ đúng spec: leading 1.11, tên 1 ml 1.7%, tên 2
                   ml 5.5% + mt 1.1%. */}
+              {blurField("names", (
               <StaggeredText
                 disabled={!motion}
                 stagger={0.18}
@@ -216,6 +259,7 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
                 itemStyles={[{ marginLeft: "1.7%" }, { marginLeft: "5.5%", marginTop: "1.1%" }]}
                 items={[data.brideName, data.groomName]}
               />
+              ), "block")}
             </h2>
             <div className="relative z-0" style={{ marginTop: "6.2%" }}>
               <SongPhungBand deco={deco} motion={motion} parallax={fx.parallax} />
@@ -287,7 +331,7 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
                   liệu có (bản gốc cũng ẩn khi trống). */}
               <div className="mt-6 flex w-full flex-col items-center gap-2">
                 <div className="flex w-full flex-col items-center">
-                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{data.brideName}</h3>
+                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{blurField("names", data.brideName)}</h3>
                   {data.brideBirthOrder && (
                     <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: "#710001" }}>{data.brideBirthOrder}</div>
                   )}
@@ -299,7 +343,7 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
                   <div className="font-eb-garamond text-[35px] leading-none md:text-[48px]" style={{ color: "#710001" }}>&amp;</div>
                 ) : null}
                 <div className="flex w-full flex-col items-center">
-                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{data.groomName}</h3>
+                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{blurField("names", data.groomName)}</h3>
                   {data.groomBirthOrder && (
                     <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: "#710001" }}>{data.groomBirthOrder}</div>
                   )}
@@ -323,8 +367,10 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
                         : "WEDDING CEREMONY AT\nFAMILY HOME"}
                   </p>
                   <p className="text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>
-                    {vi ? `Vào lúc ${data.time}` : `At ${data.time}`}
+                    {vi ? "Vào lúc " : "At "}{blurField("time", ceremonyTime)}
                   </p>
+                  {blurField("date", (
+                    <>
                   <div className="flex items-center justify-center" style={{ color: "#710001" }}>
                     <span className="w-[70px] text-right text-[14px] uppercase md:w-[85px] md:text-[15px]">{parts.weekday}</span>
                     <span className="mx-2 text-[14px] opacity-50 md:mx-3" aria-hidden="true">|</span>
@@ -336,6 +382,8 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
                   {parts.lunarNote && (
                     <p className="text-[13px] md:text-[14px]" style={{ color: "#710001" }}>({parts.lunarNote})</p>
                   )}
+                    </>
+                  ), "block")}
                 </div>
               )}
             </div>
@@ -418,7 +466,7 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
               </div>
             )}
             <h2 className={`mt-6 ${fontClass} ${nameSize} font-bold leading-tight`} style={{ color: p.accent }}>
-              {data.groomName} <span style={{ color: p.gold }}>&amp;</span> {data.brideName}
+              {blurField("names", data.groomName)} <span style={{ color: p.gold }}>&amp;</span> {blurField("names", data.brideName)}
             </h2>
             <p className="mt-4 text-sm" style={{ color: p.muted }}>
               {vi ? "Cùng gia đình hai bên trân trọng kính mời" : "Together with our families, we cordially invite you"}
@@ -447,10 +495,10 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
             (dưới, sau Lịch trình) theo đúng vị trí bản gốc. */}
         {!deco && (
         <div className="mx-auto mt-6 max-w-md rounded-2xl p-5" style={{ background: p.card, border: `1px solid ${p.gold}` }}>
-          <p className={`${fontClass} text-2xl font-bold`}>{vi ? formatDateVi(data.date) : data.date}</p>
-          <p className="mt-1 text-lg">{vi ? `Lúc ${data.time}` : `At ${data.time}`}</p>
-          <p className="mt-2 font-semibold">{data.venue}</p>
-          <p className="text-sm" style={{ color: p.muted }}>{data.address}</p>
+          <p className={`${fontClass} text-2xl font-bold`}>{vi ? blurField("date", formatDateVi(data.date)) : blurField("date", data.date)}</p>
+          <p className="mt-1 text-lg">{vi ? "Lúc " : "At "}{blurField("time", data.time)}</p>
+          <p className="mt-2 font-semibold">{blurField("venue", data.venue)}</p>
+          <p className="text-sm" style={{ color: p.muted }}>{blurField("venue", data.address)}</p>
           <a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: p.accent }}>
             {vi ? "Xem bản đồ" : "View map"} ↗
           </a>
@@ -496,19 +544,21 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
             <p className="mt-3 text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>
               {vi ? "Tiệc cưới sẽ diễn ra vào lúc:" : "The reception will take place at:"}
             </p>
-            <p className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{data.time}</p>
+            <p className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{blurField("time", data.time)}</p>
             <div className="mt-4 flex items-start justify-center gap-8">
               <div className="flex flex-col items-center">
                 <span className="text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>{vi ? "Đón khách" : "Welcome"}</span>
-                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{welcomeTime}</span>
+                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{blurField("time", welcomeTime)}</span>
               </div>
               <div className="flex flex-col items-center">
                 <span className="text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>{vi ? "Khai tiệc" : "Reception"}</span>
-                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{data.time}</span>
+                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{blurField("time", data.time)}</span>
               </div>
             </div>
             {parts && (
               <>
+                {blurField("date", (
+                  <>
                 {/* Hàng ngày ở section tiệc: tên thứ KHÔNG ngắt dòng (vòng 12:
                     "CHỦ NHẬT" 18–20px không vừa hộp 70/85px nên ngắt 2 dòng)
                     — dùng w-auto + min-w + whitespace-nowrap. */}
@@ -522,13 +572,15 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
                 {parts.lunarNote && (
                   <p className="mt-1 text-[13px] md:text-[14px]" style={{ color: "#710001" }}>({parts.lunarNote})</p>
                 )}
+                  </>
+                ), "block")}
               </>
             )}
             {calCells.length > 0 && (
               // Khung viền bo tròn quanh lịch (vòng 16): bản gốc lịch nằm
               // trong một hộp có viền bo tròn. Lịch rộng 388px (ô ~52px như
               // bản gốc đo vòng 14) để tim 30px = ~59% ô.
-              <div className="mx-auto mt-5 w-full max-w-[388px] rounded-2xl border px-4 py-3" style={{ borderColor: "#71000155" }}>
+              <div className={`mx-auto mt-5 w-full max-w-[388px] rounded-2xl border px-4 py-3 ${blurCls("date")}`} onClick={blurClick("date")} style={{ borderColor: "#71000155" }}>
                 {/* Tiêu đề tháng/năm của lịch (bản gốc: "Tháng 5 / 2026"). */}
                 {calTitle && (
                   <p className="mb-2 text-center text-[16px] font-semibold md:text-[18px]" style={{ color: "#710001" }}>{calTitle}</p>
@@ -604,12 +656,12 @@ export default function InvitationPreview({ data, guestName, motion }: { data: I
             {/* Tên địa điểm (vòng 16): bản gốc là chữ NGHIÊNG serif, viết
                 thường xen hoa — KHÔNG sans đậm IN HOA như trước. Giữ nguyên
                 chữ hoa/thường như dữ liệu nhập, không uppercase. */}
-            <p className="mt-3 font-eb-garamond text-[20px] italic md:text-[24px]" style={{ color: "#710001" }}>{data.venue}</p>
+            <p className="mt-3 font-eb-garamond text-[20px] italic md:text-[24px]" style={{ color: "#710001" }}>{blurField("venue", data.venue)}</p>
             {/* Trạng thái trống (vòng 14): chỉ render pill địa chỉ và iframe
                 bản đồ khi có địa chỉ — không địa chỉ thì iframe nhúng sẽ
                 hiện khung bản đồ thế giới trống. */}
             {data.address?.trim() && (
-              <p className="mx-auto mt-4 max-w-sm rounded-full px-4 py-2 text-sm md:max-w-[600px] md:px-6 md:py-3" style={{ color: "#710001" }}>{data.address}</p>
+              <p className="mx-auto mt-4 max-w-sm rounded-full px-4 py-2 text-sm md:max-w-[600px] md:px-6 md:py-3" style={{ color: "#710001" }}>{blurField("venue", data.address)}</p>
             )}
             {data.address?.trim() && (
               <iframe
