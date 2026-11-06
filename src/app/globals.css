@@ -83,22 +83,6 @@ html.lenis, html.lenis body {
 .kenburns-pan-left { animation-name: kenburns-pan-left; }
 .kenburns-pan-right { animation-name: kenburns-pan-right; }
 
-/* Bụi vàng / cánh hoa trôi nhẹ (FloatingAmbient): bay lên chậm, mờ dần ở
-   hai đầu vòng đời. Mỗi hạt có --amb-duration/--amb-dx/--amb-opacity riêng.
-   Đo độ rõ 2026-11-06: bụi cũ trôi ~15px/s — quá chậm để nhận ra; nay
-   chu kỳ 5–8s + nhịp phồng scale 1→1.25 giữa vòng để mắt bắt được. */
-@keyframes ambient-drift {
-  0% { transform: translate3d(0, 10px, 0) scale(1); opacity: 0; }
-  12% { opacity: var(--amb-opacity, 0.45); }
-  50% { transform: translate3d(calc(var(--amb-dx, 24px) / 2), -65px, 0) scale(1.25); opacity: var(--amb-opacity, 0.45); }
-  85% { opacity: var(--amb-opacity, 0.45); }
-  100% { transform: translate3d(var(--amb-dx, 24px), -140px, 0) scale(1); opacity: 0; }
-}
-.ambient-particle {
-  animation: ambient-drift var(--amb-duration, 9s) linear infinite;
-  will-change: transform, opacity;
-}
-
 /* Cánh hoa rơi (PetalFall): rơi hơn một chiều cao viewport mỗi vòng,
    đung đưa ngang, xoay nhẹ. */
 @keyframes petal-fall {
@@ -140,12 +124,122 @@ html.lenis, html.lenis body {
   animation-duration: var(--shimmer-duration, 2.4s);
 }
 
+/* shadcn.io Sparkles — nền lấp lánh vàng (lấy từ trang docs + CSS
+   /styles/docs-backgrounds.css của shadcn.io, 2026-11-06; registry yêu cầu
+   token nên không lấy được file gốc qua CLI). Bụi là tile SVG lặp lại, lấp
+   lánh là pattern nhiễu trượt dưới mặt nạ, tia 4 cánh là gradient trên
+   keyframes — không có particle engine/canvas, ~0 KB JS. Giảm chuyển động
+   xử lý trong component (motion-reduce: tạm dừng / ẩn tia). */
+.sparkles-layer {
+  --sparkles-core:var(--sparkles-tint);
+  --sparkles-tint:var(--sparkles-color,oklch(70% .14 72));
+}
+
+.sparkles-layer:is(.dark *) {
+  --sparkles-core:color-mix(in oklab, white 70%, var(--sparkles-tint));
+  --sparkles-tint:var(--sparkles-color,oklch(88% .11 86));
+}
+
+.sparkles-dust {
+  -webkit-mask:var(--sparkles-dust);
+  -webkit-mask:var(--sparkles-dust);
+  mask:var(--sparkles-dust);
+}
+
+.sparkles-field {
+  background-color:var(--sparkles-tint);
+  position:absolute;
+  inset:-173px 0 0 -173px;
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='173' height='173'%3E%3Cfilter id='n' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='1' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 0 0 0 -2.52'/%3E%3C/filter%3E%3Crect width='173' height='173' filter='url(%23n)'/%3E%3C/svg%3E"),linear-gradient(#00000026,#00000026);
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='173' height='173'%3E%3Cfilter id='n' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='1' seed='5' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 6 0 0 0 -2.52'/%3E%3C/filter%3E%3Crect width='173' height='173' filter='url(%23n)'/%3E%3C/svg%3E"),linear-gradient(#00000026,#00000026);
+  -webkit-mask-size:173px 173px,auto;
+  mask-size:173px 173px,auto;
+}
+
+.sparkles-glow {
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='467' height='467'%3E%3CradialGradient id='g'%3E%3Cstop offset='.2'/%3E%3Cstop offset='.38' stop-opacity='.45'/%3E%3Cstop offset='1' stop-opacity='0'/%3E%3C/radialGradient%3E%3Ccircle cx='245.0' cy='178.2' r='9.66' fill='url(%23g)' fill-opacity='0.66'/%3E%3Ccircle cx='196.0' cy='193.2' r='7.24' fill='url(%23g)' fill-opacity='0.64'/%3E%3Ccircle cx='42.2' cy='103.9' r='9.62' fill='url(%23g)' fill-opacity='0.66'/%3E%3Ccircle cx='96.7' cy='278.6' r='9.03' fill='url(%23g)' fill-opacity='0.94'/%3E%3Ccircle cx='184.1' cy='127.7' r='6.45' fill='url(%23g)' fill-opacity='0.54'/%3E%3Ccircle cx='238.4' cy='412.0' r='9.62' fill='url(%23g)' fill-opacity='0.87'/%3E%3Ccircle cx='168.2' cy='157.5' r='6.49' fill='url(%23g)' fill-opacity='0.98'/%3E%3Ccircle cx='434.0' cy='332.5' r='8.11' fill='url(%23g)' fill-opacity='0.78'/%3E%3Ccircle cx='169.4' cy='13.0' r='7.39' fill='url(%23g)' fill-opacity='0.78'/%3E%3C/svg%3E") 0 0/467px 467px,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='613' height='613'%3E%3CradialGradient id='g'%3E%3Cstop offset='.2'/%3E%3Cstop offset='.38' stop-opacity='.45'/%3E%3Cstop offset='1' stop-opacity='0'/%3E%3C/radialGradient%3E%3Ccircle cx='556.8' cy='303.3' r='6.15' fill='url(%23g)' fill-opacity='0.55'/%3E%3Ccircle cx='90.3' cy='364.8' r='8.47' fill='url(%23g)' fill-opacity='0.68'/%3E%3Ccircle cx='561.9' cy='519.9' r='8.24' fill='url(%23g)' fill-opacity='0.60'/%3E%3Ccircle cx='495.8' cy='513.1' r='8.60' fill='url(%23g)' fill-opacity='0.51'/%3E%3Ccircle cx='455.5' cy='443.4' r='7.32' fill='url(%23g)' fill-opacity='0.88'/%3E%3Ccircle cx='404.3' cy='269.7' r='6.20' fill='url(%23g)' fill-opacity='0.86'/%3E%3Ccircle cx='21.8' cy='372.7' r='8.77' fill='url(%23g)' fill-opacity='0.72'/%3E%3Ccircle cx='510.7' cy='222.1' r='8.24' fill='url(%23g)' fill-opacity='0.82'/%3E%3Ccircle cx='586.9' cy='370.5' r='6.59' fill='url(%23g)' fill-opacity='0.90'/%3E%3Ccircle cx='588.7' cy='481.6' r='6.67' fill='url(%23g)' fill-opacity='0.63'/%3E%3Ccircle cx='259.9' cy='301.5' r='7.23' fill='url(%23g)' fill-opacity='0.51'/%3E%3Ccircle cx='512.3' cy='227.2' r='9.41' fill='url(%23g)' fill-opacity='0.75'/%3E%3Ccircle cx='200.7' cy='242.9' r='6.32' fill='url(%23g)' fill-opacity='0.79'/%3E%3Ccircle cx='302.2' cy='87.4' r='8.33' fill='url(%23g)' fill-opacity='0.49'/%3E%3Ccircle cx='189.2' cy='440.0' r='6.68' fill='url(%23g)' fill-opacity='0.94'/%3E%3C/svg%3E") 0 0/613px 613px;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='467' height='467'%3E%3CradialGradient id='g'%3E%3Cstop offset='.2'/%3E%3Cstop offset='.38' stop-opacity='.45'/%3E%3Cstop offset='1' stop-opacity='0'/%3E%3C/radialGradient%3E%3Ccircle cx='245.0' cy='178.2' r='9.66' fill='url(%23g)' fill-opacity='0.66'/%3E%3Ccircle cx='196.0' cy='193.2' r='7.24' fill='url(%23g)' fill-opacity='0.64'/%3E%3Ccircle cx='42.2' cy='103.9' r='9.62' fill='url(%23g)' fill-opacity='0.66'/%3E%3Ccircle cx='96.7' cy='278.6' r='9.03' fill='url(%23g)' fill-opacity='0.94'/%3E%3Ccircle cx='184.1' cy='127.7' r='6.45' fill='url(%23g)' fill-opacity='0.54'/%3E%3Ccircle cx='238.4' cy='412.0' r='9.62' fill='url(%23g)' fill-opacity='0.87'/%3E%3Ccircle cx='168.2' cy='157.5' r='6.49' fill='url(%23g)' fill-opacity='0.98'/%3E%3Ccircle cx='434.0' cy='332.5' r='8.11' fill='url(%23g)' fill-opacity='0.78'/%3E%3Ccircle cx='169.4' cy='13.0' r='7.39' fill='url(%23g)' fill-opacity='0.78'/%3E%3C/svg%3E") 0 0/467px 467px,url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='613' height='613'%3E%3CradialGradient id='g'%3E%3Cstop offset='.2'/%3E%3Cstop offset='.38' stop-opacity='.45'/%3E%3Cstop offset='1' stop-opacity='0'/%3E%3C/radialGradient%3E%3Ccircle cx='556.8' cy='303.3' r='6.15' fill='url(%23g)' fill-opacity='0.55'/%3E%3Ccircle cx='90.3' cy='364.8' r='8.47' fill='url(%23g)' fill-opacity='0.68'/%3E%3Ccircle cx='561.9' cy='519.9' r='8.24' fill='url(%23g)' fill-opacity='0.60'/%3E%3Ccircle cx='495.8' cy='513.1' r='8.60' fill='url(%23g)' fill-opacity='0.51'/%3E%3Ccircle cx='455.5' cy='443.4' r='7.32' fill='url(%23g)' fill-opacity='0.88'/%3E%3Ccircle cx='404.3' cy='269.7' r='6.20' fill='url(%23g)' fill-opacity='0.86'/%3E%3Ccircle cx='21.8' cy='372.7' r='8.77' fill='url(%23g)' fill-opacity='0.72'/%3E%3Ccircle cx='510.7' cy='222.1' r='8.24' fill='url(%23g)' fill-opacity='0.82'/%3E%3Ccircle cx='586.9' cy='370.5' r='6.59' fill='url(%23g)' fill-opacity='0.90'/%3E%3Ccircle cx='588.7' cy='481.6' r='6.67' fill='url(%23g)' fill-opacity='0.63'/%3E%3Ccircle cx='259.9' cy='301.5' r='7.23' fill='url(%23g)' fill-opacity='0.51'/%3E%3Ccircle cx='512.3' cy='227.2' r='9.41' fill='url(%23g)' fill-opacity='0.75'/%3E%3Ccircle cx='200.7' cy='242.9' r='6.32' fill='url(%23g)' fill-opacity='0.79'/%3E%3Ccircle cx='302.2' cy='87.4' r='8.33' fill='url(%23g)' fill-opacity='0.49'/%3E%3Ccircle cx='189.2' cy='440.0' r='6.68' fill='url(%23g)' fill-opacity='0.94'/%3E%3C/svg%3E") 0 0/613px 613px;
+}
+
+.sparkles-near {
+  background-color:var(--sparkles-tint);
+  position:absolute;
+  inset:-211px -211px 0 0;
+  -webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='211' height='211'%3E%3Cfilter id='n' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.032' numOctaves='1' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 8 0 0 0 -3.36'/%3E%3C/filter%3E%3Crect width='211' height='211' filter='url(%23n)'/%3E%3C/svg%3E"),linear-gradient(#0000001a,#0000001a);
+  mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='211' height='211'%3E%3Cfilter id='n' x='0' y='0' width='1' height='1'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.032' numOctaves='1' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 8 0 0 0 -3.36'/%3E%3C/filter%3E%3Crect width='211' height='211' filter='url(%23n)'/%3E%3C/svg%3E"),linear-gradient(#0000001a,#0000001a);
+  -webkit-mask-size:211px 211px,auto;
+  mask-size:211px 211px,auto;
+}
+
+.sparkles-glint {
+  background-image:radial-gradient(closest-side, var(--sparkles-core) 6%, color-mix(in oklab, var(--sparkles-tint) 85%, transparent) 14%, color-mix(in oklab, var(--sparkles-tint) 30%, transparent) 32%, transparent 58%), radial-gradient(50% 6% at 50% 50%, var(--sparkles-core), color-mix(in oklab, var(--sparkles-tint) 70%, transparent) 40%, transparent), radial-gradient(6% 50% at 50% 50%, var(--sparkles-core), color-mix(in oklab, var(--sparkles-tint) 70%, transparent) 40%, transparent), radial-gradient(closest-side, color-mix(in oklab, var(--sparkles-tint) 24%, transparent), transparent);
+}
+
+.animate-sparkles-glint {
+  animation:sparkles-glint calc(max(var(--sparkles-time,6) * 1s / clamp(.25, var(--sparkles-speed,1), 3), var(--sparkles-count,12) * .34s) * 6) ease-in-out calc(max(var(--sparkles-time,6) * 1s / clamp(.25, var(--sparkles-speed,1), 3), var(--sparkles-count,12) * .34s) * 6 * var(--sparkles-phase,0) * -1) infinite;
+}
+
+.animate-sparkles-shimmer {
+  animation:sparkles-shimmer calc(19s / clamp(.25, var(--sparkles-speed,1), 3)) linear infinite;
+}
+
+.animate-sparkles-twinkle {
+  animation:sparkles-twinkle calc(14s / clamp(.25, var(--sparkles-speed,1), 3)) linear infinite;
+}
+
+@keyframes sparkles-glint {
+  0% { opacity:0;; translate:-50% -50%;; rotate:0deg;; scale:0; }
+  10% { opacity:0;; animation-timing-function:cubic-bezier(.2,.9,.3,1);; rotate:0deg;; scale:0; }
+  11% { opacity:1;; rotate:20deg;; scale:1; }
+  13.333% { opacity:.7;; rotate:34deg;; scale:.75; }
+  15.667% { opacity:0;; rotate:45deg;; scale:.35; }
+  16.657% { opacity:0;; animation-timing-function:step-end;; translate:-50% -50%;; rotate:45deg;; scale:0; }
+  16.667% { opacity:0;; translate:calc(48px - 50%) calc(-50% - 36px);; rotate:0deg;; scale:0; }
+  26.667% { opacity:0;; animation-timing-function:cubic-bezier(.2,.9,.3,1);; rotate:0deg;; scale:0; }
+  27.667% { opacity:1;; rotate:20deg;; scale:.75; }
+  30% { opacity:.7;; rotate:34deg;; scale:.563; }
+  32.333% { opacity:0;; rotate:45deg;; scale:.262; }
+  33.323% { opacity:0;; animation-timing-function:step-end;; translate:calc(48px - 50%) calc(-50% - 36px);; rotate:45deg;; scale:0; }
+  33.333% { opacity:0;; translate:calc(-50% - 52px) calc(20px - 50%);; rotate:0deg;; scale:0; }
+  43.333% { opacity:0;; animation-timing-function:cubic-bezier(.2,.9,.3,1);; rotate:0deg;; scale:0; }
+  44.333% { opacity:1;; rotate:20deg;; scale:.9; }
+  46.667% { opacity:.7;; rotate:34deg;; scale:.675; }
+  49% { opacity:0;; rotate:45deg;; scale:.315; }
+  49.99% { opacity:0;; animation-timing-function:step-end;; translate:calc(-50% - 52px) calc(20px - 50%);; rotate:45deg;; scale:0; }
+  50% { opacity:0;; translate:calc(30px - 50%) calc(44px - 50%);; rotate:0deg;; scale:0; }
+  60% { opacity:0;; animation-timing-function:cubic-bezier(.2,.9,.3,1);; rotate:0deg;; scale:0; }
+  61% { opacity:1;; rotate:20deg;; scale:.7; }
+  63.333% { opacity:.7;; rotate:34deg;; scale:.525; }
+  65.667% { opacity:0;; rotate:45deg;; scale:.245; }
+  66.657% { opacity:0;; animation-timing-function:step-end;; translate:calc(30px - 50%) calc(44px - 50%);; rotate:45deg;; scale:0; }
+  66.667% { opacity:0;; translate:calc(-50% - 24px) calc(-50% - 50px);; rotate:0deg;; scale:0; }
+  76.667% { opacity:0;; animation-timing-function:cubic-bezier(.2,.9,.3,1);; rotate:0deg;; scale:0; }
+  77.667% { opacity:1;; rotate:20deg;; scale:1; }
+  80% { opacity:.7;; rotate:34deg;; scale:.75; }
+  82.333% { opacity:0;; rotate:45deg;; scale:.35; }
+  83.323% { opacity:0;; animation-timing-function:step-end;; translate:calc(-50% - 24px) calc(-50% - 50px);; rotate:45deg;; scale:0; }
+  83.333% { opacity:0;; translate:calc(56px - 50%) calc(12px - 50%);; rotate:0deg;; scale:0; }
+  93.333% { opacity:0;; animation-timing-function:cubic-bezier(.2,.9,.3,1);; rotate:0deg;; scale:0; }
+  94.333% { opacity:1;; rotate:20deg;; scale:.85; }
+  96.667% { opacity:.7;; rotate:34deg;; scale:.637; }
+  99% { opacity:0;; rotate:45deg;; scale:.297; }
+  99.99% { opacity:0;; animation-timing-function:step-end;; translate:calc(56px - 50%) calc(12px - 50%);; rotate:45deg;; scale:0; }
+  to { opacity:0;; translate:-50% -50%;; rotate:0deg;; scale:0; }
+}
+
+@keyframes sparkles-shimmer {
+  to { translate: -211px 211px; }
+}
+
+@keyframes sparkles-twinkle {
+  to { translate: 173px 173px; }
+}
+
 /* Giảm chuyển động: tắt hết hiệu ứng nền (Ken Burns, bụi trôi, cánh rơi,
    lấp lánh, shimmer, Hỷ bay, nút thở). Hiệu ứng cuộn của Framer Motion
    cũng tự tắt qua MotionConfig reducedMotion="user" + useReducedMotion. */
 @media (prefers-reduced-motion: reduce) {
   .kenburns,
-  .ambient-particle,
   .petal-fall,
   .twinkle,
   .shimmer-glow,
