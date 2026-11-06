@@ -8,7 +8,7 @@ import { getDateParts } from "@/lib/lunar";
 import Countdown from "./Countdown";
 import TemplateMotif from "./TemplateMotif";
 import { SongPhungBand } from "./SongPhungDecor";
-import { FloatingAmbient, KenBurns, ParallaxLayer, PetalFall, ScrollReveal, SplitLines, StaggeredText, Twinkle } from "./effects";
+import { GoldSparkles, KenBurns, ParallaxLayer, PetalFall, ScrollReveal, SplitLines, StaggeredText, Twinkle } from "./effects";
 
 const FRAME_OUTER: Record<string, number> = { single: 2, double: 3, triple: 4, scallop: 2, band: 2 };
 const FRAME_INNER: Record<string, string> = {
@@ -780,11 +780,12 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
           <TemplateMotif motif={tpl.motif} accent={p.accent} gold={p.gold} size="sm" />
         </div>
       )}
-      {/* Bụi vàng trôi + cánh hoa rơi khắp thiệp (chỉ trang khách, theo
-          effects.ambient của mẫu; hạt nhỏ, mờ, không chặn chạm/đọc — §4h). */}
+      {/* Lấp lánh vàng (shadcn Sparkles: bụi mịn + điểm sáng + tia 4 cánh)
+          + cánh hoa rơi khắp thiệp (chỉ trang khách, theo effects.ambient
+          của mẫu; không chặn chạm/đọc — §4h). */}
       {motion && fx.ambient && (
         <>
-          <FloatingAmbient count={fx.ambient.count ?? 12} opacity={fx.ambient.opacity ?? 0.65} colors={["#c9a86a", "#e8c87e", "#f6d365", "#d4af37"]} seed={data.templateId} className="z-30" />
+          <GoldSparkles count={fx.ambient.count ?? 16} speed={fx.ambient.speed ?? 1} seed={data.templateId} className="pointer-events-none absolute inset-0 z-30" />
           <PetalFall count={6} seed={data.templateId} className="z-30" />
         </>
       )}
