@@ -26,12 +26,22 @@ export function ScrollReveal({
   className,
   style,
   strength = "standard",
+  wipe = false,
   disabled = false,
 }: {
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
   strength?: RevealStrength;
+  // wipe (giai đoạn C10): entrance thêm mặt nạ clip-path cắt từ dưới lên
+  // (inset 99% → 0) cùng lúc với mờ + trồi + nét — mục hiện ra như được
+  // kéo màn. Mặc định tắt (giữ entrance giai đoạn A đã đo).
+  // QUAN TRỌNG (bug đã gặp 2026-11-06): KHÔNG dùng inset(100%) — clip che
+  // kín khiến IntersectionObserver tính ratio = 0, whileInView không bao
+  // giờ kích hoạt, mục biến mất vĩnh viễn (đã đo thực tế). 99% (hở 1%)
+  // + amount 0 (ngưỡng 0) thì wipe chạy bình thường. Mục không wipe giữ
+  // amount 0.3 như giai đoạn A (opacity không ảnh hưởng IO nên không sao).
+  wipe?: boolean;
   disabled?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -48,9 +58,9 @@ export function ScrollReveal({
   return (
     <motion.div ref={ref} className={className} style={{ ...style, opacity, scale, filter }}>
       <motion.div
-        initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
-        whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-        viewport={{ amount: 0.3, once: false }}
+        initial={{ opacity: 0, y: 24, filter: "blur(6px)", ...(wipe ? { clipPath: "inset(99% 0% 0% 0%)" } : {}) }}
+        whileInView={{ opacity: 1, y: 0, filter: "blur(0px)", ...(wipe ? { clipPath: "inset(0% 0% 0% 0%)" } : {}) }}
+        viewport={{ amount: wipe ? 0 : 0.3, once: false }}
         transition={{ duration: 0.7, ease: ENTRANCE_EASE }}
       >
         {children}

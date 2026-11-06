@@ -11,6 +11,7 @@ export function Shimmer({
   disabled = false,
   className,
   style,
+  ...rest
 }: {
   children: ReactNode;
   duration?: number;
@@ -18,12 +19,15 @@ export function Shimmer({
   disabled?: boolean;
   className?: string;
   style?: CSSProperties;
+  // Cho phép gắn data-* (vd data-hero-xi để PinnedHero nhắm tới chữ Hỷ).
+  [key: string]: unknown;
 }) {
-  if (disabled) return <span className={className} style={style}>{children}</span>;
+  if (disabled) return <span className={className} style={style} {...(rest as React.HTMLAttributes<HTMLSpanElement>)}>{children}</span>;
   return (
     <span
       className={`shimmer-glow inline-block ${intensity === "strong" ? "shimmer-glow-strong" : ""} ${className ?? ""}`}
       style={{ ...style, ["--shimmer-duration" as string]: `${duration}s` }}
+      {...(rest as React.HTMLAttributes<HTMLSpanElement>)}
     >
       {children}
     </span>

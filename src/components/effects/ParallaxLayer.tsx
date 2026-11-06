@@ -23,6 +23,7 @@ export function useInsideThumbnail<T extends HTMLElement>(): {
 export function ParallaxLayer({
   speed = -0.15,
   range,
+  depth = 1,
   children,
   className,
   style,
@@ -40,6 +41,12 @@ export function ParallaxLayer({
   // dùng speed tuyến tính (+0.08/+0.05) vì chúng chỉ trôi nhẹ, không cần
   // điểm dừng.
   range?: [number, number];
+  // depth: hệ số LỚP SÂU (giai đoạn B5) — y hiệu dụng = y gốc × depth.
+  // Lớp xa nhất 0.2 (trôi chậm nhất), lớp giữa 0.5, lớp gần nhất 1 (trôi
+  // nhanh nhất). Tốc độ `speed`/range là tốc độ GỐC của lớp (xem
+  // templates.ts: phụng phải gốc 0.24 × 0.5 = 0.12, HOA gốc 0.4 × 0.2 =
+  // 0.08 — giữ nguyên cảm giác giai đoạn A, chỉ thêm chiều sâu).
+  depth?: number;
   children: ReactNode;
   className?: string;
   style?: CSSProperties;
@@ -52,9 +59,9 @@ export function ParallaxLayer({
     if (range) {
       const inMax = range[0] || 1;
       const t = Math.min(Math.max(v / inMax, 0), 1);
-      return t * range[1];
+      return t * range[1] * depth;
     }
-    return v * speed;
+    return v * speed * depth;
   });
   return (
     <motion.div className={className} style={{ ...style, y, willChange: "transform" }}>
