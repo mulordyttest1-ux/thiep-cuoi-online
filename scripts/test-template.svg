@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mẫu test cho đường SVG tap-to-edit: thiệp cưới lễ Vu Quy (dữ liệu thật
+     của chị, cùng payload với scripts/test_cep.mjs). Các khung sửa được có
+     id = khóa CEP (hoặc id của <g> bao ngoài, như pos1.ong); câu mẫu cố
+     định KHÔNG có id nên không sửa được. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1160" width="800" height="1160">
+  <rect x="0" y="0" width="800" height="1160" fill="#fdf8f1"/>
+  <rect x="20" y="20" width="760" height="1120" fill="none" stroke="#c9a86a" stroke-width="3"/>
+  <text x="400" y="70" text-anchor="middle" font-family="serif" font-size="28" fill="#7a1f2b">Trân trọng kính mời</text>
+  <text id="info.ten_le" x="400" y="140" text-anchor="middle" font-family="serif" font-size="44" font-weight="bold" fill="#7a1f2b">Vu Quy</text>
+  <g id="pos1.ong">
+    <text x="400" y="210" text-anchor="middle" font-family="serif" font-size="30" fill="#2b1a1d">Phaolô Ngân Văn Sửu (+)</text>
+  </g>
+  <text id="pos1.ba" x="400" y="255" text-anchor="middle" font-family="serif" font-size="30" fill="#2b1a1d">Maria Nguyễn Thị Thảo</text>
+  <text id="pos1.diachi" x="400" y="300" text-anchor="middle" font-family="serif" font-size="22" fill="#5a4a48"><tspan x="400" dy="0">Thôn Chư Kbô</tspan><tspan x="400" dy="28">Xã Krông Búk, Tỉnh Đắk Lắk</tspan></text>
+  <text id="pos1.con_full" x="400" y="380" text-anchor="middle" font-family="serif" font-size="36" font-weight="bold" fill="#7a1f2b">Têrêsa Ngân Thị Hoài Nhi</text>
+  <text id="pos1.vithu" x="400" y="420" text-anchor="middle" font-family="serif" font-size="22" fill="#5a4a48">Trưởng Nữ</text>
+  <line x1="200" y1="455" x2="600" y2="455" stroke="#c9a86a" stroke-width="2"/>
+  <text id="pos2.ong" x="400" y="505" text-anchor="middle" font-family="serif" font-size="30" fill="#2b1a1d">Trần Văn Bảy</text>
+  <text id="pos2.ba" x="400" y="550" text-anchor="middle" font-family="serif" font-size="30" fill="#2b1a1d">Trần Thị Mỹ Dung</text>
+  <text id="pos2.diachi" x="400" y="595" text-anchor="middle" font-family="serif" font-size="22" fill="#5a4a48"><tspan x="400" dy="0">73 Phú Mỹ</tspan><tspan x="400" dy="28">Châu Thành, Trà Vinh</tspan></text>
+  <text id="pos2.con_full" x="400" y="675" text-anchor="middle" font-family="serif" font-size="36" font-weight="bold" fill="#7a1f2b">Trần Thanh Long</text>
+  <text id="pos2.vithu" x="400" y="715" text-anchor="middle" font-family="serif" font-size="22" fill="#5a4a48">Út Nam</text>
+  <text x="400" y="765" text-anchor="middle" font-family="serif" font-size="20" fill="#5a4a48">Đến dự buổi tiệc chung vui cùng gia đình</text>
+  <text id="ceremony.ten" x="400" y="810" text-anchor="middle" font-family="serif" font-size="26" fill="#7a1f2b">Nhà Thờ Giáo Xứ Vinh Hà</text>
+  <text id="date.le.gio" x="120" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">19</text>
+  <text id="date.le.phut" x="170" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">15</text>
+  <text id="date.le.thu" x="260" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">Thứ Sáu</text>
+  <text id="date.le.ngay" x="350" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">30</text>
+  <text id="date.le.thang" x="400" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">10</text>
+  <text id="date.le.nam" x="470" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">2026</text>
+  <text id="date.le.ngay_al" x="540" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">21</text>
+  <text id="date.le.thang_al" x="590" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">09</text>
+  <text id="date.le.nam_al" x="670" y="860" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">Bính Ngọ</text>
+  <text id="venue.ten" x="400" y="915" text-anchor="middle" font-family="serif" font-size="26" fill="#7a1f2b">Tư Gia Nhà Gái</text>
+  <text id="venue.diachi" x="400" y="955" text-anchor="middle" font-family="serif" font-size="22" fill="#5a4a48"><tspan x="400" dy="0">Thôn Chư Kbô</tspan><tspan x="400" dy="28">Xã Krông Búk, Tỉnh Đắk Lắk</tspan></text>
+  <text id="date.tiec.gio" x="120" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">11</text>
+  <text id="date.tiec.phut" x="170" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">00</text>
+  <text id="date.tiec.thu" x="260" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">Chủ Nhật</text>
+  <text id="date.tiec.ngay" x="350" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">01</text>
+  <text id="date.tiec.thang" x="400" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">11</text>
+  <text id="date.tiec.nam" x="470" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">2026</text>
+  <text id="date.tiec.ngay_al" x="540" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">23</text>
+  <text id="date.tiec.thang_al" x="590" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">09</text>
+  <text id="date.tiec.nam_al" x="670" y="1035" text-anchor="middle" font-family="serif" font-size="20" fill="#2b1a1d">Bính Ngọ</text>
+  <text x="400" y="1090" text-anchor="middle" font-family="serif" font-size="18" fill="#5a4a48">Sự hiện diện của quý khách là niềm vinh hạnh cho gia đình chúng tôi</text>
+  <text id="custom.note" x="400" y="1130" text-anchor="middle" font-family="serif" font-size="18" font-style="italic" fill="#7a6a68">Hân hạnh đón tiếp quý khách</text>
+</svg>
