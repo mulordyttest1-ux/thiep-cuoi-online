@@ -8,7 +8,7 @@ import { getDateParts } from "@/lib/lunar";
 import Countdown from "./Countdown";
 import TemplateMotif from "./TemplateMotif";
 import { SongPhungBand } from "./SongPhungDecor";
-import { FloatingAmbient, KenBurns, ParallaxLayer, ScrollReveal, StaggeredText } from "./effects";
+import { FloatingAmbient, KenBurns, ParallaxLayer, PetalFall, ScrollReveal, SplitLines, StaggeredText, Twinkle } from "./effects";
 
 const FRAME_OUTER: Record<string, number> = { single: 2, double: 3, triple: 4, scallop: 2, band: 2 };
 const FRAME_INNER: Record<string, string> = {
@@ -241,25 +241,33 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
               className="font-display relative z-20 mt-[7%] w-fit text-left text-2xl uppercase leading-[1.11] sm:text-3xl"
               style={{ color: "#710001", fontWeight: 400, fontSize: "clamp(20px, 5.96cqw, 52px)", marginLeft: "12.3%" }}
             >
-              {/* Tên hero — StaggeredText chỉ mờ/nét dần (shift={false},
-                  once): KHÔNG dịch y để 2 dòng không xê/chồng nhau; margin
-                  của từng dòng đặt ở WRAPPER (itemStyles) vì marginTop trên
-                  span inline bên trong bị bỏ qua — đó là lý do QA19 thấy
-                  "THU AN"/"MINH QUÂN" dính nhau (dòng 2 mất mt 1.1% ~10px).
-                  Bố cục giữ đúng spec: leading 1.11, tên 1 ml 1.7%, tên 2
-                  ml 5.5% + mt 1.1%. */}
+              {/* Tên hero — chữ nhảy (GSAP SplitText): từng từ nhô lên từ
+                  sau mặt nạ (yPercent 120 → 0, expo.out, 0.8s, stagger
+                  0.04s) ngay khi mở phong bì. Mặt nạ cắt từ lúc bay nên
+                  không chồng lên dòng khác; lề từng dòng đặt trên WRAPPER
+                  block (bài học QA19: marginTop trên span inline bị bỏ qua
+                  làm "THU AN"/"MINH QUÂN" dính nhau). 4 sao lấp lánh quanh
+                  tên, chỉ ở trang khách. */}
               {blurField("names", (
-              <StaggeredText
+              <SplitLines
                 disabled={!motion}
-                stagger={0.18}
-                shift={false}
-                once
+                trigger="mount"
                 className="block"
-                itemClassName="block whitespace-nowrap"
-                itemStyles={[{ marginLeft: "1.7%" }, { marginLeft: "5.5%", marginTop: "1.1%" }]}
-                items={[data.brideName, data.groomName]}
+                lines={[
+                  { text: data.brideName, style: { marginLeft: "1.7%" }, className: "whitespace-nowrap" },
+                  { text: data.groomName, style: { marginLeft: "5.5%", marginTop: "1.1%" }, className: "whitespace-nowrap" },
+                ]}
               />
               ), "block")}
+              <Twinkle
+                disabled={!motion}
+                positions={[
+                  { left: 2, top: 20 },
+                  { left: 98, top: 15 },
+                  { left: 92, top: 80 },
+                  { left: 5, top: 75 },
+                ]}
+              />
             </h2>
             <div className="relative z-0" style={{ marginTop: "6.2%" }}>
               <SongPhungBand deco={deco} motion={motion} parallax={fx.parallax} />
@@ -331,7 +339,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   liệu có (bản gốc cũng ẩn khi trống). */}
               <div className="mt-6 flex w-full flex-col items-center gap-2">
                 <div className="flex w-full flex-col items-center">
-                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{blurField("names", data.brideName)}</h3>
+                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{blurField("names", <SplitLines disabled={!motion} trigger="inView" className="block" lines={[{ text: data.brideName }]} />)}</h3>
                   {data.brideBirthOrder && (
                     <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: "#710001" }}>{data.brideBirthOrder}</div>
                   )}
@@ -343,7 +351,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   <div className="font-eb-garamond text-[35px] leading-none md:text-[48px]" style={{ color: "#710001" }}>&amp;</div>
                 ) : null}
                 <div className="flex w-full flex-col items-center">
-                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{blurField("names", data.groomName)}</h3>
+                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{blurField("names", <SplitLines disabled={!motion} trigger="inView" className="block" lines={[{ text: data.groomName }]} />)}</h3>
                   {data.groomBirthOrder && (
                     <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: "#710001" }}>{data.groomBirthOrder}</div>
                   )}
@@ -434,7 +442,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                         transition: "transform 0.45s ease, opacity 0.45s ease",
                       }}
                     >
-                      <KenBurns disabled={!motion || a !== 0} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
+                      <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
                         <img src={p.url} alt={p.label} loading="lazy" className="h-full w-full object-cover" />
                       </KenBurns>
                     </button>
@@ -772,10 +780,13 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
           <TemplateMotif motif={tpl.motif} accent={p.accent} gold={p.gold} size="sm" />
         </div>
       )}
-      {/* Bụi vàng trôi khắp thiệp (chỉ trang khách, theo effects.ambient của
-          mẫu; hạt nhỏ, mờ, không chặn chạm/đọc — xem §4h). */}
+      {/* Bụi vàng trôi + cánh hoa rơi khắp thiệp (chỉ trang khách, theo
+          effects.ambient của mẫu; hạt nhỏ, mờ, không chặn chạm/đọc — §4h). */}
       {motion && fx.ambient && (
-        <FloatingAmbient count={fx.ambient.count ?? 12} opacity={fx.ambient.opacity ?? 0.65} colors={["#c9a86a", "#e8c87e", "#f6d365", "#d4af37"]} seed={data.templateId} className="z-30" />
+        <>
+          <FloatingAmbient count={fx.ambient.count ?? 12} opacity={fx.ambient.opacity ?? 0.65} colors={["#c9a86a", "#e8c87e", "#f6d365", "#d4af37"]} seed={data.templateId} className="z-30" />
+          <PetalFall count={6} seed={data.templateId} className="z-30" />
+        </>
       )}
     </article>
     </div>

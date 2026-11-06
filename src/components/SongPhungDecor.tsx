@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { TemplateDecorationImages } from "@/lib/templates";
-import { ParallaxLayer, Shimmer, useInsideThumbnail } from "./effects";
+import { ParallaxLayer, Shimmer, Twinkle, useInsideThumbnail } from "./effects";
 
 // Họa tiết trang trí gốc của mẫu Song Phụng Đỏ, trỏ thẳng tới URL gốc.
 // QUAN TRỌNG: ảnh gốc là ảnh dọc rất cao (phụng ~1952x4105, tỉ lệ ~0.48),
@@ -127,7 +127,7 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
           囍
         </span>
       ) : (
-        <Shimmer disabled={!motion} duration={3} intensity="strong" className="absolute left-1/2 top-1/2 z-20 w-[32.1%]" style={{ transform: "translate(-50%, -50%)" }}>
+        <Shimmer disabled={!motion} duration={2} intensity="strong" className="absolute left-1/2 top-1/2 z-20 w-[32.1%]" style={{ transform: "translate(-50%, -50%)" }}>
           <img
             src={deco.chuHy}
             alt="Chữ Hỷ"
@@ -138,6 +138,22 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
           />
         </Shimmer>
       )}
+      {/* Lấp lánh quanh chữ Hỷ (giai đoạn A): 8 sao vàng 4 cánh nhấp nháy,
+          chỉ ở trang khách (motion=true), thumbnail/editor tắt. */}
+      <Twinkle
+        disabled={!motion}
+        className="z-30"
+        positions={[
+          { left: 34, top: 20 },
+          { left: 66, top: 18 },
+          { left: 28, top: 42 },
+          { left: 72, top: 45 },
+          { left: 36, top: 72 },
+          { left: 64, top: 75 },
+          { left: 30, top: 62 },
+          { left: 70, top: 28 },
+        ]}
+      />
       {/* Phụng trái: left -18.6%, top 0 hàng, rộng 47.5% (= 431px gốc).
           Cao ~99.9% chiều rộng cột nên đuôi thò ~19.6% qua đáy hero
           (bản gốc 19.0%) — KHÔNG cắt bằng overflow-hidden nữa (vòng 13:
