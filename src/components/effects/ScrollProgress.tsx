@@ -6,7 +6,7 @@ import { motion, useReducedMotion, useScroll, useSpring } from "framer-motion";
 // nào của thiệp (như thanh chạy của video).
 export function ScrollProgress({
   color = "#710001",
-  height = 3,
+  height = 4,
   disabled = false,
 }: {
   color?: string;

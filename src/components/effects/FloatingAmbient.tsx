@@ -36,17 +36,19 @@ export function FloatingAmbient({
     const rand = mulberry32(typeof seed === "number" ? seed : hashSeed(seed));
     return Array.from({ length: count }, (_, i) => ({
       left: rand() * 100,
-      // 30% đầu hạt dành RIÊNG cho dải hero (0–16% chiều cao): QA20 thấy
+      // 40% đầu hạt dành RIÊNG cho dải hero (0–16% chiều cao): QA20 thấy
       // hero không có hạt nào vì 22 hạt rải đều trên ~5000px, mỗi viewport
       // chỉ ~4 hạt mà 1/3 trong số đó màu kem trên nền kem. Hạt to hơn
-      // (8–16px thay vì 5–10px) + phát sáng nhẹ để vàng trên nền kem
-      // nhìn rõ mà vẫn nhẹ, không át chữ.
-      top: i < Math.ceil(count * 0.3) ? rand() * 16 : rand() * 100,
-      size: 8 + rand() * 8,
+      // (10–20px) + phát sáng nhẹ để vàng trên nền kem nhìn rõ mà vẫn
+      // nhẹ, không át chữ. Đo độ rõ 2026-11-06: bụi cũ trôi ~15px/s —
+      // quá chậm để nhận ra; nay nhanh gấp đôi (chu kỳ 5–8s, trôi ngang
+      // ±60px) + nhịp phồng scale để mắt bắt được chuyển động.
+      top: i < Math.ceil(count * 0.4) ? rand() * 16 : rand() * 100,
+      size: 10 + rand() * 10,
       color: colors[Math.floor(rand() * colors.length)],
-      duration: 8 + rand() * 8,
+      duration: 5 + rand() * 3,
       delay: -rand() * 14, // delay âm: đã bay giữa chừng ngay khi mở trang
-      dx: (rand() - 0.5) * 60,
+      dx: (rand() - 0.5) * 120,
       petal: rand() < 0.35,
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps

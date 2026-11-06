@@ -3,16 +3,22 @@
 import { useRef, type CSSProperties, type ReactNode } from "react";
 import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
 
-// Cross-dissolve theo vị trí cuộn — kiểu chuyển cảnh video: section đi vào
-// thì mờ dần hiện ra + phóng nhẹ từ 0.96 về 1 + nét dần từ mờ nhẹ; đi ra thì
-// mờ đi một phần (không mờ hẳn để vẫn đọc được khi cuộn ngược). Chạy theo
-// useScroll với ref của chính section (không dùng timer).
-// Ngưỡng thoát "end 0" để section cuối trang không bị mờ khi cuộn tới đáy.
+// Chuyển cảnh kiểu video, 2 lớp lồng nhau (đo độ rõ 2026-11-06):
+// - Lớp TRONG: entrance theo THỜI GIAN (whileInView) — mờ dần + trồi lên
+//   + nét dần trong 0.7s mỗi lần section vào khung, bất kể tốc độ cuộn.
+//   Trước đây chỉ có lớp cuộn nên cuộn nhanh là section hiện tức thì
+//   (0→1 trong <100ms) — mắt không thấy fade nào ("chỉ scroll không có
+//   fade"). Entrance chạy lại mỗi lần vào khung (once: false).
+// - Lớp NGOÀI: mờ đi một phần theo VỊ TRÍ cuộn khi section đi ra (không mờ
+//   hẳn để vẫn đọc được khi cuộn ngược). Ngưỡng thoát "end 0" để section
+//   cuối trang không bị mờ khi cuộn tới đáy.
+const ENTRANCE_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
 export type RevealStrength = "subtle" | "standard";
 
-const MAP: Record<RevealStrength, { opacity: number[]; scale: number[]; blur: string[] }> = {
-  standard: { opacity: [0, 1, 1, 0.55], scale: [0.96, 1, 1, 0.99], blur: ["blur(6px)", "blur(0px)", "blur(0px)", "blur(1.5px)"] },
-  subtle: { opacity: [0, 1, 1, 0.75], scale: [0.98, 1, 1, 0.995], blur: ["blur(3px)", "blur(0px)", "blur(0px)", "blur(1px)"] },
+const EXIT: Record<RevealStrength, { opacity: number[]; scale: number[]; blur: string[] }> = {
+  standard: { opacity: [1, 1, 1, 0.55], scale: [1, 1, 1, 0.99], blur: ["blur(0px)", "blur(0px)", "blur(0px)", "blur(1.5px)"] },
+  subtle: { opacity: [1, 1, 1, 0.75], scale: [1, 1, 1, 0.995], blur: ["blur(0px)", "blur(0px)", "blur(0px)", "blur(1px)"] },
 };
 
 export function ScrollReveal({
@@ -34,14 +40,21 @@ export function ScrollReveal({
     target: ref,
     offset: ["start 0.95", "start 0.45", "end 0.35", "end 0"],
   });
-  const m = MAP[strength];
+  const m = EXIT[strength];
   const opacity = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], m.opacity);
   const scale = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], m.scale);
   const filter = useTransform(scrollYProgress, [0, 0.25, 0.75, 1], m.blur);
   if (disabled || reduce) return <div className={className} style={style}>{children}</div>;
   return (
     <motion.div ref={ref} className={className} style={{ ...style, opacity, scale, filter }}>
-      {children}
+      <motion.div
+        initial={{ opacity: 0, y: 24, filter: "blur(6px)" }}
+        whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+        viewport={{ amount: 0.3, once: false }}
+        transition={{ duration: 0.7, ease: ENTRANCE_EASE }}
+      >
+        {children}
+      </motion.div>
     </motion.div>
   );
 }
