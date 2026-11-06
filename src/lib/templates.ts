@@ -333,13 +333,16 @@ export const TEMPLATES: Template[] = [
     // Bộ hiệu ứng đầy đủ của thư viện (spec §4h): vụ nổ vàng khi mở phong
     // bì, bụi vàng trôi, Hỷ/con dấu phát sáng, Ken Burns album, cross-dissolve
     // khi cuộn, parallax phụng/hoa, thanh tiến trình.
+    // Giai đoạn A (2026-11-06): hiệu ứng đậm hơn theo đo độ rõ + nghiên cứu
+    // trang chuyên nghiệp — bụi to/nhanh/sáng hơn, nổ lớn hơn, Ken Burns
+    // nhanh hơn, parallax nhanh hơn một chút.
     effects: {
-      burst: { count: 40, duration: 1.1, spread: 220 },
-      ambient: { count: 36, opacity: 0.9 },
-      shimmer: { duration: 3, intensity: "strong" },
-      kenBurns: { duration: 8, scale: 1.12 },
+      burst: { count: 60, duration: 1.4, spread: 280 },
+      ambient: { count: 44, opacity: 1.0 },
+      shimmer: { duration: 2, intensity: "strong" },
+      kenBurns: { duration: 5, scale: 1.2 },
       reveal: { strength: "standard" },
-      parallax: { left: -0.15, right: 0.08, hoa: 0.05 },
+      parallax: { left: -0.15, right: 0.12, hoa: 0.08 },
       progressBar: true,
     },
     // Same-origin proxy URLs (see src/app/api/songphung/[file]/route.ts).
