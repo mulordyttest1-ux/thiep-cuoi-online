@@ -432,6 +432,13 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 (modulo) để 2 đầu carousel vẫn có ảnh 2 bên. Ảnh vẫn là
                 PRESET_PHOTOS (ảnh mẫu khác cặp đôi demo là chấp nhận được
                 — chỉ đổi định dạng, không bịa ảnh).
+                Sửa khoảng cách (Nancy 2026-11-06: ảnh kề đè lên ảnh giữa
+                69px trên điện thoại 390px, nhìn chồng ẩu): bước xòe tăng
+                72% → 110%, ảnh kề cách ảnh giữa ~32px (đo trên 390px),
+                ảnh xa dịch 220%. (Thử 128% trước: khoảng cách 80px nhưng
+                ảnh kề bay khỏi màn hình điện thoại — kéo về 110%.)
+                Chỉ đổi khoảng cách — crossfade B6, Ken Burns, opacity
+                giữ nguyên.
                 Vòng 14: khung ảnh DỌC tỉ lệ 2:3 (300×450, track cao 470px)
                 như bản gốc (~320×485) — vòng 13 khung ngang 300×220.
                 Ảnh stock ngang bị crop dọc bằng object-cover, chấp nhận
@@ -462,7 +469,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                       aria-label={p.label}
                       className="absolute left-1/2 top-1/2 h-[450px] w-[300px] max-w-[86%] cursor-pointer overflow-hidden rounded-2xl border-0 p-0 shadow-lg"
                       style={{
-                        transform: `translate(-50%, -50%) translateX(${off * 72}%) rotateY(${rotY}deg) translateZ(${-a * 80}px) scale(${scale})`,
+                        transform: `translate(-50%, -50%) translateX(${off * 110}%) rotateY(${rotY}deg) translateZ(${-a * 80}px) scale(${scale})`,
                         opacity: a === 0 ? 1 : a === 1 ? 0.9 : 0.55,
                         zIndex: 10 - a,
                         transition: "transform 0.45s ease, opacity 0.45s ease",
