@@ -40,6 +40,34 @@ function CardInner() {
   // con dấu nở + xoay nhẹ → phong bì mở dần (clip-path wipe) → vụ nổ
   // → tên nhảy lên khi thiệp hiện. Giảm chuyển động thì mở ngay, không nổ.
   const [opening, setOpening] = useState(false);
+  // Đếm chương (C11): mục nào đang ở giữa khung (data-chapter trong
+  // InvitationPreview) thì số chương đổi theo. Mẫu không-deco không có
+  // data-chapter nên số ẩn.
+  const [chapter, setChapter] = useState(0);
+  const [chapterTotal, setChapterTotal] = useState(0);
+  useEffect(() => {
+    if (!opened) return;
+    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-chapter]"));
+    if (els.length === 0) return;
+    setChapterTotal(Math.max(...els.map((el) => Number(el.dataset.chapter || 0))));
+    // Khi 2 mục cùng lọt vào dải giữa (vd ở đầu trang, hero ngắn trên điện
+    // thoại nên hero + thông tin cùng chạm dải), chương HIỆN TẠI là mục
+    // trên cùng (đầu tiên theo thứ tự tài liệu) — không lấy mục cuối cùng
+    // trong danh sách entries (trước đây ở scrollY 0 hiện 02/06 thay vì
+    // 01/06 vì thông tin lấn hero).
+    const order = new Map(els.map((el, i) => [el, i] as const));
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length === 0) return;
+        visible.sort((a, b) => (order.get(a.target as HTMLElement) ?? 0) - (order.get(b.target as HTMLElement) ?? 0));
+        setChapter(Number((visible[0].target as HTMLElement).dataset.chapter || 0));
+      },
+      { rootMargin: "-40% 0px -40% 0px" }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [opened, data?.templateId]);
   const fx = getTemplateEffects(data?.templateId ?? "");
   const handleOpen = () => {
     if (reduce) {
@@ -265,6 +293,7 @@ function CardInner() {
           className={`relative w-full overflow-hidden rounded-3xl border-2 text-center shadow-xl transition-shadow hover:shadow-2xl ${deco ? "max-w-[600px]" : "max-w-md"}`}
           style={{ borderColor: tpl.envelope, background: deco ? "#710001" : p.card, padding: deco ? 12 : 0 }}
           aria-label={`Mở thiệp cưới của ${data.groomName} và ${data.brideName}`}
+          whileTap={{ scale: 0.96 }}
           animate={opening ? { scale: [1, 1.04, 0.94], opacity: [1, 1, 0], rotate: [0, -1, 1.5], clipPath: ["inset(0% 0% 0% 0%)", "inset(0% 0% 0% 0%)", "inset(0% 0% 100% 0%)"] } : { scale: 1, opacity: 1, rotate: 0, clipPath: "inset(0% 0% 0% 0%)" }}
           transition={{ duration: 0.65, ease: "easeInOut" }}
         >
@@ -374,6 +403,11 @@ function CardInner() {
           </div>
         </motion.button>
       </div>
+      {/* Hạt phim (C9): vân nhiễu phủ mờ lên toàn trang khách, như giấy
+          ảnh cũ — vân tĩnh nên hiện cả khi giảm chuyển động. */}
+      {fx.cinema?.grain !== false && (
+        <div aria-hidden="true" className="film-grain pointer-events-none fixed inset-0 z-[45]" />
+      )}
       </>
     );
   }
@@ -382,7 +416,7 @@ function CardInner() {
     <>
       {burstOverlay}
     <SmoothScroll lerp={0.09}>
-      <ScrollProgress color="linear-gradient(90deg,#c9a86a,#710001)" disabled={fx.progressBar === false} />
+      <ScrollProgress color="linear-gradient(90deg,#c9a86a,#710001)" disabled={fx.progressBar === false} chapter={fx.cinema?.chapters === false || chapterTotal === 0 ? null : { current: chapter, total: chapterTotal }} />
       <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
         <InvitationPreview data={data} guestName={guestName} motion />
 
@@ -421,6 +455,9 @@ function CardInner() {
       </p>
       </div>
     </SmoothScroll>
+    {fx.cinema?.grain !== false && (
+      <div aria-hidden="true" className="film-grain pointer-events-none fixed inset-0 z-[45]" />
+    )}
     </>
   );
 }
