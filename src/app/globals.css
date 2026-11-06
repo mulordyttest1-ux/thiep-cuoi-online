@@ -235,6 +235,17 @@ html.lenis, html.lenis body {
   to { translate: 173px 173px; }
 }
 
+/* Hạt phim (C9): nhiễu feTurbulence phủ mờ lên thiệp, như giấy ảnh cũ.
+   Chỉ là vân tĩnh (không có animation) nên không cần tắt khi giảm chuyển
+   động. mix-blend multiply để hạt tối đậm lên giấy kem, hạt sáng trong
+   suốt — vân giấy chứ không phải bụi bẩn. */
+.film-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 300px 300px;
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+}
+
 /* Giảm chuyển động: tắt hết hiệu ứng nền (Ken Burns, bụi trôi, cánh rơi,
    lấp lánh, shimmer, Hỷ bay, nút thở). Hiệu ứng cuộn của Framer Motion
    cũng tự tắt qua MotionConfig reducedMotion="user" + useReducedMotion. */
