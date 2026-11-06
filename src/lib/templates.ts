@@ -52,6 +52,13 @@ export interface TemplateEffects {
   kenBurns?: { duration?: number; scale?: number };
   reveal?: { strength?: "subtle" | "standard" };
   parallax?: { left?: number; right?: number; hoa?: number };
+  // Điện ảnh (giai đoạn B/C): hero ghim, marquee tên cặp đôi, hạt phim,
+  // đếm chương. Mẫu không khai báo thì lấy mặc định theo id
+  // (defaultEffectsFor) — tính năng nào không có mục tương ứng trong mẫu
+  // thì tự ẩn (vd mẫu không-deco không có data-chapter nên không hiện số
+  // chương). Tốc độ parallax ở trên là tốc độ GỐC; tốc độ hiệu dụng = gốc
+  // × depth của lớp (phụng phải ×0.5, HOA ×0.2 — xem ParallaxLayer).
+  cinema?: { pinned?: boolean; marquee?: boolean; grain?: boolean; chapters?: boolean };
   progressBar?: boolean;
 }
 
@@ -344,7 +351,11 @@ export const TEMPLATES: Template[] = [
       shimmer: { duration: 2, intensity: "strong" },
       kenBurns: { duration: 5, scale: 1.2 },
       reveal: { strength: "standard" },
-      parallax: { left: -0.15, right: 0.12, hoa: 0.08 },
+      // Tốc độ parallax GỐC (hiệu dụng = gốc × depth): phụng phải 0.24 ×
+      // 0.5 = 0.12, HOA 0.4 × 0.2 = 0.08; đuôi phụng trái depth 1 nên rút
+      // trọn [900, −180] như giai đoạn A.
+      parallax: { left: -0.15, right: 0.24, hoa: 0.4 },
+      cinema: { pinned: true, marquee: true, grain: true, chapters: true },
       progressBar: true,
     },
     // Same-origin proxy URLs (see src/app/api/songphung/[file]/route.ts).
@@ -621,7 +632,10 @@ export function defaultEffectsFor(id: string): TemplateEffects {
     shimmer: rand() < 0.5 ? { duration: 2.6 + rand() * 1.4, intensity: pick(["soft", "strong"] as const) } : undefined,
     kenBurns: { duration: 7 + rand() * 4, scale: 1.08 + rand() * 0.06 },
     reveal: { strength: pick(["subtle", "standard"] as const) },
-    parallax: { left: -(0.1 + rand() * 0.08), right: 0.05 + rand() * 0.05, hoa: 0.03 + rand() * 0.04 },
+    // parallax là tốc độ GỐC (hiệu dụng = gốc × depth của lớp: phụng phải
+    // ×0.5, HOA ×0.2 — xem ParallaxLayer).
+    parallax: { left: -(0.1 + rand() * 0.08), right: 0.1 + rand() * 0.1, hoa: 0.15 + rand() * 0.2 },
+    cinema: { pinned: true, marquee: rand() < 0.5, grain: true, chapters: true },
     progressBar: rand() < 0.8,
   };
 }
