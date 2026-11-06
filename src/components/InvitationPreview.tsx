@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { motion as FM, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { useState } from "react";
+import { motion as FM, useReducedMotion } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { formatDateVi, minusMinutes, parseDressCode, parseSchedule } from "@/lib/types";
 import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
@@ -42,15 +42,6 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   const fx = getTemplateEffects(data.templateId);
   const fontClass = TEMPLATE_FONT_CLASS[tpl.font];
   const reduce = useReducedMotion();
-  // Album crossfade theo cuộn (B6): tiến trình cuộn qua section album (0
-  // khi đầu album chạm 90% viewport, 1 khi cuối album chạm 40%) điều khiển
-  // độ mờ giữa ảnh giữa hiện tại và ảnh kế tiếp — cuộn xuống thì ảnh mờ
-  // dần sang ảnh sau, cuộn ngược thì mờ lại (scrub, không chạy theo thời
-  // gian). Giảm chuyển động thì giữ ảnh hiện tại (opacity 1/0).
-  const albumRef = useRef<HTMLElement | null>(null);
-  const { scrollYProgress: albumProgress } = useScroll({ target: albumRef, offset: ["start 0.9", "end 0.4"] });
-  const crossToNext = useTransform(albumProgress, [0, 1], [0, 1]);
-  const crossStay = useTransform(albumProgress, [0, 1], [1, 0]);
   const nameSize = tpl.font === "script" ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl";
   const schedule = parseSchedule(data.scheduleText);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -439,12 +430,18 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 ảnh kề bay khỏi màn hình điện thoại — kéo về 110%.)
                 Chỉ đổi khoảng cách — crossfade B6, Ken Burns, opacity
                 giữ nguyên.
+                Vòng 15 (Nancy 2026-11-06: "để như cũ, hình đừng có fade
+                hay opacity gì hết"): bỏ hẳn crossfade B6 (crossStay /
+                crossToNext), bỏ opacity ảnh (1 / 0.9 / 0.55 → tất cả 1),
+                bỏ wipe B7 trên ảnh album — ảnh hiện rõ ngay, một ảnh một
+                lúc, không hòa mờ. Chỉ còn coverflow 3D + khoảng cách 110%
+                + Ken Burns (zoom chậm, không phải mờ).
                 Vòng 14: khung ảnh DỌC tỉ lệ 2:3 (300×450, track cao 470px)
                 như bản gốc (~320×485) — vòng 13 khung ngang 300×220.
                 Ảnh stock ngang bị crop dọc bằng object-cover, chấp nhận
                 được, đúng định dạng gốc; hình học xòe ngang giữ nguyên. */}
             <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-            <section ref={albumRef} data-chapter="3" className="relative z-20 mx-auto mt-10 w-full max-w-[560px]" aria-label={vi ? "Album ảnh cưới" : "Wedding album"}>
+            <section data-chapter="3" className="relative z-20 mx-auto mt-10 w-full max-w-[560px]" aria-label={vi ? "Album ảnh cưới" : "Wedding album"}>
               <h3 className="font-display text-center text-[20px] font-bold uppercase md:text-[24px]" style={{ color: "#710001" }}>
                 <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "ALBUM ẢNH" : "ALBUM").split(" ")} />
               </h3>
@@ -457,10 +454,8 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   if (a > 2) return null;
                   const rotY = off === 0 ? 0 : (a === 2 ? 55 : 38) * Math.sign(off);
                   const scale = a === 0 ? 1 : a === 1 ? 0.75 : 0.6;
-                  // Ảnh giữa: crossfade theo cuộn (B6) — xếp chồng ảnh hiện
-                  // tại + ảnh kế tiếp, độ mờ chạy theo albumProgress; ảnh
-                  // hai bên chỉ wipe khi vào khung (B7).
-                  const next = PRESET_PHOTOS[(coverIdx + 1) % n];
+                  // Ảnh album hiện rõ ngay: không crossfade, không
+                  // opacity, không wipe — chỉ coverflow 3D + Ken Burns.
                   return (
                     <button
                       key={p.url}
@@ -470,29 +465,13 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                       className="absolute left-1/2 top-1/2 h-[450px] w-[300px] max-w-[86%] cursor-pointer overflow-hidden rounded-2xl border-0 p-0 shadow-lg"
                       style={{
                         transform: `translate(-50%, -50%) translateX(${off * 110}%) rotateY(${rotY}deg) translateZ(${-a * 80}px) scale(${scale})`,
-                        opacity: a === 0 ? 1 : a === 1 ? 0.9 : 0.55,
                         zIndex: 10 - a,
-                        transition: "transform 0.45s ease, opacity 0.45s ease",
+                        transition: "transform 0.45s ease",
                       }}
                     >
-                      {a === 0 ? (
-                        <ImageReveal disabled={!motion} className="h-full w-full">
-                          <div className="relative h-full w-full">
-                            <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
-                              <FM.img src={p.url} alt={p.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover" style={{ opacity: motion && !reduce ? crossStay : 1 }} />
-                            </KenBurns>
-                            <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={((coverIdx + 1) % n) % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
-                              <FM.img src={next.url} alt={next.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover" style={{ opacity: motion && !reduce ? crossToNext : 0 }} />
-                            </KenBurns>
-                          </div>
-                        </ImageReveal>
-                      ) : (
-                        <ImageReveal disabled={!motion} className="h-full w-full">
-                          <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
-                            <img src={p.url} alt={p.label} loading="lazy" className="h-full w-full object-cover" />
-                          </KenBurns>
-                        </ImageReveal>
-                      )}
+                      <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
+                        <img src={p.url} alt={p.label} loading="lazy" className="h-full w-full object-cover" />
+                      </KenBurns>
                     </button>
                   );
                 })}
