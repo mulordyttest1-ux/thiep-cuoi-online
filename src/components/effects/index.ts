@@ -2,8 +2,8 @@
 // thông số qua props, không viết lại animation. Xem specs/song-phung-do.md §4h.
 export { BurstParticles } from "./BurstParticles";
 export type { BurstParticlesProps } from "./BurstParticles";
-export { FloatingAmbient } from "./FloatingAmbient";
-export type { FloatingAmbientProps } from "./FloatingAmbient";
+export { GoldSparkles } from "./GoldSparkles";
+export type { GoldSparklesProps } from "./GoldSparkles";
 export { Shimmer } from "./Shimmer";
 export { KenBurns } from "./KenBurns";
 export type { KenBurnsDirection } from "./KenBurns";
