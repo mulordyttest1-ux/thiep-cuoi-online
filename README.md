@@ -37,10 +37,38 @@ ngày cưới, rồi chia sẻ link riêng cho từng khách trong một trang t
 
 ## Tính năng đang tạm ẩn hoặc đã bỏ khỏi phiên bản hiện tại
 
-- **Thanh toán: đang tạm ẩn.** Mục bảng giá và mọi nút thanh toán đã được ẩn khỏi
-  giao diện. Tính năng này sẽ mở lại sau khi có cổng thanh toán thật.
 - **Xác nhận tham dự và sổ lời chúc: đã bỏ khỏi phiên bản hiện tại.** Trang thiệp,
   landing và trang quản lý khách không còn hai phần này.
+
+## Bán thiệp online — PLAN CHỐT v3-final (2026-11-06)
+
+Luồng (tự động, không cần nhân viên): khách gửi nội dung → làm thiệp vật lý, chốt in
+như bình thường → trong editor (`/tao-thiep`) tự hiện mục **“Xem demo thiệp online”**:
+demo duy nhất đã đổ dữ liệu khách, **tên + ngày + giờ + địa điểm bị blur** (bấm vào ô
+mờ thì hiện rõ lúc sửa), chọn mẫu thoải mái trước khi trả tiền, không tính lượt →
+wizard 3 bước: (1) Chọn mẫu → (2) Thêm ảnh / thông tin thêm → (3) Quét QR **100.000đ**
+nhận link xịn. Không watermark, không hết hạn xem trước, không trang khóa làm luồng chính
+(link xem trước cũ `/xem-thu` chuyển tới mục demo online).
+
+- **Giá: 100.000đ / thiệp online**, một giá cho mọi mẫu (`ONLINE_PRICE_VND`,
+  đổi bằng biến môi trường `NEXT_PUBLIC_ONLINE_PRICE_VND`).
+- **SePay gói FREE** (0đ/tháng, 50 giao dịch tiền vào/tháng): tiền về thẳng tài khoản
+  Vietcombank DÀNH RIÊNG cho tiền online của Nancy; SePay chỉ báo webhook. QR riêng
+  theo từng (thiệp + mẫu), mã `THIEP...-MẪU`. Webhook `/api/webhooks/sepay` mở khóa khi
+  đủ 3 điều kiện: đúng mã, số tiền >= 100.000đ, mã giao dịch chưa dùng. Nút
+  “Tôi đã chuyển — kiểm tra” để khách tự kiểm tra.
+- **Link xịn**: `/thiep/<id>?d=<base64url JSON>` — dữ liệu mã hóa vào trong link, chỉ
+  đọc, độc lập với link demo; chỉ mở khi máy chủ đã ghi `paid_online` cho đúng thiệp +
+  đúng mẫu. Dùng tới 30 ngày sau ngày cưới.
+- **Đối soát tay (chỉ Nancy, cần token admin)**: khách đã chuyển tiền thật nhưng sai
+  nội dung / webhook lỗi — nhập mã giao dịch SePay + lý do để mở khóa, có log. Không có
+  nút “đã thu tiền mặt”.
+- **Chưa làm ở v1**: nút đổi mẫu sau trả tiền (hoãn sang giai đoạn sau), agent chat tự
+  do, khách tự tạo link riêng.
+- **Chưa có để mở bán thật**: tài khoản SePay + nối Vietcombank riêng + `SEPAY_*` vào
+  biến môi trường; project Supabase cho Thiệp Đôi (file JSON local không sống được
+  trên Vercel — chưa có Supabase mà chạy production thì route đọc/ghi trả lỗi 503 rõ
+  ràng, không lặng lẽ mất dữ liệu).
 
 ## Công nghệ
 
@@ -102,6 +130,9 @@ Xem `.env.example`. Bản hiện tại không bắt buộc biến nào (chạy b
 `NEXT_PUBLIC_APP_URL` dùng khi deploy để link chia sẻ tuyệt đối trỏ đúng domain.
 `NEXT_PUBLIC_SUPABASE_URL` và `NEXT_PUBLIC_SUPABASE_ANON_KEY` là bước tiếp theo,
 chưa bắt buộc — hiện code không gọi Supabase.
+Bán thiệp online cần thêm `SEPAY_BANK_CODE / SEPAY_ACCOUNT_NUMBER / SEPAY_ACCOUNT_NAME /
+SEPAY_WEBHOOK_SECRET` và `THIEP_ADMIN_TOKEN` (xem `.env.example`) — chưa cấu hình thì
+endpoint thanh toán trả `configured:false` và không sinh QR giả.
 
 ## Deploy lên Vercel (từng bước)
 
