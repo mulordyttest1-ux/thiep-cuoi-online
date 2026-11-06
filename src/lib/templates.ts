@@ -47,7 +47,7 @@ export interface TemplateDecorationImages {
 // (defaultEffectsFor) để mỗi mẫu trông hơi khác nhau mà không cần cấu hình.
 export interface TemplateEffects {
   burst?: { count?: number; colors?: string[]; duration?: number; spread?: number };
-  ambient?: { count?: number; colors?: string[]; speed?: number; opacity?: number };
+  ambient?: { count?: number; speed?: number };
   shimmer?: { duration?: number; intensity?: "soft" | "strong" };
   kenBurns?: { duration?: number; scale?: number };
   reveal?: { strength?: "subtle" | "standard" };
@@ -331,14 +331,16 @@ export const TEMPLATES: Template[] = [
     envelope: "#710001",
     paper: "Giấy kem",
     // Bộ hiệu ứng đầy đủ của thư viện (spec §4h): vụ nổ vàng khi mở phong
-    // bì, bụi vàng trôi, Hỷ/con dấu phát sáng, Ken Burns album, cross-dissolve
+    // bì, lấp lánh vàng, Hỷ/con dấu phát sáng, Ken Burns album, cross-dissolve
     // khi cuộn, parallax phụng/hoa, thanh tiến trình.
     // Giai đoạn A (2026-11-06): hiệu ứng đậm hơn theo đo độ rõ + nghiên cứu
-    // trang chuyên nghiệp — bụi to/nhanh/sáng hơn, nổ lớn hơn, Ken Burns
-    // nhanh hơn, parallax nhanh hơn một chút.
+    // trang chuyên nghiệp — nổ lớn hơn, Ken Burns nhanh hơn, parallax nhanh
+    // hơn một chút. Bụi tròn cũ (2026-11-06) thay bằng lấp lánh shadcn
+    // Sparkles: bụi mịn + điểm sáng + tia 4 cánh, vì hạt tròn 10–20px nhìn
+    // như vết bẩn trên giấy kem.
     effects: {
       burst: { count: 60, duration: 1.4, spread: 280 },
-      ambient: { count: 44, opacity: 1.0 },
+      ambient: { count: 16 },
       shimmer: { duration: 2, intensity: "strong" },
       kenBurns: { duration: 5, scale: 1.2 },
       reveal: { strength: "standard" },
