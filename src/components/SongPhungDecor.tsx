@@ -115,8 +115,11 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
   }
   return (
     <div ref={bandRef} className="relative w-full" style={{ aspectRatio: "907 / 488" }}>
-      {/* Dải đỏ: nửa dưới hàng dải, cao 42.2% chiều cao hàng (= 206px). */}
-      <div className="absolute inset-x-0 top-1/2 h-[42.2%]" style={{ background: "#710001" }} />
+      {/* Dải đỏ: nửa dưới hàng dải, cao 42.2% chiều cao hàng (= 206px).
+          data-hero-band để PinnedHero wipe dải bằng clip-path khi ghim
+          (chỉ wipe RIÊNG dải — phụng/Hỷ là phần tử anh em nên không bị
+          cắt theo; đuôi phụng thò dưới dải phải được giữ nguyên). */}
+      <div data-hero-band className="absolute inset-x-0 top-1/2 h-[42.2%]" style={{ background: "#710001" }} />
       {/* Chữ Hỷ căn giữa HÀNG DẢI, rộng 32.1% (= 291px). Trang khách: ánh
           kim nhẹ (Shimmer) để chữ Hỷ "sống" — thumbnail/editor tắt. */}
       {hyFailed ? (
@@ -127,7 +130,7 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
           囍
         </span>
       ) : (
-        <Shimmer disabled={!motion} duration={2} intensity="strong" className="absolute left-1/2 top-1/2 z-20 w-[32.1%]" style={{ transform: "translate(-50%, -50%)" }}>
+        <Shimmer disabled={!motion} duration={2} intensity="strong" data-hero-xi className="absolute left-1/2 top-1/2 z-20 w-[32.1%]" style={{ transform: "translate(-50%, -50%)" }}>
           <img
             src={deco.chuHy}
             alt="Chữ Hỷ"
@@ -161,8 +164,10 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
           đuôi vuốt nhọn tự nhiên và rút lên nhờ parallax -0.15 khi cuộn
           (ParallaxLayer, tốc độ từ effects.parallax.left), không che chữ
           vì tên ở trên hàng dải và chữ khối THÔNG TIN căn giữa, cách đuôi
-          ≥60px. */}
-      <ParallaxLayer range={[900, -180]} disabled={parallaxOff} className="pointer-events-none absolute left-[-18.6%] top-0 z-10 w-[47.5%]">
+          ≥60px. Lớp GẦN NHẤT (depth 1): đuôi rút trọn vẹn theo range
+          [900, −180] — KHÔNG nhân hệ số nhỏ hơn, nếu không đuôi rút không
+          hết và chạm khối thông tin (bài học QA19/QA21). */}
+      <ParallaxLayer range={[900, -180]} depth={1} disabled={parallaxOff} className="pointer-events-none absolute left-[-18.6%] top-0 z-10 w-[47.5%]">
         <img
           src={deco.phuongLeft}
           alt="Phụng lớn bên trái"
@@ -176,8 +181,10 @@ export function SongPhungBand({ deco, small, motion, parallax }: {
           (đỉnh ảnh = mép trên cùng của phần chính, cánh chạm mép trên),
           rộng 31.4% (285px render thật trong hộp 291x600 do object-contain,
           không phải 32.1%); đáy trong dải, đuôi vắt qua dải. Parallax
-          dương nhỏ (+0.08): trôi cùng chiều cuộn, chậm hơn chữ. */}
-      <ParallaxLayer speed={parallax?.right ?? 0.08} disabled={parallaxOff} className="pointer-events-none absolute left-[calc(50%+16%)] top-[-50.1%] z-10 w-[31.4%]">
+          dương nhỏ: trôi cùng chiều cuộn, chậm hơn chữ. Lớp GIỮA
+          (depth 0.5): tốc độ gốc 0.24 × 0.5 = 0.12 hiệu dụng (giữ nguyên
+          cảm giác giai đoạn A). */}
+      <ParallaxLayer speed={parallax?.right ?? 0.24} depth={0.5} disabled={parallaxOff} className="pointer-events-none absolute left-[calc(50%+16%)] top-[-50.1%] z-10 w-[31.4%]">
         <img
           src={deco.phuongRight}
           alt="Phụng lớn bên phải"

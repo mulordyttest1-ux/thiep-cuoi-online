@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { motion as FM, useReducedMotion, useScroll, useTransform } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { formatDateVi, minusMinutes, parseDressCode, parseSchedule } from "@/lib/types";
 import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
@@ -8,7 +9,7 @@ import { getDateParts } from "@/lib/lunar";
 import Countdown from "./Countdown";
 import TemplateMotif from "./TemplateMotif";
 import { SongPhungBand } from "./SongPhungDecor";
-import { GoldSparkles, KenBurns, ParallaxLayer, PetalFall, ScrollReveal, SplitLines, StaggeredText, Twinkle } from "./effects";
+import { GoldSparkles, ImageReveal, KenBurns, Marquee, ParallaxLayer, PetalFall, PinnedHero, ScrollReveal, SplitLines, StaggeredText, Twinkle } from "./effects";
 
 const FRAME_OUTER: Record<string, number> = { single: 2, double: 3, triple: 4, scallop: 2, band: 2 };
 const FRAME_INNER: Record<string, string> = {
@@ -40,6 +41,16 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   // editor/thumbnail/dialog preview để false để bố cục đứng yên như QA17.
   const fx = getTemplateEffects(data.templateId);
   const fontClass = TEMPLATE_FONT_CLASS[tpl.font];
+  const reduce = useReducedMotion();
+  // Album crossfade theo cuộn (B6): tiến trình cuộn qua section album (0
+  // khi đầu album chạm 90% viewport, 1 khi cuối album chạm 40%) điều khiển
+  // độ mờ giữa ảnh giữa hiện tại và ảnh kế tiếp — cuộn xuống thì ảnh mờ
+  // dần sang ảnh sau, cuộn ngược thì mờ lại (scrub, không chạy theo thời
+  // gian). Giảm chuyển động thì giữ ảnh hiện tại (opacity 1/0).
+  const albumRef = useRef<HTMLElement | null>(null);
+  const { scrollYProgress: albumProgress } = useScroll({ target: albumRef, offset: ["start 0.9", "end 0.4"] });
+  const crossToNext = useTransform(albumProgress, [0, 1], [0, 1]);
+  const crossStay = useTransform(albumProgress, [0, 1], [1, 0]);
   const nameSize = tpl.font === "script" ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl";
   const schedule = parseSchedule(data.scheduleText);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -184,7 +195,10 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         {deco ? (
           <>
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-          <section className="songphung-hero relative -mx-6 -mt-6 sm:-mx-8 sm:-mt-8" style={{ containerType: "inline-size" }}>
+          {/* Màn hero ghim (B4): desktop ghim hero rồi nhả (Hỷ nở, tên trồi,
+              dải wipe), điện thoại chỉ scrub không ghim. Chương 1/6. */}
+          <PinnedHero disabled={!motion || fx.cinema?.pinned === false}>
+          <section data-chapter="1" className="songphung-hero relative -mx-6 -mt-6 sm:-mx-8 sm:-mt-8" style={{ containerType: "inline-size" }}>
             {/* Hero phần chính: section RIÊNG (vòng 7). -mt-6/-mt-8 kéo mép
                 trên section trùng mép thẻ (bù padding p-6/p-8 của khung
                 trong) để cánh phụng phải chạm mép thẻ.
@@ -238,6 +252,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 và dải, dải sạch, không khung viền, không ảnh lớn trong phần
                 chính, không nhãn "THIỆP MỜI CƯỚI". */}
             <h2
+              data-hero-names
               className="font-display relative z-20 mt-[7%] w-fit text-left text-2xl uppercase leading-[1.11] sm:text-3xl"
               style={{ color: "#710001", fontWeight: 400, fontSize: "clamp(20px, 5.96cqw, 52px)", marginLeft: "12.3%" }}
             >
@@ -279,6 +294,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 QA11 nêu (thực chất là đuôi phụng, không phải hoa). */}
             <div className="relative w-full" style={{ aspectRatio: "100 / 26.5" }} />
             </section>
+            </PinnedHero>
             </ScrollReveal>
             {/* Khối THÔNG TIN LỄ CƯỚI — trích đúng code bản gốc vòng 10 (spec §4,
                 module 22705): thứ tự tiêu đề → cha mẹ → lời mời → tên lớn
@@ -289,9 +305,9 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 với đầu khối này), góc phải, rộng 39.7%, opacity-100 — đúng
                 vị trí bản gốc (hoa thò lên vùng kem và chạm nhẹ vùng tiêu đề
                 phía phải, KHÔNG nằm trong khoảng kem dưới dải). */}
-            <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-            <div className="relative z-20 mt-14 text-center">
-              <ParallaxLayer speed={fx.parallax?.hoa ?? 0.05} disabled={!motion} className="pointer-events-none absolute right-0 -z-10 w-[39.7%]" style={{ top: "-39.7cqw" }}>
+            <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
+            <div data-chapter="2" className="relative z-20 mt-14 text-center">
+              <ParallaxLayer speed={fx.parallax?.hoa ?? 0.4} depth={0.2} disabled={!motion} className="pointer-events-none absolute right-0 -z-10 w-[39.7%]" style={{ top: "-39.7cqw" }}>
                 <img src={deco.hoa} alt="Họa tiết hoa lớn góc dưới-phải" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="w-full object-contain" />
               </ParallaxLayer>
               {/* Tiêu đề gốc: uppercase, font-bold, 20px md:24px. */}
@@ -396,6 +412,12 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
               )}
             </div>
             </ScrollReveal>
+            {/* Dải tên cặp đôi chạy ngang phân cách các mục (B8): chỉ trang
+                khách, theo cinema.marquee của mẫu; tên trống thì Marquee
+                tự ẩn. */}
+            {motion && fx.cinema?.marquee !== false && (
+              <Marquee text={`${data.brideName} & ${data.groomName}`} />
+            )}
             {/* Album ảnh (gallery gốc, spec §4: nằm ngay sau khối THÔNG TIN,
                 trước section tiệc). Trang khách ẩn section Album riêng khi
                 mẫu deco để không trùng — xem thiep/[id]/page.tsx.
@@ -415,7 +437,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 Ảnh stock ngang bị crop dọc bằng object-cover, chấp nhận
                 được, đúng định dạng gốc; hình học xòe ngang giữ nguyên. */}
             <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-            <section className="relative z-20 mx-auto mt-10 w-full max-w-[560px]" aria-label={vi ? "Album ảnh cưới" : "Wedding album"}>
+            <section ref={albumRef} data-chapter="3" className="relative z-20 mx-auto mt-10 w-full max-w-[560px]" aria-label={vi ? "Album ảnh cưới" : "Wedding album"}>
               <h3 className="font-display text-center text-[20px] font-bold uppercase md:text-[24px]" style={{ color: "#710001" }}>
                 <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "ALBUM ẢNH" : "ALBUM").split(" ")} />
               </h3>
@@ -428,6 +450,10 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   if (a > 2) return null;
                   const rotY = off === 0 ? 0 : (a === 2 ? 55 : 38) * Math.sign(off);
                   const scale = a === 0 ? 1 : a === 1 ? 0.75 : 0.6;
+                  // Ảnh giữa: crossfade theo cuộn (B6) — xếp chồng ảnh hiện
+                  // tại + ảnh kế tiếp, độ mờ chạy theo albumProgress; ảnh
+                  // hai bên chỉ wipe khi vào khung (B7).
+                  const next = PRESET_PHOTOS[(coverIdx + 1) % n];
                   return (
                     <button
                       key={p.url}
@@ -442,14 +468,29 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                         transition: "transform 0.45s ease, opacity 0.45s ease",
                       }}
                     >
-                      <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
-                        <img src={p.url} alt={p.label} loading="lazy" className="h-full w-full object-cover" />
-                      </KenBurns>
+                      {a === 0 ? (
+                        <ImageReveal disabled={!motion} className="h-full w-full">
+                          <div className="relative h-full w-full">
+                            <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
+                              <FM.img src={p.url} alt={p.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover" style={{ opacity: motion && !reduce ? crossStay : 1 }} />
+                            </KenBurns>
+                            <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={((coverIdx + 1) % n) % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
+                              <FM.img src={next.url} alt={next.label} loading="lazy" className="absolute inset-0 h-full w-full object-cover" style={{ opacity: motion && !reduce ? crossToNext : 0 }} />
+                            </KenBurns>
+                          </div>
+                        </ImageReveal>
+                      ) : (
+                        <ImageReveal disabled={!motion} className="h-full w-full">
+                          <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12} direction={i % 2 === 0 ? "in" : "pan-left"} className="h-full w-full">
+                            <img src={p.url} alt={p.label} loading="lazy" className="h-full w-full object-cover" />
+                          </KenBurns>
+                        </ImageReveal>
+                      )}
                     </button>
                   );
                 })}
-                <button type="button" onClick={() => setCoverIdx((coverIdx - 1 + PRESET_PHOTOS.length) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh trước" : "Previous photo"} className="absolute left-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: "#710001", color: "#710001", background: "#f9ede3" }}>‹</button>
-                <button type="button" onClick={() => setCoverIdx((coverIdx + 1) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh sau" : "Next photo"} className="absolute right-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: "#710001", color: "#710001", background: "#f9ede3" }}>›</button>
+                <FM.button type="button" whileTap={{ scale: 0.9 }} onClick={() => setCoverIdx((coverIdx - 1 + PRESET_PHOTOS.length) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh trước" : "Previous photo"} className="absolute left-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: "#710001", color: "#710001", background: "#f9ede3" }}>‹</FM.button>
+                <FM.button type="button" whileTap={{ scale: 0.9 }} onClick={() => setCoverIdx((coverIdx + 1) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh sau" : "Next photo"} className="absolute right-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: "#710001", color: "#710001", background: "#f9ede3" }}>›</FM.button>
               </div>
               <div className="mt-2 flex items-center justify-center gap-2">
                 {PRESET_PHOTOS.map((p, i) => (
@@ -463,14 +504,16 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
           <>
             {data.photoUrl && (
               <div className="mx-auto mt-5 aspect-[4/3] w-full max-w-md overflow-hidden rounded-2xl">
-                <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12}>
-                  <img
-                    src={data.photoUrl}
-                    alt={`Ảnh cưới của ${data.groomName} và ${data.brideName}`}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                </KenBurns>
+                <ImageReveal disabled={!motion} className="h-full w-full">
+                  <KenBurns disabled={!motion} duration={fx.kenBurns?.duration ?? 8} scale={fx.kenBurns?.scale ?? 1.12}>
+                    <img
+                      src={data.photoUrl}
+                      alt={`Ảnh cưới của ${data.groomName} và ${data.brideName}`}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                  </KenBurns>
+                </ImageReveal>
               </div>
             )}
             <h2 className={`mt-6 ${fontClass} ${nameSize} font-bold leading-tight`} style={{ color: p.accent }}>
@@ -507,9 +550,9 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
           <p className="mt-1 text-lg">{vi ? "Lúc " : "At "}{blurField("time", data.time)}</p>
           <p className="mt-2 font-semibold">{blurField("venue", data.venue)}</p>
           <p className="text-sm" style={{ color: p.muted }}>{blurField("venue", data.address)}</p>
-          <a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-3 inline-block rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: p.accent }}>
+          <FM.a href={mapsUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }} className="mt-3 inline-block rounded-full px-4 py-2 text-sm font-semibold text-white" style={{ background: p.accent }}>
             {vi ? "Xem bản đồ" : "View map"} ↗
-          </a>
+          </FM.a>
         </div>
         )}
         {/* Đếm ngược: bản gốc KHÔNG có đếm ngược trong khối THÔNG TIN — nó nằm
@@ -544,8 +587,8 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             QA11 ghi "bản gốc không có đếm ngược ở đâu cả" nên bỏ với deco
             cho khớp hình demo; mẫu không-deco giữ đếm ngược như cũ. */}
         {deco && (
-          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-          <section className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Thông tin tiệc cưới" : "Reception info"}>
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
+          <section data-chapter="4" className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Thông tin tiệc cưới" : "Reception info"}>
             <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: "#710001" }}>
               <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "THÔNG TIN TIỆC CƯỚI" : "RECEPTION INFO").split(" ")} />
             </h3>
@@ -639,9 +682,9 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             )}
             {calUrl && (
               <div className="mt-4">
-                <a href={calUrl} target="_blank" rel="noreferrer" className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: "#710001" }}>
+                <FM.a href={calUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }} className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: "#710001" }}>
                   {vi ? "Thêm vào lịch" : "Add to calendar"} ↗
-                </a>
+                </FM.a>
               </div>
             )}
           </section>
@@ -656,8 +699,8 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             card), cao 280px md:380px, tối đa 340px md:560px, bo 16px —
             đúng số gốc, link "Xem bản đồ". */}
         {deco && (
-          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-          <section className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Địa điểm tiệc cưới" : "Reception venue"}>
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
+          <section data-chapter="4" className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Địa điểm tiệc cưới" : "Reception venue"}>
             <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: "#710001" }}>
               <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "TIỆC CƯỚI SẼ TỔ CHỨC TẠI" : "THE RECEPTION WILL BE HELD AT").split(" ")} />
             </h3>
@@ -681,9 +724,9 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
               />
             )}
             <div className="mt-3">
-              <a href={mapsUrl} target="_blank" rel="noreferrer" className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: "#710001" }}>
+              <FM.a href={mapsUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }} className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: "#710001" }}>
                 {vi ? "Xem bản đồ" : "View map"} ↗
-              </a>
+              </FM.a>
             </div>
           </section>
           </ScrollReveal>
@@ -693,8 +736,8 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             Chỉ hiện khi dữ liệu có màu; thứ tự gốc: sau bản đồ, trước
             timeline. */}
         {deco && dressColors.length > 0 && (
-          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-          <section className="relative z-20 mx-auto mt-10 text-center" aria-label="Dress code">
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
+          <section data-chapter="5" className="relative z-20 mx-auto mt-10 text-center" aria-label="Dress code">
             <h3 className="font-display text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
               <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={"DRESS CODE".split(" ")} />
             </h3>
@@ -739,19 +782,33 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             giờ/nhãn 17px. Giữ thứ tự giờ | chấm | nhãn, giờ serif
             thường căn phải, nhãn italic serif.
             Tiêu đề gốc "LỊCH TRÌNH NGÀY CƯỚI" / "WEDDING DAY SCHEDULE". */}
+        {/* Dải tên cặp đôi thứ hai trước lịch trình (B8). */}
+        {deco && motion && fx.cinema?.marquee !== false && (
+          <Marquee text={`${data.brideName} & ${data.groomName}`} />
+        )}
         {deco && schedule.length > 0 && (
-          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
-          <section className="relative z-20 mx-auto mt-10 w-full text-left" aria-label={vi ? "Lịch trình ngày cưới" : "Wedding day schedule"}>
+          <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
+          <section data-chapter="6" className="relative z-20 mx-auto mt-10 w-full text-left" aria-label={vi ? "Lịch trình ngày cưới" : "Wedding day schedule"}>
             <h3 className="font-display text-center text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
               <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "LỊCH TRÌNH NGÀY CƯỚI" : "WEDDING DAY SCHEDULE").split(" ")} />
             </h3>
             <ol className="relative mt-6 space-y-11">
-              <span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: "#710001" }} />
+              {/* Đường kẻ dọc chấm vẽ dần từ trên xuống khi mục vào khung
+                  (C10); giảm chuyển động hoặc không motion thì kẻ sẵn. */}
+              {motion && !reduce ? (
+                <FM.span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: "#710001", transformOrigin: "top" }} initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ amount: 0.5, once: false }} transition={{ duration: 0.8, ease: "easeOut" }} />
+              ) : (
+                <span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: "#710001" }} />
+              )}
               {schedule.map((s, i) => (
                 <li key={i} className="relative flex items-baseline leading-[26px]">
                   <span className="min-w-0 flex-1 pr-4 text-right font-eb-garamond text-[17px]" style={{ color: "#710001" }}>{s.time}</span>
                   <span className="flex w-[14px] shrink-0 items-center justify-center self-center">
-                    <span className="block h-3 w-3 rounded-full" style={{ background: "#710001" }} />
+                    {motion && !reduce ? (
+                      <FM.span className="block h-3 w-3 rounded-full" style={{ background: "#710001" }} initial={{ scale: 0 }} whileInView={{ scale: 1 }} viewport={{ amount: 0.6, once: false }} transition={{ type: "spring", stiffness: 300, damping: 15, delay: i * 0.08 }} />
+                    ) : (
+                      <span className="block h-3 w-3 rounded-full" style={{ background: "#710001" }} />
+                    )}
                   </span>
                   <span className="min-w-0 flex-1 pl-4 font-eb-garamond text-[17px] italic" style={{ color: "#710001" }}>{s.label}</span>
                 </li>
