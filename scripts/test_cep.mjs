@@ -219,5 +219,38 @@ check("extractValuesForKeys: 1 khóa không marker thì trả cả chuỗi",
 check("extractValuesForKeys: sai số lượng thì trả []",
   eqArr(cep.extractValuesForKeys("\u200Ba\u200B", ["k1", "k2"]), []));
 
+// ---- namyy: khóa năm 2 chữ số dẫn xuất (KHÔNG phải lỗi chính tả) ----
+check("cepValuesToData: namyy '26' → ngày tiệc 2026-11-21",
+  cep.cepValuesToData({ "date.tiec.ngay": "21", "date.tiec.thang": "11", "date.tiec.namyy": "26" }).date === "2026-11-21");
+check("cepValuesToData: namyy '2026' → ngày tiệc 2026-11-21",
+  cep.cepValuesToData({ "date.tiec.ngay": "21", "date.tiec.thang": "11", "date.tiec.namyy": "2026" }).date === "2026-11-21");
+check("cepValuesToData: có nam 4 chữ số thì nam thắng namyy",
+  cep.cepValuesToData({ "date.tiec.ngay": "21", "date.tiec.thang": "11", "date.tiec.nam": "2027", "date.tiec.namyy": "26" }).date === "2027-11-21");
+check("buildCepValues: đúng 32 khóa, không có namyy",
+  cep.buildCepValues(example).keys.length === 32 && !cep.buildCepValues(example).keys.includes("date.tiec.namyy"));
+
+// ---- Round-trip paste → chốt (B3): ghost vào → sửa 1 tên + 1 ngày → ghost ra ----
+const ghostIn = cep.buildCepTextBlock(example);
+const parsedIn = cep.parseCepGhostText(ghostIn);
+check("round-trip: ghost vào parse được đúng dữ liệu",
+  parsedIn.ok && parsedIn.data.groomName === example.groomName && parsedIn.data.date === example.date,
+  parsedIn.ok ? "" : parsedIn.error);
+const valsBefore = cep.buildCepValues(example).values;
+const editedName = { ...example, groomName: "Trần Thanh Long Đổi" };
+const ghostName = cep.buildCepTextBlock(editedName);
+const valsName = cep.extractValuesForKeys(ghostName, cep.CEP_KEYS);
+const diffName = valsBefore.map((v, i) => (v === valsName[i] ? null : cep.CEP_KEYS[i])).filter(Boolean);
+check("round-trip: sửa 1 tên → ghost ra chỉ đổi đúng 1 khóa (pos2.con_full, Vu Quy)",
+  diffName.length === 1 && diffName[0] === "pos2.con_full" && valsName[cep.CEP_KEYS.indexOf("pos2.con_full")] === "Trần Thanh Long Đổi",
+  diffName.join(", "));
+const editedDay = { ...example, date: "2026-11-02" };
+const ghostDay = cep.buildCepTextBlock(editedDay);
+const valsDay = cep.extractValuesForKeys(ghostDay, cep.CEP_KEYS);
+const diffDay = valsBefore.map((v, i) => (v === valsDay[i] ? null : cep.CEP_KEYS[i])).filter(Boolean);
+check("round-trip: sửa 1 ngày tiệc → chỉ đổi các khóa suy ra từ ngày (ngay/thu/ngày âm), còn lại không đổi",
+  diffDay.length > 0 && diffDay.every((k) => ["date.tiec.ngay", "date.tiec.thu", "date.tiec.ngay_al"].includes(k)) &&
+  valsDay[cep.CEP_KEYS.indexOf("date.tiec.ngay")] === "02",
+  diffDay.join(", "));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

@@ -220,5 +220,164 @@ check("kind: custom.note → text", svgLib.fieldKindForKey("custom.note") === "t
 check("label: pos1.ong lúc Vu Quy ghi rõ nhà gái chủ tiệc",
   svgLib.cepKeyLabel("pos1.ong", example).includes("nhà gái"));
 
+// ---- 12. Ảnh ngoài chưa nhúng (Images: Embed) ----
+const extSvg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 100 100">
+<image xlink:href="Untitled-5-1.png" x="0" y="0" width="10" height="10"/>
+<image href="https://example.com/a.jpg" x="0" y="0" width="10" height="10"/>
+<image href="data:image/png;base64,AAA" x="0" y="0" width="10" height="10"/>
+</svg>`;
+check("ảnh ngoài: tìm được cả xlink:href lẫn href", eqArr(svgLib.findExternalImageRefs(extSvg), ["Untitled-5-1.png", "https://example.com/a.jpg"]), svgLib.findExternalImageRefs(extSvg).join(","));
+check("ảnh ngoài: ảnh nhúng data: không tính", svgLib.findExternalImageRefs(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><image href="data:image/png;base64,AAA" x="0" y="0" width="1" height="1"/></svg>`).length === 0);
+check("ảnh ngoài: mẫu test không có ảnh ngoài", svgLib.findExternalImageRefs(svgText).length === 0);
+const extTpl = svgLib.parseSvgTemplate(extSvg, "ext.svg");
+check("ảnh ngoài: parse ghi externalImages", eqArr(extTpl.externalImages, ["Untitled-5-1.png", "https://example.com/a.jpg"]), extTpl.externalImages.join(","));
+check("ảnh ngoài: parse cảnh báo đúng câu đã chốt", extTpl.warnings.includes(svgLib.EXTERNAL_IMAGE_WARNING), extTpl.warnings.join(" | "));
+check("ảnh ngoài: không cảnh báo trùng ý (chỉ một câu)", extTpl.warnings.filter((w) => w.includes("Ảnh") || w.includes("ảnh link ngoài")).length === 1, extTpl.warnings.join(" | "));
+check("ảnh ngoài: mẫu test không cảnh báo ảnh nền", !tpl.warnings.some((w) => w.includes("Ảnh nền chưa gắn")));
+check("ảnh ngoài: ảnh link ngoài vẫn bị bỏ khỏi SVG đã làm sạch", !extTpl.svgText.includes("Untitled-5-1.png") && !extTpl.svgText.includes("example.com"));
+check("ảnh ngoài: ảnh nhúng data: vẫn giữ trong SVG đã làm sạch", extTpl.svgText.includes("data:image/png"));
+
+// ---- 13. tspan cùng dòng khác x KHÔNG xuống dòng (lỗi ngày file thật) ----
+// Illustrator xuất mỗi mảnh chữ ("21", ".", "11", ...) thành một tspan với
+// x tuyệt đối để canh kerning — một dòng ngày bị trích thành 5 dòng rồi ghi
+// lại thành 5 tspan xếp dọc (dy="1.2em"). Chỉ y/dy đổi dòng mới xuống dòng.
+const MARK = "\u200B";
+const kernSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><g id="date.le.ngay"><text><tspan x="0" y="0">${MARK}</tspan><tspan x="0" y="0">21</tspan><tspan x="31.7" y="0">${MARK}</tspan><tspan x="31.7" y="0">.</tspan><tspan x="39.7" y="0">${MARK}</tspan><tspan x="39.7" y="0">11</tspan><tspan x="71.4" y="0">${MARK}</tspan><tspan x="71.4" y="0">.</tspan><tspan x="79.4" y="0">${MARK}${MARK}</tspan><tspan x="79.4" y="0">2026</tspan><tspan x="142.8" y="0">${MARK}</tspan></text></g></svg>`;
+const kernTpl = svgLib.parseSvgTemplate(kernSvg, "kern.svg");
+const kernVal = kernTpl.fields.find((f) => f.key === "date.le.ngay")?.value;
+check("tspan cùng dòng khác x: ngày giữ một dòng", kernVal === "21.11.2026", JSON.stringify(kernVal));
+check("tspan cùng dòng khác x: bóc hết marker U+200B",
+  kernVal !== undefined && !kernVal.includes("\u200B"), JSON.stringify(kernVal));
+const kernOut = svgLib.serializeSvg(svgLib.parseXml(kernSvg), { "date.le.ngay": "21.11.2026" }, { markFields: false });
+check("tspan cùng dòng khác x: ghi lại không còn tspan dọc dy",
+  !kernOut.includes('dy="1.2em"') && kernOut.includes("21.11.2026"), kernOut.slice(0, 240));
+const multiSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><g id="pos1.diachi"><text><tspan x="0" y="0">Thôn Chư Kbô</tspan><tspan x="0" y="20">Xã Krông Búk</tspan></text></g></svg>`;
+const multiTpl = svgLib.parseSvgTemplate(multiSvg, "multi.svg");
+check("tspan đổi y: vẫn xuống dòng thật",
+  multiTpl.fields.find((f) => f.key === "pos1.diachi")?.value === "Thôn Chư Kbô\nXã Krông Búk",
+  JSON.stringify(multiTpl.fields.find((f) => f.key === "pos1.diachi")?.value));
+const dySvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><g id="pos1.diachi"><text><tspan x="0">Dòng 1</tspan><tspan x="0" dy="1.2em">Dòng 2</tspan><tspan x="0" dy="0"> tiếp</tspan></text></g></svg>`;
+const dyTpl = svgLib.parseSvgTemplate(dySvg, "dy.svg");
+check("tspan dy=1.2em: xuống dòng; dy=0: cùng dòng",
+  dyTpl.fields.find((f) => f.key === "pos1.diachi")?.value === "Dòng 1\nDòng 2 tiếp",
+  JSON.stringify(dyTpl.fields.find((f) => f.key === "pos1.diachi")?.value));
+
+// ---- 14. giải mã id Illustrator (_xHH_) + khóa ghép + cửa kiểm tra ----
+// Illustrator mã hóa ký tự đặc biệt trong id thành _xHH_ (đúng 2 hex):
+// _x7B_={, _x7D_=}, _x5F_=_, _x28_=(, _x29_=). Khóa ngày/giờ là khóa
+// GHÉP ({date.le.ngay}.{date.le.thang}.{date.le.nam}) phải tách thành
+// từng phần; khóa namyy (date.tiec.namyy — năm 2 chữ số, KHÔNG phải lỗi
+// chính tả) giữ nguyên làm khóa dẫn xuất riêng, KHÔNG gộp vào date.tiec.nam;
+// {pos1.diachi}1 là lần xuất hiện thứ 2 của pos1.diachi.
+check("giải mã id: _x7B_/_x5F_/_x7D_ → {pos1.con_full}",
+  svgLib.decodeIllustratorId("_x7B_pos1.con_x5F_full_x7D_") === "{pos1.con_full}",
+  svgLib.decodeIllustratorId("_x7B_pos1.con_x5F_full_x7D_"));
+check("giải mã id: _x28_/_x29_ → ( )",
+  svgLib.decodeIllustratorId("a_x28_b_x29_c") === "a(b)c",
+  svgLib.decodeIllustratorId("a_x28_b_x29_c"));
+check("giải mã id: không có mã thì giữ nguyên",
+  svgLib.decodeIllustratorId("pos1.ong") === "pos1.ong");
+check("khóa ghép: tách 3 phần ngày lễ",
+  JSON.stringify(svgLib.splitCompositeKey("{date.le.ngay}.{date.le.thang}.{date.le.nam}").keys) ===
+    JSON.stringify(["date.le.ngay", "date.le.thang", "date.le.nam"]));
+check("khóa ghép: tách 2 phần giờ tiệc, dấu phân cách là :",
+  (() => { const s = svgLib.splitCompositeKey("{date.tiec.gio}:{date.tiec.phut}"); return s.keys.length === 2 && s.separators[0] === ":"; })());
+check("khóa ghép: namyy là khóa dẫn xuất, giữ nguyên (không gộp vào nam)",
+  JSON.stringify(svgLib.normalizeCompositeKeys(["date.tiec.ngay", "date.tiec.thang", "date.tiec.namyy"])) ===
+    JSON.stringify(["date.tiec.ngay", "date.tiec.thang", "date.tiec.namyy"]));
+check("namyy: đọc '26' → 2026; '2026' → 2026; rỗng → ''",
+  cep.resolveNamyyYear("26") === "2026" && cep.resolveNamyyYear("2026") === "2026" && cep.resolveNamyyYear("") === "",
+  `${cep.resolveNamyyYear("26")}/${cep.resolveNamyyYear("2026")}`);
+check("namyy: ghi giữ nguyên số chữ số (gốc '26' → '27'; gốc '2026' → '2027')",
+  cep.formatNamyyYear("2027", "26") === "27" && cep.formatNamyyYear("2027", "2026") === "2027",
+  `${cep.formatNamyyYear("2027", "26")}/${cep.formatNamyyYear("2027", "2026")}`);
+check("namyy: isNamyyKey chỉ nhận date.le/tiec.namyy",
+  cep.isNamyyKey("date.tiec.namyy") && cep.isNamyyKey("date.le.namyy") && !cep.isNamyyKey("date.tiec.nam") && !cep.isNamyyKey("pos1.vithu"));
+check("khóa ghép: {pos1.diachi}1 → pos1.diachi (hậu tố số ngoài ngoặc)",
+  svgLib.splitCompositeKey(svgLib.decodeIllustratorId("_x7B_pos1.diachi_x7D_1")).keys[0] === "pos1.diachi");
+
+// SVG mô phỏng file thật của Nancy: id mã hóa _xHH_, ngày lễ + ngày tiệc
+// + giờ tiệc là khóa ghép, tên là khóa đơn mã hóa, ong/ba chỉ còn hình vẽ.
+const realLikeSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1200">
+<g id="_x7B_date.le.ngay_x7D_._x7B_date.le.thang_x7D_._x7B_date.le.nam_x7D_"><text><tspan x="0" y="0">${MARK}</tspan><tspan x="0" y="0">21</tspan><tspan x="31" y="0">${MARK}</tspan><tspan x="31" y="0">.</tspan><tspan x="39" y="0">${MARK}</tspan><tspan x="39" y="0">11</tspan><tspan x="71" y="0">${MARK}</tspan><tspan x="71" y="0">.</tspan><tspan x="79" y="0">${MARK}${MARK}</tspan><tspan x="79" y="0">2026</tspan><tspan x="142" y="0">${MARK}</tspan></text></g>
+<g id="_x7B_pos1.con_x5F_full_x7D_"><text x="400" y="380">Y Hi Hdiar</text></g>
+<g id="_x7B_pos2.con_x5F_full_x7D_"><text x="400" y="420">H' Chang Kưn Niê</text></g>
+<g id="_x7B_date.tiec.ngay_x7D_._x7B_date.tiec.thang_x7D_._x7B_date.tiec.namyy_x7D_"><text><tspan x="0" y="0">${MARK}</tspan><tspan x="0" y="0">21</tspan><tspan x="31" y="0">${MARK}</tspan><tspan x="31" y="0">.</tspan><tspan x="39" y="0">${MARK}</tspan><tspan x="39" y="0">11</tspan><tspan x="71" y="0">${MARK}</tspan><tspan x="71" y="0">.</tspan><tspan x="79" y="0">${MARK}${MARK}</tspan><tspan x="79" y="0">2026</tspan><tspan x="142" y="0">${MARK}</tspan></text></g>
+<g id="_x7B_date.tiec.gio_x7D_:_x7B_date.tiec.phut_x7D_"><text><tspan x="0" y="0">${MARK}${MARK}</tspan><tspan x="0" y="0">11</tspan><tspan x="20" y="0">${MARK} GIỜ ${MARK}${MARK}</tspan><tspan x="80" y="0">00</tspan><tspan x="100" y="0">${MARK}</tspan></text></g>
+<g id="_x7B_pos1.ong_x7D_"><path d="M0 0h10v10H0z"/></g>
+<g id="_x7B_pos1.diachi_x7D_1"><path d="M0 0h10v10H0z"/></g>
+</svg>`;
+const realTpl = svgLib.parseSvgTemplate(realLikeSvg, "real-like.svg");
+const realAt = (k) => realTpl.fields.find((f) => f.key === k)?.value;
+const realCepCount = realTpl.fields.filter((f) => f.kind === "cep" && f.value.trim() !== "").length;
+const realNamyyCount = realTpl.fields.filter((f) => f.key === "date.tiec.namyy" && f.value.trim() !== "").length;
+check("file thật: nhận đúng 9 khóa CEP + 1 khóa namyy kèm giá trị (5 khung chữ sống)",
+  realCepCount === 9 && realNamyyCount === 1, `cep=${realCepCount} namyy=${realNamyyCount}`);
+check("file thật: ngày lễ tách 21/11/2026, kind cep",
+  realAt("date.le.ngay") === "21" && realAt("date.le.thang") === "11" && realAt("date.le.nam") === "2026" &&
+  realTpl.fields.find((f) => f.key === "date.le.ngay")?.kind === "cep",
+  `ngày=${realAt("date.le.ngay")}/${realAt("date.le.thang")}/${realAt("date.le.nam")}`);
+check("file thật: tên cô dâu chú rể là khóa CEP (không còn chữ thường)",
+  realAt("pos1.con_full") === "Y Hi Hdiar" && realAt("pos2.con_full") === "H' Chang Kưn Niê" &&
+  realTpl.fields.find((f) => f.key === "pos1.con_full")?.kind === "cep");
+check("file thật: namyy giữ nguyên giá trị gốc '2026' (4 chữ số), đọc ra năm 2026",
+  realAt("date.tiec.namyy") === "2026" && cep.resolveNamyyYear(realAt("date.tiec.namyy")) === "2026" &&
+  realTpl.fields.find((f) => f.key === "date.tiec.namyy")?.kind === "generic",
+  realAt("date.tiec.namyy"));
+// Khung namyy 2 chữ số ("26") → đọc thành năm 2026 khi đổ về dữ liệu thiệp.
+const yySvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200"><g id="_x7B_date.tiec.ngay_x7D_._x7B_date.tiec.thang_x7D_._x7B_date.tiec.namyy_x7D_"><text><tspan x="0" y="0">${MARK}</tspan><tspan x="0" y="0">21</tspan><tspan x="31" y="0">${MARK}</tspan><tspan x="31" y="0">.</tspan><tspan x="39" y="0">${MARK}</tspan><tspan x="39" y="0">11</tspan><tspan x="71" y="0">${MARK}</tspan><tspan x="71" y="0">.</tspan><tspan x="79" y="0">${MARK}${MARK}</tspan><tspan x="79" y="0">26</tspan><tspan x="110" y="0">${MARK}</tspan></text></g></svg>`;
+const yyTpl = svgLib.parseSvgTemplate(yySvg, "yy.svg");
+const yyMap = {};
+for (const f of yyTpl.fields) yyMap[f.key] = f.value;
+check("namyy 2 chữ số: khung đọc ra '26', đổ về dữ liệu thành ngày 2026-11-21",
+  yyMap["date.tiec.namyy"] === "26" && cep.cepValuesToData(yyMap).date === "2026-11-21",
+  `namyy=${yyMap["date.tiec.namyy"]} date=${cep.cepValuesToData(yyMap).date}`);
+// Ghi lại: gốc 4 chữ số → "2027"; gốc 2 chữ số → "27".
+const yyOut = svgLib.serializeSvg(svgLib.parseXml(yySvg),
+  { "date.tiec.ngay": "22", "date.tiec.thang": "11", "date.tiec.nam": "2027" }, { markFields: false });
+check("namyy ghi lại: gốc 2 chữ số '26' → đổi năm 2027 thành '27'",
+  yyOut.includes("22.11.27") && !yyOut.includes("22.11.2027"), yyOut.slice(0, 200));
+const realOutYear = svgLib.serializeSvg(svgLib.parseXml(realLikeSvg),
+  { "date.tiec.ngay": "22", "date.tiec.thang": "11", "date.tiec.nam": "2027" }, { markFields: false });
+check("namyy ghi lại: gốc 4 chữ số '2026' → đổi năm 2027 thành '2027'",
+  realOutYear.includes("22.11.2027"), realOutYear.slice(0, 200));
+// Hiển thị: năm đổi thì khung namyy đổi theo, giữ nguyên số chữ số gốc.
+const yyDisp = svgLib.buildSvgDisplayValues(
+  { ...example, date: "2027-11-21", ceremonyDate: "2027-11-21" }, {}, yyTpl.fields);
+check("namyy hiển thị: dữ liệu năm 2027 + gốc '26' → hiện '27'",
+  yyDisp["date.tiec.namyy"] === "27", yyDisp["date.tiec.namyy"]);
+// Sửa trực tiếp khung namyy "27" → năm tiệc thành 2027.
+const yyEdited = svgLib.applySvgFieldEdit({ ...example, date: "2026-11-21" }, "date.tiec.namyy", "27");
+check("namyy sửa trực tiếp: gõ '27' → ngày tiệc thành 2027-11-21",
+  yyEdited.date === "2027-11-21", yyEdited.date);
+check("file thật: giờ tiệc tách 11/00",
+  realAt("date.tiec.gio") === "11" && realAt("date.tiec.phut") === "00",
+  `giờ=${realAt("date.tiec.gio")}:${realAt("date.tiec.phut")}`);
+check("file thật: pos1.ong (chỉ hình vẽ) nằm trong danh sách thiếu",
+  realTpl.missingCepKeys.includes("pos1.ong") && realTpl.missingCepKeys.includes("pos1.diachi"),
+  realTpl.missingCepKeys.join(", "));
+check("file thật: khóa có giá trị không nằm trong danh sách thiếu",
+  !realTpl.missingCepKeys.includes("pos1.con_full") && !realTpl.missingCepKeys.includes("date.le.ngay"));
+check("file thật: cảnh báo liệt kê rõ khóa thiếu giá trị",
+  realTpl.warnings.some((w) => w.includes("chưa có chữ sống") && w.includes("pos1.ong")),
+  realTpl.warnings.join(" | "));
+// Ghép lại khi render: sửa ngày lễ → "22.11.2026" một dòng, giờ tiệc giữ " GIỜ ".
+const realOut = svgLib.serializeSvg(svgLib.parseXml(realLikeSvg),
+  { "date.le.ngay": "22", "date.le.thang": "11", "date.le.nam": "2026",
+    "date.tiec.gio": "11", "date.tiec.phut": "00" }, { markFields: true });
+check("ghép lại: ngày lễ sửa thành 22.11.2026 một dòng",
+  realOut.includes("22.11.2026") && !realOut.includes('dy="1.2em"'), realOut.slice(0, 300));
+check("ghép lại: giờ tiệc giữ đúng dạng '11 GIỜ 00'",
+  realOut.includes("11 GIỜ 00"), realOut.slice(0, 300));
+check("ghép lại: data-field của cụm ngày là khóa phần đầu (mở lịch)",
+  realOut.includes('data-field="date.le.ngay"') && realOut.includes('data-field="date.tiec.gio"'),
+  realOut.slice(0, 300));
+// SVG thường không có tên lớp nào → 0 khóa CEP (cửa kiểm tra sẽ hủy).
+const plainSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 100"><text x="10" y="20">Chào mừng</text><text x="10" y="50">Ngày vui</text></svg>`;
+const plainTpl = svgLib.parseSvgTemplate(plainSvg, "plain.svg");
+check("SVG thường: 0 khóa CEP kèm giá trị (cửa kiểm tra hủy)",
+  plainTpl.fields.filter((f) => f.kind === "cep" && f.value.trim() !== "").length === 0,
+  `fields=${plainTpl.fields.length}`);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
