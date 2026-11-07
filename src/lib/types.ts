@@ -1,3 +1,5 @@
+import { DEFAULT_PHYSICAL_FORM_ID } from "./physical-forms";
+
 export type InvitationLang = "vi" | "en" | "both";
 export type GuestSide = "trai" | "gai";
 
@@ -35,6 +37,12 @@ export interface ScheduleItem {
 export interface InvitationData {
   id: string;
   templateId: string;
+  // Form vật lý (in) đang dùng cho thiệp này — KHÁC mẫu online
+  // (templateId). Thiệp vật lý không chọn mẫu online, chỉ chọn form vật
+  // lý để đổ dữ liệu vào. Mặc định "mau-in-chuan-1" (mẫu in chuẩn #1).
+  // Trường này đi theo link ?d= (encodeShare mã hoá toàn bộ dữ liệu);
+  // link cũ không có thì mặc định về form chuẩn #1.
+  physicalFormId?: string;
   groomName: string;
   brideName: string;
   groomFather: string;
@@ -94,6 +102,7 @@ export function defaultInvitation(templateId = "minimal-do-do"): InvitationData 
   return {
     id: "",
     templateId,
+    physicalFormId: DEFAULT_PHYSICAL_FORM_ID,
     groomName: "Minh Quân",
     brideName: "Thu An",
     // Tên cha mẹ KHÔNG kèm tiền tố "Ông "/"Bà " (vòng 12): khối THÔNG TIN
