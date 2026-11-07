@@ -1,5 +1,6 @@
 import type { Guest, InvitationData, StdEditField } from "./types";
 import { defaultInvitation, newId } from "./types";
+import { DEFAULT_PHYSICAL_FORM_ID } from "./physical-forms";
 
 const K = {
   invitation: "td_invitation",
@@ -292,12 +293,15 @@ export function diffEditedFields(original: InvitationData, current: InvitationDa
 }
 
 /** Hai bản dữ liệu có giống nhau ở các trường khách sửa được (+ id,
-    templateId) không — dùng để kiểm tra bản lưu có đúng link đang mở. */
+    templateId, physicalFormId) không — dùng để kiểm tra bản lưu có đúng
+    link đang mở. Thiếu physicalFormId thì hiểu là form mặc định (link cũ
+    chưa có trường này vẫn khớp). */
 export function sameCustomerData(a: InvitationData, b: InvitationData): boolean {
   return (
     diffEditedFields(a, b).length === 0 &&
     (a.id ?? "") === (b.id ?? "") &&
-    (a.templateId ?? "") === (b.templateId ?? "")
+    (a.templateId ?? "") === (b.templateId ?? "") &&
+    (a.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID) === (b.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID)
   );
 }
 
