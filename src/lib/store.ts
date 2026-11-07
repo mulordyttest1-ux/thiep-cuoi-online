@@ -103,20 +103,41 @@ export function buildShareUrl(origin: string, data: InvitationData): string {
     form in, layout trần) kèm dữ liệu trong ?d=. Khác link chia sẻ thiệp
     online (/thiep/...) — link này không mở trình sửa của Nancy.
     BẤT BIẾN: ?c= = link đã chốt — link đã chốt LUÔN mang ?c=, kể cả khi
-    khách không sửa câu mẫu nào (lúc đó customTexts = {} rỗng, ?c= mang
-    "{}"). Chỉ link CHƯA chốt (từ /tao-thiep, không truyền customTexts)
-    mới không có ?c=. Nhờ vậy Nancy mở link đã chốt trên máy khác vẫn
-    thấy đúng dạng chỉ đọc + ghost text + danh sách "CẦN SỬA TAY". */
-export function buildCustomerEditUrl(origin: string, data: InvitationData, customTexts?: Record<string, string>): string {
+    khách không sửa câu mẫu nào (lúc đó customTexts = {} rỗng). Chỉ link
+    CHƯA chốt (từ /tao-thiep, không truyền customTexts) mới không có ?c=.
+    ?c= mang payload {customTexts, initialMessage} — initialMessage là
+    message GỐC lúc khách mở link lần đầu (trước khi sửa), để máy khác mở
+    link đã chốt vẫn tính đúng diff cho trường "Lời mời" (vì ?d= của link
+    đã chốt chứa message MỚI, không còn chữ gốc để so). Link đã chốt cũ
+    (chưa mang initialMessage) vẫn đọc được: thiếu initialMessage thì
+    message trong ?d= được dùng làm gốc (hành vi cũ). Nhờ vậy Nancy mở
+    link đã chốt trên máy khác vẫn thấy đúng dạng chỉ đọc + ghost text +
+    danh sách "CẦN SỬA TAY". */
+export function buildCustomerEditUrl(
+  origin: string,
+  data: InvitationData,
+  customTexts?: Record<string, string>,
+  initialMessage?: string
+): string {
   const id = data.id || "demo";
   const base = `${origin}/khach/${encodeURIComponent(id)}?d=${encodeShare(data)}`;
   if (customTexts === undefined) return base;
-  return `${base}&c=${encodeCustomTexts(customTexts)}`;
+  return `${base}&c=${encodeCustomTexts(customTexts, initialMessage)}`;
 }
 
-/** Mã hoá câu mẫu đã sửa thành tham số ?c= (JSON base64url). */
-export function encodeCustomTexts(customTexts: Record<string, string>): string {
-  const json = JSON.stringify(customTexts);
+/** Payload của tham số ?c= trên link đã chốt: câu mẫu đã sửa + message GỐC
+    lúc khách mở link lần đầu. initialMessage undefined khi link cũ (chưa
+    mang initialMessage) — khi đó message trong ?d= được dùng làm gốc. */
+export interface ConfirmedCustomTexts {
+  customTexts: Record<string, string>;
+  initialMessage?: string;
+}
+
+/** Mã hoá payload ?c= thành tham số (JSON base64url). */
+export function encodeCustomTexts(customTexts: Record<string, string>, initialMessage?: string): string {
+  const payload: ConfirmedCustomTexts =
+    initialMessage === undefined ? { customTexts } : { customTexts, initialMessage };
+  const json = JSON.stringify(payload);
   const utf8 = new TextEncoder().encode(json);
   let bin = "";
   utf8.forEach((b) => (bin += String.fromCharCode(b)));
@@ -124,8 +145,10 @@ export function encodeCustomTexts(customTexts: Record<string, string>): string {
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** Giải mã tham số ?c= thành câu mẫu đã sửa; null khi không có / sai định dạng. */
-export function decodeCustomTexts(encoded: string | null | undefined): Record<string, string> | null {
+/** Giải mã tham số ?c=; null khi không có / sai định dạng. Dạng mới là
+    {customTexts, initialMessage?}; dạng cũ (cả object là customTexts) vẫn
+    đọc được, initialMessage lúc đó là undefined. */
+export function decodeCustomTexts(encoded: string | null | undefined): ConfirmedCustomTexts | null {
   if (!encoded) return null;
   try {
     const b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
@@ -135,11 +158,22 @@ export function decodeCustomTexts(encoded: string | null | undefined): Record<st
     const json = new TextDecoder().decode(bytes);
     const parsed: unknown = JSON.parse(json);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      if (typeof v === "string") out[k] = v;
+    const strMap = (o: Record<string, unknown>): Record<string, string> => {
+      const out: Record<string, string> = {};
+      for (const [k, v] of Object.entries(o)) {
+        if (typeof v === "string") out[k] = v;
+      }
+      return out;
+    };
+    const rec = parsed as Record<string, unknown>;
+    if (rec.customTexts !== undefined && typeof rec.customTexts === "object" && !Array.isArray(rec.customTexts)) {
+      const im = rec.initialMessage;
+      return {
+        customTexts: strMap(rec.customTexts as Record<string, unknown>),
+        initialMessage: typeof im === "string" ? im : undefined,
+      };
     }
-    return out;
+    return { customTexts: strMap(rec) };
   } catch {
     return null;
   }
@@ -159,7 +193,10 @@ export function customerConfirmedKey(id: string): string {
 export function isCustomerConfirmed(id: string, linkBase: InvitationData): boolean {
   const raw = safeGet(customerConfirmedKey(id));
   if (!raw) return false;
-  if (raw === "1") return true; // cờ cũ (trước khi khóa theo base)
+  // Chỉ chấp nhận cờ dạng JSON {base, data}. Cờ cũ "1" (trước khi khóa theo
+  // base) bị coi là chưa chốt — chỉ còn trong localStorage của trình duyệt
+  // test, khách thật chưa ai chốt bằng bản cũ nên bỏ tương thích ngược là
+  // an toàn.
   try {
     const parsed = JSON.parse(raw) as { base?: InvitationData; data?: InvitationData };
     if (!parsed || typeof parsed !== "object") return false;
