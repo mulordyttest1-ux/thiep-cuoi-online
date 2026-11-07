@@ -32,7 +32,7 @@ const FAQS = [
   },
   {
     q: "Mỗi khách có link riêng thật không?",
-    a: "Có. Tại trang Quản lý khách, mỗi khách có nút “Sao chép link riêng” dạng /thiep/<id>?guest=<tên>. Khách mở thiệp sẽ thấy tên mình trên phong bì.",
+    a: "Có. Mỗi khách có link riêng dạng /thiep/<id>?guest=<tên>. Khách mở thiệp sẽ thấy tên mình trên phong bì.",
   },
   {
     q: "Khách mở thiệp bằng điện thoại có cần cài app không?",
@@ -61,22 +61,18 @@ export default function Home() {
           <h1 className="mt-3 font-display text-4xl font-bold leading-tight text-[#7a1f2b] sm:text-5xl">{d.heroTitle}</h1>
           <p className="mt-4 text-base leading-relaxed text-[#5a4a48] sm:text-lg">{d.heroSub}</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/tao-thiep" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white hover:bg-[#5e1620]">
-              {d.heroCta1}
-            </Link>
-            <Link href="/mau-thiep" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b] hover:bg-[#f3e8d8]">
+            <Link href="/mau-thiep" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white hover:bg-[#5e1620]">
               {d.heroCta2}
             </Link>
           </div>
           <ul className="mt-6 space-y-1 text-sm text-[#5a4a48]">
-            <li>✓ Tạo miễn phí — không cần đăng nhập</li>
             <li>✓ Mỗi khách một link riêng</li>
             <li>✓ Đổi mẫu không mất dữ liệu</li>
           </ul>
         </div>
         <div>
           <InvitationPreview data={sample} />
-          <p className="mt-2 text-center text-xs text-[#7a6a68]">Thiệp mẫu xem trước — bấm “Tạo thiệp miễn phí” để tạo thiệp của riêng bạn.</p>
+          <p className="mt-2 text-center text-xs text-[#7a6a68]">Thiệp mẫu xem trước — xem thêm mẫu ở thư viện mẫu thiệp.</p>
         </div>
       </section>
 
@@ -116,15 +112,14 @@ export default function Home() {
           <h2 id="steps-title" className="text-center font-display text-3xl font-bold text-[#7a1f2b]">{d.stepsTitle}</h2>
           <ol className="mt-8 grid gap-5 md:grid-cols-3">
             {[
-              { n: "1", t: d.step1, desc: d.step1Desc, href: "/mau-thiep" },
-              { n: "2", t: d.step2, desc: d.step2Desc, href: "/tao-thiep" },
-              { n: "3", t: d.step3, desc: d.step3Desc, href: "/quan-ly" },
+              { n: "1", t: d.step1, desc: d.step1Desc },
+              { n: "2", t: d.step2, desc: d.step2Desc },
+              { n: "3", t: d.step3, desc: d.step3Desc },
             ].map((s) => (
               <li key={s.n} className="rounded-2xl bg-white p-6 text-center shadow-sm">
                 <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#7a1f2b] font-display text-xl font-bold text-white">{s.n}</span>
                 <h3 className="mt-3 font-semibold text-[#7a1f2b]">{s.t}</h3>
                 <p className="mt-1 text-sm text-[#5a4a48]">{s.desc}</p>
-                <Link href={s.href} className="mt-3 inline-block text-sm font-semibold text-[#7a1f2b] underline">Bắt đầu bước này →</Link>
               </li>
             ))}
           </ol>
@@ -178,9 +173,6 @@ export default function Home() {
               <button type="button" onClick={() => setPreview(null)} className="rounded-full border px-3 py-1 text-sm" aria-label="Đóng xem trước">✕</button>
             </div>
             <InvitationPreview data={{ ...defaultInvitation(preview.id), groomName: "Minh Quân", brideName: "Thu An" }} />
-            <Link href={`/tao-thiep?template=${preview.id}`} className="mt-4 block rounded-full bg-[#7a1f2b] py-3 text-center font-semibold text-white">
-              Dùng mẫu này
-            </Link>
           </div>
         </div>
       )}

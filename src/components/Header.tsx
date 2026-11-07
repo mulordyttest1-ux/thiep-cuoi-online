@@ -25,13 +25,6 @@ export default function Header() {
         <nav className="ml-auto flex flex-wrap items-center gap-1 sm:gap-2" aria-label="Điều hướng chính">
           <Link href="/" className="rounded-full px-3 py-2 text-sm hover:bg-[#f3e8d8]">{dict.navHome}</Link>
           <Link href="/mau-thiep" className="rounded-full px-3 py-2 text-sm hover:bg-[#f3e8d8]">{dict.navTemplates}</Link>
-          <Link href="/quan-ly" className="rounded-full px-3 py-2 text-sm hover:bg-[#f3e8d8]">{dict.navManage}</Link>
-          <Link
-            href="/tao-thiep"
-            className="rounded-full bg-[#7a1f2b] px-4 py-2 text-sm font-semibold text-white hover:bg-[#5e1620]"
-          >
-            {dict.createFree}
-          </Link>
           <span className="ml-1 flex overflow-hidden rounded-full border border-[#c9a86a]" role="group" aria-label="Chọn ngôn ngữ giao diện">
             {(["vi", "en"] as const).map((l) => (
               <button

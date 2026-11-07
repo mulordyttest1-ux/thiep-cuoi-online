@@ -22,8 +22,6 @@ export default function Footer() {
           <p className="font-semibold text-[#7a1f2b]">Khám phá</p>
           <ul className="mt-2 space-y-2 text-sm">
             <li><Link className="hover:underline" href="/mau-thiep">Mẫu thiệp</Link></li>
-            <li><Link className="hover:underline" href="/tao-thiep">Tạo thiệp miễn phí</Link></li>
-            <li><Link className="hover:underline" href="/quan-ly">Quản lý khách mời</Link></li>
             <li><Link className="hover:underline" href="/thiep/demo">Xem thiệp demo</Link></li>
           </ul>
         </nav>

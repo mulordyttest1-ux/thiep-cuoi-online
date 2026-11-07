@@ -8,6 +8,7 @@ import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
 import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, saveInvitation } from "@/lib/store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostText, parseCepPlainText } from "@/lib/cep";
 import InvitationPreview from "@/components/InvitationPreview";
+import AdminGate from "@/components/AdminGate";
 import OnlineDemoWizard from "@/components/OnlineDemoWizard";
 import SvgTemplateSection from "@/components/SvgTemplateSection";
 import { decodeSvgShare, type SvgSharePayload } from "@/lib/svg-template";
@@ -734,8 +735,10 @@ function EditorInner() {
 
 export default function CreatePage() {
   return (
-    <Suspense fallback={<p className="mx-auto max-w-6xl px-4 py-10">Đang tải editor…</p>}>
-      <EditorInner />
-    </Suspense>
+    <AdminGate>
+      <Suspense fallback={<p className="mx-auto max-w-6xl px-4 py-10">Đang tải editor…</p>}>
+        <EditorInner />
+      </Suspense>
+    </AdminGate>
   );
 }

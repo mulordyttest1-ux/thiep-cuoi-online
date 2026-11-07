@@ -232,7 +232,6 @@ function CardInner() {
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/thiep/demo" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white">Xem thiệp demo</Link>
-          <Link href="/tao-thiep" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b]">Tạo thiệp mới</Link>
         </div>
       </div>
     );

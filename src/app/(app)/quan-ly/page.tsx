@@ -13,6 +13,7 @@ import {
   seedGuestsIfEmpty,
 } from "@/lib/store";
 import GuestTable from "@/components/GuestTable";
+import AdminGate from "@/components/AdminGate";
 
 export default function ManagePage() {
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -251,6 +252,7 @@ export default function ManagePage() {
   };
 
   return (
+    <AdminGate>
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="font-display text-4xl font-bold text-[#7a1f2b]">Quản lý khách mời</h1>
       <p className="mt-2 text-[#5a4a48]">
@@ -508,5 +510,6 @@ export default function ManagePage() {
       </section>
 
     </div>
+    </AdminGate>
   );
 }

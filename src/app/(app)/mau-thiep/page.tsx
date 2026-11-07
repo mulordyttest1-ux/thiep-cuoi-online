@@ -5,7 +5,6 @@ import { STYLE_LABELS, TEMPLATES, type Template, type TemplateStyle } from "@/li
 import { defaultInvitation } from "@/lib/types";
 import TemplateCard from "@/components/TemplateCard";
 import InvitationPreview from "@/components/InvitationPreview";
-import Link from "next/link";
 
 type Filter = "all" | TemplateStyle;
 
@@ -74,9 +73,6 @@ export default function TemplatesPage() {
             </div>
             <p className="mb-3 text-sm text-[#5a4a48]">{preview.description} {preview.pattern}</p>
             <InvitationPreview data={defaultInvitation(preview.id)} />
-            <Link href={`/tao-thiep?template=${preview.id}`} className="mt-4 block rounded-full bg-[#7a1f2b] py-3 text-center font-semibold text-white">
-              Dùng mẫu này
-            </Link>
           </div>
         </div>
       )}
