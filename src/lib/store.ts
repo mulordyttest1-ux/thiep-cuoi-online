@@ -99,6 +99,29 @@ export function buildShareUrl(origin: string, data: InvitationData): string {
   return `${origin}/thiep/${encodeURIComponent(id)}?d=${encodeShare(data)}`;
 }
 
+/** Link cho khách sửa mẫu in: mở trang khách /khach/<id>?d= (chỉ thấy mẫu
+    form in, layout trần) kèm dữ liệu trong ?d=. Khác link chia sẻ thiệp
+    online (/thiep/...) — link này không mở trình sửa của Nancy. */
+export function buildCustomerEditUrl(origin: string, data: InvitationData): string {
+  const id = data.id || "demo";
+  return `${origin}/khach/${encodeURIComponent(id)}?d=${encodeShare(data)}`;
+}
+
+/** Cờ khách đã chốt cho link ?d= (không máy chủ): khóa sửa khi mở lại link
+    trên cùng trình duyệt. Khóa triệt để qua mọi máy chỉ có ở link máy chủ
+    (customerConfirmedAt trên bản ghi máy chủ). */
+export function customerConfirmedKey(id: string): string {
+  return `td_customer_confirmed_${id}`;
+}
+
+export function isCustomerConfirmed(id: string): boolean {
+  return safeGet(customerConfirmedKey(id)) === "1";
+}
+
+export function markCustomerConfirmed(id: string): void {
+  safeSet(customerConfirmedKey(id), "1");
+}
+
 /* ---------- Khách mời ---------- */
 
 export function seedGuestsIfEmpty(): Guest[] {

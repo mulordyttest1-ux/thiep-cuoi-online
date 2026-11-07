@@ -15,6 +15,10 @@
 //    ánh xạ sang ceremonyVenue, KHÔNG phải dòng tiêu đề. Vd của chị: khách
 //    đổi dòng này thành "LỄ ĐƯỢC TỔ CHỨC TẠI" thì không vào ghost text.
 //  - partyHeader: tiêu đề mục địa điểm tiệc ("TIỆC CƯỚI SẼ TỔ CHỨC TẠI").
+//  - printCeremonyTitle / printPartyIntro: tiêu đề trên MẪU FORM IN
+//    (PrintFormPreview) - chữ in khác chữ thiệp online nên có khóa riêng:
+//    lễ in là "HÔN LỄ ĐƯỢC CỬ HÀNH TẠI", tiệc in là câu mời dự tiệc trước
+//    tên địa điểm. Sửa cũng vào danh sách sửa tay như các câu mẫu khác.
 // Lời mời (data.message) không có trong danh sách này vì nó là trường
 // InvitationData — nhưng message CŨNG không có khóa CEP nên sửa lời mời
 // cũng vào danh sách sửa tay (buildManualList nhận message cũ/mới riêng).
@@ -33,6 +37,8 @@ export interface CustomTextDef {
 export const CUSTOM_TEXT_DEFS: CustomTextDef[] = [
   { key: "ceremonyHeaderLine1", label: "Tiêu đề lễ", defaultVi: "LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI" },
   { key: "partyHeader", label: "Tiêu đề tiệc", defaultVi: "TIỆC CƯỚI SẼ TỔ CHỨC TẠI" },
+  { key: "printCeremonyTitle", label: "Tiêu đề lễ (mẫu in)", defaultVi: "HÔN LỄ ĐƯỢC CỬ HÀNH TẠI" },
+  { key: "printPartyIntro", label: "Lời mời dự tiệc (mẫu in)", defaultVi: "ĐẾN DỰ BUỔI TIỆC CHUNG VUI CÙNG GIA ĐÌNH CHÚNG TÔI TẠI:" },
 ];
 
 export function customTextDef(key: string): CustomTextDef | undefined {
