@@ -7,7 +7,7 @@
 // initialMessage} — initialMessage là message GỐC lúc mở link lần đầu để
 // máy khác tính đúng diff "Lời mời"; link cũ chưa mang initialMessage vẫn
 // đọc được (dùng message trong ?d= làm gốc).
-//   ./node_modules/.bin/tsc src/lib/custom-texts.ts src/lib/cep.ts src/lib/lunar.ts src/lib/store.ts src/lib/types.ts src/lib/access.ts --outDir /tmp/printform-test-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --lib es2022,dom
+//   ./node_modules/.bin/tsc src/lib/custom-texts.ts src/lib/cep.ts src/lib/lunar.ts src/lib/store.ts src/lib/types.ts src/lib/access.ts src/lib/physical-forms.ts --outDir /tmp/printform-test-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --lib es2022,dom
 //   NODE_PATH=$PWD/node_modules node scripts/test_printform.mjs
 import { createRequire } from "module";
 import fs from "fs";
@@ -301,6 +301,54 @@ check("editor ưu tiên message trong ?c= rồi message gốc trong ?d=", ed.inc
 check("editor truyền customTexts + initialMessage vào link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current)"));
 check("editor truyền customTexts + initialMessage khi mở lại link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current, initialMessageRef.current)"));
 check("trang khách truyền initialMessage từ ?c= vào editor", khach.includes("initialMessageFromLink={confirmedInitialMessage}"));
+
+// ---- 13. Form vật lý: danh sách, mặc định, đi theo link ?d= ----
+// Thiệp vật lý KHÔNG chọn mẫu online, chỉ chọn form vật lý để đổ dữ liệu
+// vào. Hiện chỉ có 1 form (mẫu in chuẩn #1); thêm form mới chỉ cần thêm
+// 1 dòng vào PHYSICAL_FORMS.
+const phys = require(path.join(outDir, "physical-forms.js"));
+const types = require(path.join(outDir, "types.js"));
+check("chỉ có 1 form vật lý", phys.PHYSICAL_FORMS.length === 1, String(phys.PHYSICAL_FORMS.length));
+check(
+  "form vật lý duy nhất là mẫu in chuẩn #1",
+  phys.PHYSICAL_FORMS[0].id === "mau-in-chuan-1" &&
+    phys.PHYSICAL_FORMS[0].name.includes("Mẫu in chuẩn #1") &&
+    phys.PHYSICAL_FORMS[0].description.length > 0,
+  JSON.stringify(phys.PHYSICAL_FORMS[0])
+);
+check("mặc định form vật lý là mẫu in chuẩn #1", phys.DEFAULT_PHYSICAL_FORM_ID === "mau-in-chuan-1");
+check("getPhysicalForm() về form mặc định", phys.getPhysicalForm().id === "mau-in-chuan-1");
+check("getPhysicalForm(id lạ) về form mặc định", phys.getPhysicalForm("khong-co").id === "mau-in-chuan-1");
+check("thiệp mặc định dùng form vật lý chuẩn #1", types.defaultInvitation().physicalFormId === "mau-in-chuan-1");
+const physData = { ...vuQuy, physicalFormId: "mau-in-chuan-1" };
+const physBack = store.decodeShare(store.encodeShare(physData));
+check("physicalFormId đi theo link ?d=", physBack !== null && physBack.physicalFormId === "mau-in-chuan-1", physBack?.physicalFormId ?? "null");
+const oldPhysData = { ...vuQuy };
+delete oldPhysData.physicalFormId;
+const oldPhysBack = store.decodeShare(store.encodeShare(oldPhysData));
+check("link cũ chưa có physicalFormId thì mặc định về form chuẩn #1", oldPhysBack !== null && oldPhysBack.physicalFormId === "mau-in-chuan-1", oldPhysBack?.physicalFormId ?? "null");
+const urlPhys = store.buildCustomerEditUrl(origin, physData);
+const dPhys = store.decodeShare(new URL(urlPhys).searchParams.get("d"));
+check("link khách sửa mang physicalFormId", dPhys !== null && dPhys.physicalFormId === "mau-in-chuan-1", dPhys?.physicalFormId ?? "null");
+check("khác form vật lý thì khác base (khóa theo base)", store.sameCustomerData(physData, { ...physData, physicalFormId: "mau-khac" }) === false);
+check("thiếu physicalFormId thì hiểu là form mặc định (link cũ vẫn khớp)", store.sameCustomerData(oldPhysData, physData) === true);
+check("cùng form vật lý thì cùng base", store.sameCustomerData(physData, { ...physData }) === true);
+
+// ---- 14. Trang tao-thiep: đường vật lý lên đầu, không hỏi mẫu online ----
+check("tao-thiep có chọn đường vật lý / online", tt.includes("Thiệp vật lý (in)") && tt.includes("Thiệp online"));
+check("đường vật lý là mặc định", tt.includes('useState<"physical" | "online">'));
+check("dán ghost text là bước 1 đường vật lý", tt.includes("Bước 1 — Dán dữ liệu từ Illustrator"));
+check("có mục chọn form vật lý", tt.includes("Bước 2 — Chọn form vật lý") && tt.includes('id="physical-form"'));
+check("đường vật lý xem trước bằng form in", tt.includes("<PrintFormPreview data={data}"));
+check("mẫu online chỉ hiện ở đường online", tt.includes('mode === "online" && templatePicker'));
+check(
+  "dán ghost text chọn form vật lý, không đổi mẫu online",
+  tt.includes("physicalFormId: prev.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID") && !tt.includes("templateId: useStandard")
+);
+check("dán ghost text chuyển sang đường vật lý", tt.includes('setMode("physical")'));
+check("link khách nổi bật trong đường vật lý", tt.includes('data-testid="customer-link-box"') && tt.includes('id="customer-link"'));
+check("trường chỉ dùng cho mẫu online (tiêu đề lễ, dress code) ẩn ở đường vật lý", (tt.match(/mode === "online" &&/g) || []).length >= 2 && tt.includes("Dress code — màu trang phục (mẫu Song Phụng Đỏ)"));
+check("đường online vẫn giữ chọn mẫu + demo wizard", tt.includes("const templatePicker") && tt.includes("<OnlineDemoWizard"));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
