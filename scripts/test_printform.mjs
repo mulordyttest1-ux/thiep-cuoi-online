@@ -1,11 +1,28 @@
 // Test trang khách mẫu form in (PrintFormPreview) + link khách /khach/ +
-// khóa link sau chốt (cờ localStorage cho link ?d=).
+// khóa link sau chốt (cờ localStorage cho link ?d=, khóa THEO BASE) + bản
+// lưu dữ liệu khách sửa cho link ?d= (snapshot localStorage: lưu/khôi phục,
+// dấu "Đã sửa" sau khôi phục, link đã chốt chứa dữ liệu mới) + link đã chốt
+// mang câu mẫu đã sửa trong ?c= (mở trên máy khác vẫn thấy danh sách sửa tay).
 //   ./node_modules/.bin/tsc src/lib/custom-texts.ts src/lib/cep.ts src/lib/lunar.ts src/lib/store.ts src/lib/types.ts src/lib/access.ts --outDir /tmp/printform-test-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --lib es2022,dom
 //   NODE_PATH=$PWD/node_modules node scripts/test_printform.mjs
 import { createRequire } from "module";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+
+// localStorage giả cho Node (store.ts dùng window.localStorage trong try/catch).
+const __ls = new Map();
+globalThis.window = {
+  localStorage: {
+    getItem: (k) => (__ls.has(k) ? __ls.get(k) : null),
+    setItem: (k, v) => {
+      __ls.set(k, String(v));
+    },
+    removeItem: (k) => {
+      __ls.delete(k);
+    },
+  },
+};
 
 const require = createRequire(import.meta.url);
 const outDir = process.env.PRINTFORM_TEST_OUT || "/tmp/printform-test-out";
@@ -106,9 +123,23 @@ check(
 );
 check("không sửa câu mẫu in thì danh sách sửa tay rỗng", ct.buildManualList({}, vuQuy, "").length === 0);
 
-// ---- 6. Khóa link sau chốt (?d=): cờ localStorage theo id ----
+// ---- 6. Khóa link sau chốt (?d=): cờ localStorage theo id + base ----
 check("khóa cờ có tên theo id", store.customerConfirmedKey("thiep-abc") === "td_customer_confirmed_thiep-abc");
-check("không có localStorage (node) thì chưa chốt + ghi cờ không lỗi", store.isCustomerConfirmed("thiep-abc") === false && (() => { store.markCustomerConfirmed("thiep-abc"); return true; })());
+check("chưa chốt thì không khóa", store.isCustomerConfirmed("thiep-abc", vuQuy) === false);
+const editedBase = { ...vuQuy, groomName: "Trần Văn Mới", ceremonyTime: "20:00" };
+store.markCustomerConfirmed("thiep-abc", vuQuy, editedBase);
+check("chốt rồi mở lại link cũ (base khớp) thì khóa", store.isCustomerConfirmed("thiep-abc", vuQuy) === true);
+check("chốt rồi mở link đã chốt (?d= dữ liệu đã sửa) thì khóa", store.isCustomerConfirmed("thiep-abc", editedBase) === true);
+const linkMoi = { ...vuQuy, groomName: "Trần Văn Mới Nhất", date: "2026-11-02" };
+check("link mới cùng id nhưng base khác thì KHÔNG khóa", store.isCustomerConfirmed("thiep-abc", linkMoi) === false);
+check("id khác thì không khóa", store.isCustomerConfirmed("thiep-khac", vuQuy) === false);
+check(
+  "ghi cờ không lỗi",
+  (() => {
+    store.markCustomerConfirmed("thiep-ghi", vuQuy, editedBase);
+    return store.isCustomerConfirmed("thiep-ghi", vuQuy);
+  })() === true
+);
 
 // ---- 7. Nguồn component: đúng nội dung form in, không có mục online ----
 const pf = readSrc("src/components/PrintFormPreview.tsx");
@@ -139,13 +170,96 @@ check("editor import PrintFormPreview", ed.includes('from "./PrintFormPreview"')
 check("editor không còn import InvitationPreview", !ed.includes('from "./InvitationPreview"'));
 check("editor render PrintFormPreview", ed.includes("<PrintFormPreview"));
 check("editor nói rõ mẫu form in", ed.includes("Duyệt mẫu in") && ed.includes("mẫu form sẽ in"));
-check("editor khóa sau chốt ở link ?d=", ed.includes("markCustomerConfirmed(invitationId)") && ed.includes("isCustomerConfirmed(invitationId)"));
+check("editor khóa sau chốt ở link ?d= theo base", ed.includes("markCustomerConfirmed(invitationId,") && ed.includes("isCustomerConfirmed(invitationId,"));
 
 // ---- 9. Nút link khách ở tao-thiep trỏ tới /khach/ ----
 const tt = readSrc("src/app/(app)/tao-thiep/page.tsx");
 check("tao-thiep dùng buildCustomerEditUrl", tt.includes("buildCustomerEditUrl"));
 check("tao-thiep không còn link /tao-thiep?d= cho khách", !tt.includes("/tao-thiep?d="));
 check("label ô link khách nói trang khách", tt.includes("mở trang khách"));
+
+// ---- 10. Bản lưu dữ liệu khách sửa cho link ?d= (snapshot localStorage) ----
+check("khóa bản lưu có tên theo id", store.customerDataKey("thiep-abc") === "td_customer_data_thiep-abc");
+const edited = { ...vuQuy, groomName: "Trần Văn Mới", ceremonyTime: "20:00" };
+const snapTexts = { printCeremonyTitle: "LỄ ĐƯỢC TỔ CHỨC TẠI" };
+check("lưu snapshot không lỗi", store.saveCustomerSnapshot("thiep-abc", vuQuy, edited, snapTexts) === true);
+const loaded = store.loadCustomerSnapshot("thiep-abc");
+check("khôi phục snapshot ra đúng tên đã sửa", loaded !== null && loaded.data.groomName === "Trần Văn Mới", loaded?.data?.groomName ?? "null");
+check("khôi phục snapshot giữ câu mẫu đã sửa", loaded !== null && loaded.customTexts.printCeremonyTitle === "LỄ ĐƯỢC TỔ CHỨC TẠI", JSON.stringify(loaded?.customTexts));
+check("khôi phục snapshot giữ base gốc", loaded !== null && loaded.base.groomName === "Trần Thanh Long", loaded?.base?.groomName ?? "null");
+check("dữ liệu gốc không bị sửa theo", vuQuy.groomName === "Trần Thanh Long" && vuQuy.ceremonyTime === "19:15");
+const diff = store.diffEditedFields(vuQuy, edited);
+check("diff: tên chú rể đã sửa", diff.includes("groomName"), JSON.stringify(diff));
+check("diff: tên cô dâu không đổi nên không đánh dấu", !diff.includes("brideName"), JSON.stringify(diff));
+check("diff: đổi giờ lễ thì đánh dấu khối ngày lễ", diff.includes("ceremonyDate") && !diff.includes("ceremonyTime"), JSON.stringify(diff));
+const timeOnly = { ...vuQuy, time: "12:30" };
+const diffTime = store.diffEditedFields(vuQuy, timeOnly);
+check("diff: đổi giờ tiệc thì đánh dấu khối ngày tiệc", diffTime.includes("date") && !diffTime.includes("time"), JSON.stringify(diffTime));
+check("diff: không đổi gì thì rỗng", store.diffEditedFields(vuQuy, { ...vuQuy }).length === 0);
+check("same: dữ liệu giống nhau", store.sameCustomerData(vuQuy, { ...vuQuy }) === true);
+check("same: dữ liệu khác nhau", store.sameCustomerData(vuQuy, edited) === false);
+check("same: id khác nhau thì không giống", store.sameCustomerData(vuQuy, { ...vuQuy, id: "khac" }) === false);
+globalThis.window.localStorage.setItem(store.customerDataKey("thiep-hong"), "{khong-phai-json");
+check("snapshot hỏng (JSON sai) thì trả null", store.loadCustomerSnapshot("thiep-hong") === null);
+store.saveCustomerSnapshot("thiep-thieu", vuQuy, { ...vuQuy, groomName: "" }, {});
+check("snapshot thiếu tên thì trả null", store.loadCustomerSnapshot("thiep-thieu") === null);
+check("chưa có snapshot thì trả null", store.loadCustomerSnapshot("thiep-chua-co") === null);
+// Link đã chốt chứa dữ liệu MỚI trong ?d= (khách gửi link này cho Nancy).
+const confirmedUrl = store.buildCustomerEditUrl(origin, edited);
+const confirmedBack = store.decodeShare(confirmedUrl.split("?d=")[1]);
+check("link đã chốt ?d= chứa tên đã sửa", confirmedBack !== null && confirmedBack.groomName === "Trần Văn Mới", confirmedBack?.groomName ?? "null");
+check("link đã chốt vẫn trỏ /khach/", confirmedUrl.startsWith(`${origin}/khach/thiep-printform-test?d=`));
+
+// ---- 11. Nguồn: trang khách khôi phục snapshot + editor lưu + nút link đã chốt ----
+const khach = readSrc("src/app/(khach)/khach/[id]/page.tsx");
+check("trang khách khôi phục snapshot theo id", khach.includes("loadCustomerSnapshot(id)") && khach.includes("sameCustomerData(snap.base, inv)"));
+check("trang khách tính dấu sửa từ diff", khach.includes("diffEditedFields(inv, effective)"));
+check("trang khách truyền dữ liệu gốc làm base", khach.includes("originalData={original ?? undefined}"));
+check("editor lưu snapshot khi đóng box sửa", ed.includes("saveCustomerSnapshot(") && ed.includes("originalData ?? dataRef.current"));
+check("editor lưu snapshot khi chốt", ed.includes("markCustomerConfirmed(invitationId,") && ed.includes("saveCustomerSnapshot("));
+check("editor có nút Sao chép link đã chốt", ed.includes("Sao chép link đã chốt") && ed.includes("copyConfirmedLink"));
+check("editor không còn nói Nancy lấy chữ từ đây", !ed.includes("Nancy sẽ lấy chữ từ đây"));
+check("editor dặn gửi link đã chốt cho Nancy", ed.includes("Gửi link đã chốt bên dưới cho Nancy"));
+
+// ---- 12. Link đã chốt LUÔN mang ?c= (kể cả {} rỗng khi không sửa câu mẫu) ----
+const ctEdited = { printCeremonyTitle: "LỄ ĐƯỢC TỔ CHỨC TẠI", printPartyIntro: "MỜI ĐẾN DỰ TIỆC CÙNG GIA ĐÌNH" };
+const urlWithC = store.buildCustomerEditUrl(origin, edited, ctEdited);
+check("link đã chốt có ?c=", urlWithC.includes("&c="), urlWithC.slice(0, 140));
+const cParam = new URL(urlWithC).searchParams.get("c");
+const cBack = store.decodeCustomTexts(cParam);
+check(
+  "?c= giải mã ra đúng câu mẫu đã sửa",
+  cBack !== null && cBack.printCeremonyTitle === "LỄ ĐƯỢC TỔ CHỨC TẠI" && cBack.printPartyIntro === "MỜI ĐẾN DỰ TIỆC CÙNG GIA ĐÌNH",
+  JSON.stringify(cBack)
+);
+check("không truyền customTexts thì link không có ?c=", !store.buildCustomerEditUrl(origin, edited).includes("&c="));
+check("customTexts {} vẫn ra link có ?c=", store.buildCustomerEditUrl(origin, edited, {}).includes("&c="));
+const urlEmptyC = store.buildCustomerEditUrl(origin, edited, {});
+const cParamEmpty = new URL(urlEmptyC).searchParams.get("c");
+const cBackEmpty = store.decodeCustomTexts(cParamEmpty);
+check("?c= rỗng giải mã ra {}", cBackEmpty !== null && Object.keys(cBackEmpty).length === 0, JSON.stringify(cBackEmpty));
+check(
+  "link đã chốt không sửa câu mẫu vẫn có ?c= và ?d= đúng tên đã sửa",
+  urlEmptyC.includes("&c=") && store.decodeShare(urlEmptyC.split("?d=")[1].split("&")[0])?.groomName === "Trần Văn Mới",
+  urlEmptyC.slice(0, 140)
+);
+check("decode ?c= sai trả null", store.decodeCustomTexts("!!!khong-phai-base64") === null);
+check("decode ?c= null trả null", store.decodeCustomTexts(null) === null);
+check("decode ?c= rỗng trả null", store.decodeCustomTexts("") === null);
+const manualFromC = ct.buildManualList(cBack ?? {}, edited, "");
+check(
+  "câu mẫu từ ?c= vào danh sách sửa tay đúng",
+  manualFromC.length === 2 &&
+    manualFromC.some((m) => m.key === "printCeremonyTitle" && m.newValue === "LỄ ĐƯỢC TỔ CHỨC TẠI") &&
+    manualFromC.some((m) => m.key === "printPartyIntro" && m.newValue === "MỜI ĐẾN DỰ TIỆC CÙNG GIA ĐÌNH"),
+  JSON.stringify(manualFromC)
+);
+check("trang khách đọc ?c=", khach.includes("decodeCustomTexts") && khach.includes('search.get("c")'));
+check("trang khách coi link có ?c= là link đã chốt", khach.includes("initialConfirmed={confirmedLinkOpened}"));
+check("trang khách coi link có ?c= rỗng là link đã chốt", khach.includes("setConfirmedLinkOpened(linkCustomTexts !== null)"));
+check("editor nhận prop link đã chốt", ed.includes("initialConfirmed?: boolean"));
+check("editor truyền customTexts vào link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current)"));
+check("editor truyền customTexts khi mở lại link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current)"));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
