@@ -1,5 +1,6 @@
-// Trang khách sửa cho mẫu chuẩn #1 (B1): thiệp là PREVIEW (InvitationPreview
-// với mẫu song-phung-do), bấm vào nội dung thì BOX SỬA NỔI NGAY TẠI CHỖ BẤM,
+// Trang khách sửa cho mẫu chuẩn #1 (B1): khách duyệt MẪU FORM IN
+// (PrintFormPreview, 2 cột lễ/tiệc như file in) thay vì thiệp online.
+// Bấm vào nội dung thì BOX SỬA NỔI NGAY TẠI CHỖ BẤM,
 // sửa tới đâu thiệp đổi tới đó. Dữ liệu là chữ thường, KHÔNG có U+200B.
 //  - Trường dữ liệu (khóa CEP: tên, ngày, địa chỉ...): sửa chảy về ghost
 //    text tự động; chỗ đã sửa có dấu chấm nhẹ trên thiệp.
@@ -9,6 +10,9 @@
 //  - Mỗi lần bấm Xong trong box sửa: lưu nháp lên máy chủ + ghi 1 dòng vào
 //    lịch sử sửa của thiệp (Nancy xem trong Quản lý).
 //  - Chốt: lưu cuối + trả ghost text + metadata + danh sách sửa tay.
+//  - Sau chốt link khóa lại: máy chủ thì customerConfirmedAt giữ chỉ đọc
+//    khi mở lại; link ?d= thì cờ đã-chốt lưu ở localStorage theo id nên
+//    mở lại trên cùng trình duyệt vẫn chỉ đọc.
 //  - Chat box cuối trang: khách ghi chú/hỏi, Nancy trả lời trong Quản lý;
 //    khách mở lại link sẽ thấy trả lời (không realtime).
 "use client";
@@ -24,7 +28,7 @@ import {
   stdFieldLabel,
 } from "@/lib/custom-texts";
 import { getDateParts } from "@/lib/lunar";
-import { copyText } from "@/lib/store";
+import { copyText, isCustomerConfirmed, markCustomerConfirmed } from "@/lib/store";
 import {
   CEREMONY_TYPE_OPTIONS,
   HOST_TYPE_OPTIONS,
@@ -32,7 +36,7 @@ import {
   VITHU_GROOM_OPTIONS,
 } from "@/lib/svg-template";
 import type { InvitationData, StdEditField } from "@/lib/types";
-import InvitationPreview from "./InvitationPreview";
+import PrintFormPreview from "./PrintFormPreview";
 
 const inputCls = "w-full rounded-xl border px-3 py-2";
 
@@ -209,9 +213,12 @@ export default function CustomerStandardEditor({
   const [chatNotice, setChatNotice] = useState("");
 
   // Đã chốt từ trước (mở lại link): dựng lại ghost text + danh sách sửa tay
-  // ở máy khách để hiện ngay, không cần bấm Chốt lại.
+  // ở máy khách để hiện ngay, không cần bấm Chốt lại. Link ?d= (không máy
+  // chủ): cờ đã-chốt lưu ở localStorage theo id, mở lại vẫn chỉ đọc.
   useEffect(() => {
-    if (!initialConfirmedAt) return;
+    const lockedByFlag = !serverMode && !initialConfirmedAt && isCustomerConfirmed(invitationId);
+    if (!initialConfirmedAt && !lockedByFlag) return;
+    if (lockedByFlag) setConfirmed(true);
     setGhostText(buildCepTextBlock(initialData));
     setMetadata(buildCepMetadataJson());
     setPlainText(buildCepPlainText(initialData));
@@ -427,6 +434,8 @@ export default function CustomerStandardEditor({
         setMetadata(buildCepMetadataJson());
         setPlainText(buildCepPlainText(dataRef.current));
         setManualList(list);
+        // Link ?d= (không máy chủ): ghi cờ đã-chốt để mở lại link vẫn chỉ đọc.
+        markCustomerConfirmed(invitationId);
       }
       setConfirmed(true);
       setNotice("Đã chốt xong — ghost text bên dưới để gửi cho Nancy.");
@@ -496,17 +505,16 @@ export default function CustomerStandardEditor({
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      <h1 className="text-center font-display text-3xl font-bold text-[#7a1f2b]">Sửa thiệp cưới</h1>
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <h1 className="text-center font-display text-3xl font-bold text-[#7a1f2b]">Duyệt mẫu in</h1>
       <p className="mt-1 text-center text-sm text-[#5a4a48]">
-        Bấm vào tên, ngày, địa điểm… trên thiệp để sửa ngay tại chỗ đó. Chỗ đã sửa có dấu chấm; câu mẫu đã sửa
-        có nền vàng + nhãn “cần sửa tay”.
+        Đây là đúng mẫu form sẽ in, bấm vào tên, ngày, địa điểm… để sửa ngay tại chỗ đó. Chỗ đã sửa có dấu
+        chấm; câu mẫu đã sửa có nền vàng + nhãn “cần sửa tay”.
       </p>
 
       <div className="mt-4">
-        <InvitationPreview
+        <PrintFormPreview
           data={data}
-          motion={false}
           editable={!confirmed}
           onFieldTap={openFieldEditor}
           onCustomTextTap={openCustomEditor}
