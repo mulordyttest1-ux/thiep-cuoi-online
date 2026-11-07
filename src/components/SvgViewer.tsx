@@ -1,9 +1,9 @@
 // Trang xem mẫu SVG cho khách (tap-to-edit):
 //  - Thiệp là PREVIEW (SVG), tự co vừa màn hình, zoom được (chụm 2 ngón
 //    như xem ảnh + nút +/−). Chữ là vector nên phóng to không mờ.
-//  - Bấm vào chữ trên thiệp → ô sửa hiện ngay BÊN DƯỚI thiệp, sửa tới đâu
-//    thiệp đổi tới đó. Chỉ khung đã đặt tên mới bấm được; chữ mẫu cố định
-//    bấm vào không làm gì.
+//  - Bấm vào chữ trên thiệp → BOX SỬA NỔI NGAY TẠI CHỖ BẤM (trên thiệp,
+//    như tooltip sửa trong Illustrator), sửa tới đâu thiệp đổi tới đó.
+//    Chỉ khung đã đặt tên mới bấm được; chữ mẫu cố định bấm vào không làm gì.
 //  - Dữ liệu là chữ thường, KHÔNG có U+200B trong luồng khách.
 //  - Ngày lễ / ngày tiệc là hai nhóm độc lập: lịch lễ chỉ đổi nhóm lễ,
 //    lịch tiệc chỉ đổi nhóm tiệc.
@@ -122,9 +122,10 @@ export interface SvgViewerProps {
   svgText: string; // SVG đã làm sạch
   initialData: InvitationData;
   initialExtra?: Record<string, string>;
+  externalImages?: string[]; // href ảnh ngoài chưa nhúng (rỗng/thiếu = không báo)
 }
 
-export default function SvgViewer({ templateId, templateName, svgText, initialData, initialExtra }: SvgViewerProps) {
+export default function SvgViewer({ templateId, templateName, svgText, initialData, initialExtra, externalImages }: SvgViewerProps) {
   const [data, setData] = useState<InvitationData>(() => normalizeSvgData(initialData));
   const [extra, setExtra] = useState<Record<string, string>>(initialExtra ?? {});
   const [selected, setSelected] = useState<string | null>(null);
@@ -133,6 +134,14 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
   const [returnLink, setReturnLink] = useState("");
   const [notice, setNotice] = useState("");
   const [errors, setErrors] = useState<string[]>([]);
+
+  // Box sửa nổi: neo tại hình chữ nhật viewport của <text> vừa bấm
+  // (getBoundingClientRect đã tính cả transform zoom/pan).
+  const [anchor, setAnchor] = useState<{ top: number; left: number; bottom: number; width: number } | null>(null);
+  const [vp, setVp] = useState({ w: 0, h: 0 });
+  const panelRef = useRef<HTMLDivElement>(null);
+  const selectedRef = useRef<string | null>(null);
+  selectedRef.current = selected;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
@@ -208,6 +217,85 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
     });
   }, [renderedSvg, selected]);
 
+  /* ---------- box sửa nổi: neo tại chỗ bấm ---------- */
+  const anchorForKey = (key: string): { top: number; left: number; bottom: number; width: number } | null => {
+    const svg = containerRef.current?.querySelector("svg");
+    if (!svg) return null;
+    const texts = svg.querySelectorAll("text[data-field]");
+    for (const t of Array.from(texts)) {
+      if (t.getAttribute("data-field") === key) {
+        const r = (t as SVGTextElement).getBoundingClientRect();
+        if (r.width > 0 || r.height > 0) return { top: r.top, left: r.left, bottom: r.bottom, width: r.width };
+        return null;
+      }
+    }
+    return null;
+  };
+  const openEditor = (key: string) => {
+    setSelected(key);
+    const a = anchorForKey(key);
+    if (a) setAnchor(a);
+  };
+  const closeEditor = () => {
+    const key = selectedRef.current;
+    if (key) onFieldBlur(key);
+    setSelected(null);
+    setAnchor(null);
+  };
+
+  // Neo lại box khi cuộn / xoay màn hình / zoom / bàn phím mở (viewport đổi)
+  // và khi gõ làm chữ dài ra (renderedSvg đổi). Chỉ set state khi rect đổi
+  // thật để khỏi render lại liên tục lúc cuộn.
+  useEffect(() => {
+    if (!selected) return;
+    const reposition = () => {
+      const a = anchorForKey(selected);
+      if (a) {
+        setAnchor((prev) =>
+          prev && Math.abs(prev.top - a.top) < 0.5 && Math.abs(prev.left - a.left) < 0.5 && Math.abs(prev.bottom - a.bottom) < 0.5
+            ? prev
+            : a
+        );
+      }
+      const vv = window.visualViewport;
+      const w = vv?.width ?? window.innerWidth;
+      const h = vv?.height ?? window.innerHeight;
+      setVp((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    window.visualViewport?.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+      window.visualViewport?.removeEventListener("resize", reposition);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, zoom, renderedSvg]);
+
+  // Đóng box: bấm ra ngoài box (trừ bấm trên thiệp — để onContainerClick
+  // xử lý đổi khung/đóng) hoặc phím Escape.
+  useEffect(() => {
+    if (!selected) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (panelRef.current?.contains(t)) return;
+      if (containerRef.current?.contains(t)) return;
+      closeEditor();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeEditor();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected]);
+
   /* ---------- zoom: nút +/−, chụm 2 ngón, kéo khi đã phóng to ---------- */
   const clampZoom = (z: { scale: number; x: number; y: number }) => {
     const scale = Math.min(4, Math.max(1, z.scale));
@@ -266,9 +354,11 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
     const el = (e.target as Element).closest?.("[data-field]");
     if (el) {
       const key = el.getAttribute("data-field");
-      if (key) setSelected(key);
+      if (key) openEditor(key);
+      return;
     }
-    // Bấm vào chữ mẫu cố định / nền: không làm gì.
+    // Bấm vào chữ mẫu cố định / nền trong khi box đang mở: đóng box.
+    if (selected) closeEditor();
   };
 
   /* ---------- sửa giá trị ---------- */
@@ -335,6 +425,25 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
     setNotice(r.ok ? "Đã sao chép link gửi lại." : "Không sao chép được — bôi đen link rồi copy thủ công.");
   };
 
+  /* ---------- vị trí box nổi: kẹp trong viewport ---------- */
+  const panelW = Math.min(340, (vp.w || 375) - 16);
+  let panelStyle: React.CSSProperties = { width: panelW };
+  if (anchor) {
+    const vh = vp.h || 667;
+    const vw = vp.w || 375;
+    const cx = anchor.left + anchor.width / 2;
+    const left = Math.max(8, Math.min(cx - panelW / 2, vw - panelW - 8));
+    const belowTop = anchor.bottom + 8;
+    if (belowTop + 180 <= vh) {
+      panelStyle = { width: panelW, left, top: belowTop };
+    } else if (anchor.top - 180 >= 8) {
+      panelStyle = { width: panelW, left, bottom: vh - anchor.top + 8 };
+    } else {
+      // Chữ ở giữa màn hình, trên dưới đều chật: dính lên đầu viewport.
+      panelStyle = { width: panelW, left, top: 8 };
+    }
+  }
+
   if (!tree) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
@@ -349,8 +458,16 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
     <div className="mx-auto max-w-2xl px-4 py-6">
       <h1 className="text-center font-display text-3xl font-bold text-[#7a1f2b]">{templateName}</h1>
       <p className="mt-1 text-center text-sm text-[#5a4a48]">
-        Bấm vào chữ trên thiệp để sửa. Chữ không bấm được là câu mẫu cố định.
+        Bấm vào chữ trên thiệp để sửa ngay tại chỗ đó. Chữ không bấm được là câu mẫu cố định.
       </p>
+
+      {/* Ảnh nền chưa nhúng trong file: nền sẽ trống — báo rõ để khách nhờ Nancy xuất lại file. */}
+      {externalImages && externalImages.length > 0 && (
+        <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+          Ảnh nền chưa gắn trong file SVG — xuất lại với Images: Embed (đặt ảnh nhúng trong file) thì ảnh nền mới
+          hiện. Nhờ Nancy gửi lại link mới sau khi xuất lại file.
+        </p>
+      )}
 
       {/* Nút zoom */}
       <div className="mt-4 flex justify-center gap-2">
@@ -385,13 +502,20 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
         </div>
       </div>
 
-      {/* Ô sửa hiện ngay bên dưới thiệp khi bấm vào một khung */}
-      {selectedField && selectedKind && (
-        <div key={selectedField.key} className="mt-4 rounded-2xl border bg-white p-4 shadow-sm">
+      {/* Box sửa nổi ngay tại chỗ bấm (thay cho ô sửa bên dưới thiệp) */}
+      {selectedField && selectedKind && anchor && (
+        <div
+          ref={panelRef}
+          key={selectedField.key}
+          role="dialog"
+          aria-label={cepKeyLabel(selectedField.key, data)}
+          style={{ ...panelStyle, maxHeight: "55vh" }}
+          className="fixed z-50 overflow-y-auto rounded-2xl border bg-white p-4 shadow-xl"
+        >
           <div className="flex items-start justify-between gap-2">
             <h2 className="text-base font-bold text-[#7a1f2b]">{cepKeyLabel(selectedField.key, data)}</h2>
-            <button type="button" onClick={() => setSelected(null)} className="rounded-full border px-3 py-1 text-sm">
-              Đóng
+            <button type="button" onClick={closeEditor} className="rounded-full border px-3 py-1 text-sm" aria-label="Đóng">
+              ✕
             </button>
           </div>
 
@@ -557,6 +681,13 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
               </div>
             </div>
           )}
+          <button
+            type="button"
+            onClick={closeEditor}
+            className="mt-4 w-full rounded-full bg-[#7a1f2b] px-5 py-2.5 font-semibold text-white hover:bg-[#5e1620]"
+          >
+            Xong
+          </button>
         </div>
       )}
 

@@ -86,13 +86,32 @@ export default function SvgTemplateSection({ data, initialPayload }: SvgTemplate
 
   const onFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    // Chụp số lượng NGAY: files là FileList sống của input — onChange reset
+    // e.target.value = "" ngay sau khi gọi onFiles nên tới lúc báo kết quả
+    // (sau các await) files.length đã thành 0 ("Đã tải lên 1/0 mẫu").
+    const total = files.length;
     const warns: string[] = [];
     let okCount = 0;
     let first: SvgTemplateData | null = null;
     for (const file of Array.from(files)) {
+      // Chỉ nhận .svg — PDF/EPS và file khác loại báo rõ, không tạo mẫu.
+      if (!/\.svg$/i.test(file.name)) {
+        warns.push(`${file.name}: Không nhận định dạng này — chỉ nhận file .svg (xuất từ Illustrator).`);
+        continue;
+      }
       try {
         const text = await file.text();
         const tpl = parseSvgTemplate(text, file.name);
+        // CỬA KIỂM TRA: phải nhận được ít nhất 1 khóa CEP kèm chữ sống
+        // (khóa = tên lớp/khung, giá trị = chữ trong khung). 0 khóa → HỦY,
+        // không tạo mẫu, không lưu — file chưa xuất đúng chuẩn.
+        const cepCount = tpl.fields.filter((f) => f.kind === "cep" && f.value.trim() !== "").length;
+        if (cepCount === 0) {
+          warns.push(
+            `${file.name}: Không nhận được khóa nào trong file — kiểm tra lại trong Illustrator: Object IDs = Layer Names, Fonts = SVG (chữ còn sống), Images = Embed. Không tạo mẫu.`
+          );
+          continue;
+        }
         await svgTemplateStore.save(tpl);
         okCount++;
         warns.push(...tpl.warnings.map((w) => `${file.name}: ${w}`));
@@ -103,7 +122,7 @@ export default function SvgTemplateSection({ data, initialPayload }: SvgTemplate
     }
     await refreshList();
     if (first) setSelectedId(first.id);
-    setNotice(`Đã tải lên ${okCount}/${files.length} mẫu.${warns.length ? " " + warns.join(" ") : ""}`);
+    setNotice(`Đã tải lên ${okCount}/${total} mẫu.${warns.length ? " " + warns.join(" ") : ""}`);
   };
 
   const onDelete = async (id: string) => {
@@ -125,6 +144,9 @@ export default function SvgTemplateSection({ data, initialPayload }: SvgTemplate
       svg: inlineSvgIfSmall(tpl.svgText),
       data,
       extra: {},
+      // Kèm danh sách ảnh ngoài chưa nhúng để trang khách báo mất nền
+      // (SVG trong link đã làm sạch nên trang khách không tự tìm được).
+      externalImages: (tpl.externalImages ?? []).length > 0 ? tpl.externalImages : undefined,
     };
     const link = buildSvgViewerUrl(window.location.origin, payload);
     setCustomerLink(link);
