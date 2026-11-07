@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Link from "next/link";
 import { useReducedMotion } from "framer-motion";
 import type { Template } from "@/lib/templates";
 import { TEMPLATE_FONT_CLASS, TEMPLATE_FONT_LABEL } from "@/lib/templates";
@@ -207,22 +206,15 @@ export default function TemplateCard({
         </p>
         <p className="mt-1 text-sm" style={{ color: p.muted }}>{template.description}</p>
         <p className="mt-2 text-xs italic" style={{ color: p.muted }}>{template.pattern}</p>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4">
           <button
             type="button"
             onClick={handlePreview}
-            className="flex-1 rounded-full border px-3 py-2 text-sm font-semibold hover:bg-[#fdf8f1]"
+            className="w-full rounded-full border px-3 py-2 text-sm font-semibold hover:bg-[#fdf8f1]"
             style={{ borderColor: p.accent, color: p.accent }}
           >
             Xem trước
           </button>
-          <Link
-            href={`/tao-thiep?template=${template.id}`}
-            className="flex-1 rounded-full px-3 py-2 text-center text-sm font-semibold text-white"
-            style={{ background: p.accent }}
-          >
-            Dùng mẫu này
-          </Link>
         </div>
       </div>
     </article>
