@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Be_Vietnam_Pro, Cormorant_Garamond, Dancing_Script, EB_Garamond } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
 import { LanguageProvider } from "@/components/LanguageProvider";
 
 const playfair = Playfair_Display({ subsets: ["vietnamese", "latin"], variable: "--font-display", display: "swap" });
@@ -27,14 +25,16 @@ export const metadata: Metadata = {
   },
 };
 
+// Root layout giữ khung chung (html/body, font, ngôn ngữ) — KHÔNG có
+// Header/Footer ở đây nữa: khung làm việc của Nancy (Header/Footer/nav)
+// nằm trong route group (app), còn link cho khách (khach) thì trần,
+// chỉ có đúng tấm thiệp. Xem src/app/(app)/layout.tsx.
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi">
       <body className={`${playfair.variable} ${beVietnam.variable} ${elegant.variable} ${scriptFont.variable} ${ebGaramond.variable} bg-[#fdf8f1] font-sans text-[#2b1a1d] antialiased`}>
         <LanguageProvider>
-          <Header />
-          <main className="min-h-[70vh]">{children}</main>
-          <Footer />
+          {children}
         </LanguageProvider>
       </body>
     </html>

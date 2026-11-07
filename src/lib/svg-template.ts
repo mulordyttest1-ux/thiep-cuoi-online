@@ -15,7 +15,7 @@
 // Parser XML viết tay (không dùng DOMParser) để cùng một code chạy được cả
 // trên trình duyệt lẫn trong test node. Chỉ hỗ trợ SVG well-formed (file
 // xuất từ Illustrator luôn well-formed).
-import { buildCepValues, cepValuesToData, CEP_KEYS, isBrideHost } from "./cep";
+import { buildCepValues, cepValuesToData, CEP_KEYS, formatNamyyYear, isBrideHost, isNamyyKey, namyyGroup, resolveNamyyYear } from "./cep";
 import type { InvitationData } from "./types";
 import { newId } from "./types";
 
@@ -289,11 +289,138 @@ export function sanitizeSvg(root: SvgNode): { tree: SvgNode; warnings: string[] 
   return { tree: { tag: "#root", attrs: {}, children: [cleaned], text: "" }, warnings };
 }
 
+/* ================= ảnh ngoài chưa nhúng (Images: Embed) =================
+   File SVG xuất từ Illustrator mà quên Images: Embed thì ảnh nền chỉ là
+   link tới file PNG bên ngoài — mở trên web sẽ mất nền. sanitizeSvg đã
+   bỏ các <image> link ngoài; helper này tìm chúng TRƯỚC khi làm sạch để
+   báo rõ cho Nancy (lúc tải lên) và cho khách (lúc mở link) biết phải
+   xuất lại file. Chỉ tính href KHÔNG phải data: (ảnh nhúng) hay #fragment. */
+
+export const EXTERNAL_IMAGE_WARNING =
+  "Ảnh nền chưa gắn trong file SVG — xuất lại với Images: Embed (đặt ảnh nhúng trong file) thì ảnh nền mới hiện.";
+
+/** Danh sách href ảnh ngoài trong file SVG (không tính ảnh nhúng data:). */
+export function findExternalImageRefs(svgText: string): string[] {
+  let parsed: SvgNode;
+  try {
+    parsed = parseXml(svgText);
+  } catch {
+    return [];
+  }
+  const refs: string[] = [];
+  const walk = (node: SvgNode) => {
+    if (node.tag === "image") {
+      const href = (node.attrs.href ?? node.attrs["xlink:href"] ?? "").trim();
+      if (href && !href.startsWith("data:") && !href.startsWith("#")) refs.push(href);
+    }
+    for (const c of node.children) walk(c);
+  };
+  for (const c of parsed.children) walk(c);
+  return Array.from(new Set(refs));
+}
+
 /* ================= trích khung chữ sửa được ================= */
 
 export function isFieldKey(id: string): boolean {
   if (!id) return false;
   return CEP_KEYS.includes(id) || id.includes(".");
+}
+
+/* ================= giải mã id Illustrator (_xHH_) =================
+   Illustrator mã hóa ký tự đặc biệt trong id thành _xHH_ với đúng 2 ký
+   tự hex: _x7B_ = {, _x7D_ = }, _x5F_ = _, _x28_ = (, _x29_ = ).
+   Không giải mã thì id khóa CEP không khớp CEP_KEYS và khung bị xếp
+   nhầm thành "chữ thường" (ngày chỉ còn textbox, vị thứ mất chip). */
+
+/** Giải mã id kiểu Illustrator (_x7B_ → {, _x5F_ → _, _x28_ → (, …). */
+export function decodeIllustratorId(id: string): string {
+  if (!id) return id;
+  return id.replace(/_x([0-9A-Fa-f]{2})_/g, (_m, hex: string) =>
+    String.fromCharCode(parseInt(hex, 16))
+  );
+}
+
+/** Tách id đã giải mã thành các khóa {…} + dấu phân cách giữa chúng.
+    vd "{date.le.ngay}.{date.le.thang}.{date.le.nam}" → keys 3 phần,
+    separators [".", "."]. Trả null khi không có khóa {…} nào. */
+export function splitCompositeKey(
+  decodedId: string
+): { keys: string[]; separators: string[] } | null {
+  const re = /\{([^}]*)\}/g;
+  const keys: string[] = [];
+  const separators: string[] = [];
+  let lastEnd = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(decodedId)) !== null) {
+    if (keys.length > 0) separators.push(decodedId.slice(lastEnd, m.index));
+    keys.push(m[1]);
+    lastEnd = m.index + m[0].length;
+  }
+  return keys.length === 0 ? null : { keys, separators };
+}
+
+const DATE_PART_ORDER = ["ngay", "thang", "nam"];
+const TIME_PART_ORDER = ["gio", "phut"];
+
+/** Chuẩn hóa các phần của khóa ghép: bỏ hậu tố số (vd "{pos1.diachi}1"
+    là lần xuất hiện thứ 2 của pos1.diachi). Khóa namyy (vd
+    date.tiec.namyy — năm 2 chữ số, KHÔNG phải lỗi chính tả) giữ nguyên
+    làm khóa dẫn xuất riêng. Các phần lạ khác thì sửa theo vị trí khi 2
+    phần đầu đúng là ngay/thang của cùng nhóm ngày; không sửa được thì
+    giữ nguyên. */
+export function normalizeCompositeKeys(rawKeys: string[]): string[] {
+  const keys = rawKeys.map((k) => k.replace(/\d+$/, ""));
+  if (keys.every((k) => CEP_KEYS.includes(k) || isNamyyKey(k))) return keys;
+  const groups = new Set<string>();
+  for (const k of keys) {
+    const m = /^date\.(le|tiec)\.(ngay|thang|nam|gio|phut|thu|ngay_al|thang_al|nam_al)$/.exec(k);
+    if (m) groups.add(m[1]);
+  }
+  if (groups.size !== 1) return keys;
+  const g = Array.from(groups)[0];
+  const isDate = keys.some((k) => k === `date.${g}.ngay` || k === `date.${g}.thang`);
+  const seq = isDate ? DATE_PART_ORDER : TIME_PART_ORDER;
+  const aligned = keys.every((k, i) => {
+    if (!CEP_KEYS.includes(k) && !isNamyyKey(k)) return true;
+    if (isNamyyKey(k)) return true;
+    return k === `date.${g}.${seq[i]}`;
+  });
+  if (!aligned) return keys;
+  return keys.map((k, i) => (CEP_KEYS.includes(k) || isNamyyKey(k) ? k : `date.${g}.${seq[i]}`));
+}
+
+/** Tách giá trị của một khóa ghép thành từng phần + dấu phân cách gốc.
+    1) Marker U+200B (còn từ lần xuất CEP trước): đoạn xen kẽ giá
+       trị/dấu phân cách — giá trị ở vị trí chẵn, dấu ở vị trí lẻ.
+    2) Dấu phân cách trong id (vd "."). 3) Nhóm chữ số (vd "11 GIỜ 00"
+       → 11, 00; dấu phân cách lấy theo id). Không tách được thì null. */
+function splitCompositeValueParts(
+  rawWithMarkers: string,
+  idSeparators: string[],
+  count: number
+): { values: string[]; separators: string[] } | null {
+  const marked = rawWithMarkers.split("\u200B").filter((s) => s !== "");
+  if (marked.length === 2 * count - 1) {
+    const values: string[] = [];
+    const separators: string[] = [];
+    for (let i = 0; i < marked.length; i++) {
+      if (i % 2 === 0) values.push(marked[i]);
+      else separators.push(marked[i]);
+    }
+    return { values, separators };
+  }
+  const plain = rawWithMarkers.replace(/\u200B/g, "");
+  let parts: string[] = [plain];
+  for (const sep of idSeparators) {
+    if (!sep) continue;
+    const next: string[] = [];
+    for (const p of parts) next.push(...p.split(sep));
+    parts = next;
+  }
+  if (parts.length === count) return { values: parts, separators: idSeparators };
+  const digits = plain.match(/\d+/g);
+  if (digits && digits.length === count) return { values: digits, separators: idSeparators };
+  return null;
 }
 
 export interface SvgField {
@@ -303,22 +430,60 @@ export interface SvgField {
   occurrences: number; // số chỗ cùng khóa (vd: ngày hiện 2 nơi)
 }
 
-/** Nội dung chữ của một nút <text>: nối các tspan; tspan có x/dy thì xuống dòng. */
+/** Số đầu tiên trong danh sách tọa độ cách nhau bằng dấu phẩy/khoảng trắng. */
+function firstNum(v: string | undefined): number | null {
+  if (v === undefined) return null;
+  const m = /-?\d*\.?\d+/.exec(v);
+  return m ? parseFloat(m[0]) : null;
+}
+
+/** tspan này có xuống dòng mới không (so với dòng hiện tại curY), và y hiệu
+    dụng sau nó. Chỉ y khác dòng trước, hoặc dy là bước xuống dòng
+    (>= 0.8em hoặc > 1px), mới tính là xuống dòng. Illustrator xuất mỗi mảnh
+    chữ (để canh kerning) thành một tspan với x TUYỆT ĐỐI — x khác nhau
+    KHÔNG phải xuống dòng (lỗi cũ: "21.11.2026" bị trích thành 5 dòng). */
+function tspanLineStep(
+  tspan: SvgNode,
+  curY: number | null
+): { newLine: boolean; nextY: number | null } {
+  const y = firstNum(tspan.attrs.y);
+  if (y !== null) {
+    return { newLine: curY !== null && Math.abs(y - curY) > 0.5, nextY: y };
+  }
+  const dyRaw = tspan.attrs.dy;
+  if (dyRaw !== undefined) {
+    const dy = firstNum(dyRaw);
+    if (dy !== null && dy !== 0) {
+      const isEm = /(^|[,\s])[^,\s]*em\s*$/.test(dyRaw.trim()) || dyRaw.includes("em");
+      const step = isEm ? Math.abs(dy) >= 0.8 : Math.abs(dy) > 1;
+      const nextY = curY === null ? null : curY + (isEm ? dy * 16 : dy);
+      return { newLine: step, nextY };
+    }
+  }
+  return { newLine: false, nextY: curY };
+}
+
+/** Nội dung chữ của một nút <text>: nối các tspan cùng dòng; chỉ xuống dòng
+    khi tspan thực sự đổi dòng (y/dy, xem tspanLineStep). Marker U+200B
+    (còn sót từ lần xuất trước) được bóc ra — giá trị trích ra là chữ
+    thường để hiển thị/sửa, không dính mã ẩn. */
 export function textContentOf(node: SvgNode): string {
-  if (node.tag === "#text") return node.text;
+  if (node.tag === "#text") return node.text.replace(/\u200B/g, "");
   if (node.tag === "tspan" || node.tag === "textPath") {
     return node.children.map(textContentOf).join("");
   }
   const parts: string[] = [];
+  let curY: number | null = null;
   for (const child of node.children) {
     if (child.tag === "#text") {
-      if (child.text.trim() !== "") parts.push(child.text);
+      if (child.text.trim() !== "") parts.push(child.text.replace(/\u200B/g, ""));
     } else if (child.tag === "tspan") {
       const t = textContentOf(child);
       if (!t) continue;
-      const newLine = child.attrs.x !== undefined || child.attrs.dy !== undefined;
+      const { newLine, nextY } = tspanLineStep(child, curY);
       if (parts.length > 0 && newLine) parts.push("\n");
       parts.push(t);
+      curY = nextY;
     } else if (child.tag === "textPath") {
       const t = textContentOf(child);
       if (t) parts.push(t);
@@ -327,12 +492,31 @@ export function textContentOf(node: SvgNode): string {
   return parts.join("");
 }
 
-/** Khóa của một <text>: id của chính nó, nếu không thì id của <g> gần nhất. */
+/** Nội dung chữ THÔ của một nút <text> (giữ marker U+200B, không chèn
+    xuống dòng) — chỉ dùng để tách giá trị của khóa ghép theo marker. */
+export function textContentRawOf(node: SvgNode): string {
+  if (node.tag === "#text") return node.text;
+  return node.children.map(textContentRawOf).join("");
+}
+
+/** Khóa của một <text>: id của chính nó, nếu không thì id của <g> gần nhất.
+    Id được giải mã (_xHH_) và chuẩn hóa trước: khóa đơn bỏ hậu tố số
+    (pos1.diachi1 → pos1.diachi); khóa ghép nhiều phần giữ nguyên cả cụm
+    để tách sau. */
 function keyOfText(node: SvgNode, ancestorGIds: string[]): string | null {
-  const own = node.attrs.id ?? "";
-  if (isFieldKey(own)) return own;
+  const pick = (raw: string): string | null => {
+    const decoded = decodeIllustratorId(raw);
+    if (!decoded || !isFieldKey(decoded)) return null;
+    const comp = splitCompositeKey(decoded);
+    if (comp && comp.keys.length === 1) return normalizeCompositeKeys(comp.keys)[0];
+    if (!comp) return decoded.replace(/\d+$/, "");
+    return decoded;
+  };
+  const own = pick(node.attrs.id ?? "");
+  if (own) return own;
   for (let i = ancestorGIds.length - 1; i >= 0; i--) {
-    if (isFieldKey(ancestorGIds[i])) return ancestorGIds[i];
+    const anc = pick(ancestorGIds[i]);
+    if (anc) return anc;
   }
   return null;
 }
@@ -341,26 +525,47 @@ export function extractSvgFields(root: SvgNode): { fields: SvgField[]; warnings:
   const fields: SvgField[] = [];
   const byKey = new Map<string, SvgField>();
   const warnings: string[] = [];
+  const addField = (k: string, v: string) => {
+    const existing = byKey.get(k);
+    if (existing) {
+      existing.occurrences++;
+      warnings.push(`Khóa "${k}" xuất hiện ${existing.occurrences} lần — chỉ giữ một ô sửa, các chỗ còn lại đổi theo.`);
+    } else {
+      const f: SvgField = {
+        key: k,
+        value: v,
+        kind: CEP_KEYS.includes(k) ? "cep" : "generic",
+        occurrences: 1,
+      };
+      byKey.set(k, f);
+      fields.push(f);
+    }
+  };
   const walk = (node: SvgNode, gIds: string[]) => {
     if (node.tag === "#text") return;
     const nextG = node.tag === "g" && node.attrs.id ? [...gIds, node.attrs.id] : gIds;
     if (node.tag === "text") {
       const key = keyOfText(node, gIds);
       if (key) {
-        const value = textContentOf(node);
-        const existing = byKey.get(key);
-        if (existing) {
-          existing.occurrences++;
-          warnings.push(`Khóa "${key}" xuất hiện ${existing.occurrences} lần — chỉ giữ một ô sửa, các chỗ còn lại đổi theo.`);
+        // Khóa ghép (ngày/giờ): tách thành một field cho mỗi phần — ngày
+        // thành lịch, giờ thành ô giờ, vị thứ thành chip (kind theo khóa).
+        const comp = splitCompositeKey(key);
+        if (comp && comp.keys.length > 1) {
+          const normKeys = normalizeCompositeKeys(comp.keys);
+          const split = splitCompositeValueParts(
+            textContentRawOf(node),
+            comp.separators,
+            normKeys.length
+          );
+          if (split) {
+            normKeys.forEach((k, i) => addField(k, split.values[i] ?? ""));
+          } else {
+            // Không tách được giá trị: giữ nguyên cả cụm làm một khung
+            // chữ thường để không mất chữ.
+            addField(key, textContentOf(node).trim());
+          }
         } else {
-          const f: SvgField = {
-            key,
-            value,
-            kind: CEP_KEYS.includes(key) ? "cep" : "generic",
-            occurrences: 1,
-          };
-          byKey.set(key, f);
-          fields.push(f);
+          addField(key, textContentOf(node).trim());
         }
       }
     }
@@ -370,6 +575,31 @@ export function extractSvgFields(root: SvgNode): { fields: SvgField[]; warnings:
   // Cảnh báo trùng chỉ ghi một lần cho mỗi khóa.
   const deduped = Array.from(new Set(warnings));
   return { fields, warnings: deduped };
+}
+
+/** Mọi khóa CEP xuất hiện làm tên lớp/khung trong file (kể cả khung chỉ
+    còn hình vẽ, không có chữ sống) — để cảnh báo những khóa thiếu giá trị. */
+function collectNamedCepKeys(root: SvgNode): Set<string> {
+  const out = new Set<string>();
+  const addId = (raw: string | undefined) => {
+    if (!raw) return;
+    const decoded = decodeIllustratorId(raw);
+    const comp = splitCompositeKey(decoded);
+    if (comp) {
+      for (const k of normalizeCompositeKeys(comp.keys)) {
+        if (CEP_KEYS.includes(k)) out.add(k);
+      }
+      return;
+    }
+    const single = decoded.replace(/\d+$/, "");
+    if (CEP_KEYS.includes(single)) out.add(single);
+  };
+  const walk = (node: SvgNode) => {
+    addId(node.attrs.id);
+    for (const c of node.children) walk(c);
+  };
+  for (const c of root.children) walk(c);
+  return out;
 }
 
 /* ================= serialize (ghi giá trị mới vào SVG) ================= */
@@ -388,8 +618,56 @@ export function applyValuesToTree(
     let children = node.children.map((c) => walk(c, nextG));
     if (node.tag === "text") {
       const key = keyOfText(node, gIds);
-      if (key && Object.prototype.hasOwnProperty.call(values, key)) {
-        const value = values[key] ?? "";
+      let newValue: string | null = null;
+      let markKey: string | null = null;
+      if (key) {
+        // Khóa ghép (ngày/giờ): ghép lại từ từng phần + dấu phân cách GỐC
+        // trong file (vd " GIỜ "), để sửa một phần ngày vẫn hiện đúng dạng
+        // mẫu. Phần nào data chưa có thì giữ chữ gốc trong file.
+        const comp = splitCompositeKey(key);
+        let handled = false;
+        if (comp && comp.keys.length > 1) {
+          const normKeys = normalizeCompositeKeys(comp.keys);
+          // Khung namyy thỏa khi có năm 4 chữ số (dẫn xuất từ date.<nhóm>.nam).
+          const hasValue = (k: string) =>
+            Object.prototype.hasOwnProperty.call(values, k) ||
+            (isNamyyKey(k) && Object.prototype.hasOwnProperty.call(values, `date.${namyyGroup(k)}.nam`));
+          if (normKeys.every(hasValue)) {
+            handled = true;
+            const split = splitCompositeValueParts(
+              textContentRawOf(node),
+              comp.separators,
+              normKeys.length
+            );
+            const origValues = split ? split.values : normKeys.map(() => "");
+            const origSeps = split ? split.separators : comp.separators;
+            const parts = normKeys.map((k, i) => {
+              // Khung namyy không có giá trị riêng: lấy năm 4 chữ số rồi
+              // giữ nguyên số chữ số như giá trị gốc trong khung.
+              if (isNamyyKey(k) && !Object.prototype.hasOwnProperty.call(values, k)) {
+                const g = namyyGroup(k)!;
+                const year4 = (values[`date.${g}.nam`] ?? "").trim();
+                return year4 ? formatNamyyYear(year4, origValues[i] ?? "") : (origValues[i] ?? "");
+              }
+              const v = (values[k] ?? "").trim();
+              return v !== "" ? v : origValues[i] ?? "";
+            });
+            if (parts.some((p) => p !== "")) {
+              newValue = parts
+                .map((p, i) => (i === 0 ? p : (origSeps[i - 1] ?? "") + p))
+                .join("");
+            }
+            // Bấm vào cụm ngày/giờ thì mở ô sửa của phần đầu (lịch/giờ).
+            markKey = normKeys[0];
+          }
+        }
+        if (!handled && Object.prototype.hasOwnProperty.call(values, key)) {
+          newValue = values[key] ?? "";
+          markKey = key;
+        }
+      }
+      if (newValue !== null) {
+        const value = newValue;
         // Giữ lại x/y của tspan đầu (hoặc của chính <text>) để dòng đầu
         // vẫn nằm đúng chỗ; các dòng sau xuống dòng bằng dy.
         const firstTspan = node.children.find((c) => c.tag === "tspan");
@@ -416,7 +694,7 @@ export function applyValuesToTree(
           });
         }
       }
-      if (markFields && key) attrs["data-field"] = key;
+      if (markFields && markKey) attrs["data-field"] = markKey;
     }
     return { tag: node.tag, attrs, children, text: "" };
   };
@@ -442,12 +720,16 @@ export interface SvgTemplateData {
   svgText: string; // SVG đã làm sạch (chuỗi, để render/tải về)
   fields: SvgField[];
   warnings: string[];
+  externalImages: string[]; // href ảnh ngoài chưa nhúng (rỗng = nền đã gắn trong file)
+  missingCepKeys: string[]; // khóa CEP có tên lớp nhưng chưa có chữ sống (khung còn là hình vẽ)
   createdAt: number;
 }
 
 /** Parse + làm sạch + trích khung sửa được từ file SVG tải lên. */
 export function parseSvgTemplate(svgText: string, name: string): SvgTemplateData {
   const parsed = parseXml(svgText);
+  // Tìm ảnh ngoài TRƯỚC khi làm sạch (sau làm sạch ảnh đã bị bỏ, không còn dấu vết).
+  const externalImages = findExternalImageRefs(svgText);
   const { tree, warnings } = sanitizeSvg(parsed);
   const svgEl = tree.children[0];
   // Cần viewBox để co vừa màn hình: chưa có thì dựng từ width/height.
@@ -463,7 +745,24 @@ export function parseSvgTemplate(svgText: string, name: string): SvgTemplateData
     warnings.push("File chưa có viewBox — thiệp có thể không co vừa màn hình điện thoại.");
   }
   const { fields, warnings: fieldWarnings } = extractSvgFields(tree);
-  const allWarnings = [...warnings, ...fieldWarnings];
+  // Khóa CEP có tên lớp nhưng chưa có chữ sống (khung còn là hình vẽ):
+  // liệt kê để Nancy biết khung nào chưa bấm sửa được.
+  const namedCepKeys = collectNamedCepKeys(tree);
+  const withValue = new Set(
+    fields.filter((f) => f.kind === "cep" && f.value.trim() !== "").map((f) => f.key)
+  );
+  const missingCepKeys = CEP_KEYS.filter((k) => namedCepKeys.has(k) && !withValue.has(k));
+  // Cảnh báo ảnh ngoài: một dòng duy nhất, đúng câu đã chốt — thay cho câu
+  // chung của sanitizeSvg ("Đã bỏ ảnh link ngoài…") để khỏi trùng ý.
+  const allWarnings = [...warnings, ...fieldWarnings].filter(
+    (w) => !w.startsWith("Đã bỏ ảnh link ngoài")
+  );
+  if (externalImages.length > 0) allWarnings.push(EXTERNAL_IMAGE_WARNING);
+  if (missingCepKeys.length > 0) {
+    allWarnings.push(
+      `Các khóa chưa có chữ sống (khung còn là hình vẽ, không bấm sửa được): ${missingCepKeys.join(", ")}.`
+    );
+  }
   if (fields.length === 0) {
     allWarnings.push(
       "Không tìm thấy khung chữ nào sửa được — đặt tên cho khung chữ trong Illustrator (vd: pos1.ong) rồi xuất lại với Object IDs: Layer Names."
@@ -475,6 +774,8 @@ export function parseSvgTemplate(svgText: string, name: string): SvgTemplateData
     svgText: tree.children.map(serializeNode).join(""),
     fields,
     warnings: allWarnings,
+    externalImages,
+    missingCepKeys,
     createdAt: Date.now(),
   };
 }
@@ -506,6 +807,7 @@ const CEP_LABELS: Record<string, string> = {
   "date.le.ngay": "Ngày làm lễ",
   "date.le.thang": "Ngày làm lễ",
   "date.le.nam": "Ngày làm lễ",
+  "date.le.namyy": "Ngày làm lễ",
   "date.le.ngay_al": "Ngày làm lễ",
   "date.le.thang_al": "Ngày làm lễ",
   "date.le.nam_al": "Ngày làm lễ",
@@ -517,6 +819,7 @@ const CEP_LABELS: Record<string, string> = {
   "date.tiec.ngay": "Ngày tiệc",
   "date.tiec.thang": "Ngày tiệc",
   "date.tiec.nam": "Ngày tiệc",
+  "date.tiec.namyy": "Ngày tiệc",
   "date.tiec.ngay_al": "Ngày tiệc",
   "date.tiec.thang_al": "Ngày tiệc",
   "date.tiec.nam_al": "Ngày tiệc",
@@ -579,7 +882,9 @@ export function normalizeSvgData(data: InvitationData): InvitationData {
 }
 
 /** Giá trị HIỂN THỊ cho từng khung (đi qua buildCepValues nên đúng luật
-    pos1/pos2; khóa ngoài CEP lấy từ extra hoặc chữ gốc trong mẫu). */
+    pos1/pos2; khóa ngoài CEP lấy từ extra hoặc chữ gốc trong mẫu).
+    Khung namyy (năm 2 chữ số) lấy năm từ dữ liệu rồi giữ nguyên số chữ
+    số như giá trị gốc trong khung (gốc "26" → "27" khi đổi năm). */
 export function buildSvgDisplayValues(
   data: InvitationData,
   extra: Record<string, string>,
@@ -588,6 +893,13 @@ export function buildSvgDisplayValues(
   const { keys, values } = buildCepValues(data);
   const out: Record<string, string> = {};
   for (const f of fields) {
+    if (isNamyyKey(f.key)) {
+      const g = namyyGroup(f.key)!;
+      const yearIdx = keys.indexOf(`date.${g}.nam`);
+      const year4 = yearIdx !== -1 ? values[yearIdx] ?? "" : "";
+      out[f.key] = year4 ? formatNamyyYear(year4, f.value) : (extra[f.key] ?? f.value);
+      continue;
+    }
     const idx = keys.indexOf(f.key);
     if (idx !== -1) out[f.key] = values[idx] ?? "";
     else out[f.key] = extra[f.key] ?? f.value;
@@ -604,6 +916,13 @@ export function applySvgFieldEdit(
   key: string,
   newValue: string
 ): InvitationData {
+  // Khung namyy (năm 2 chữ số): đọc thành năm 4 chữ số rồi sửa như khóa nam.
+  if (isNamyyKey(key)) {
+    const g = namyyGroup(key)!;
+    const year4 = resolveNamyyYear(newValue);
+    if (!year4) return data;
+    return applySvgFieldEdit(data, `date.${g}.nam`, year4);
+  }
   const { keys, values } = buildCepValues(data);
   const idx = keys.indexOf(key);
   if (idx === -1) return data; // khóa ngoài CEP: xử lý ở extra, không vào đây
@@ -631,6 +950,7 @@ export interface SvgSharePayload {
   svg?: string; // SVG nhúng kèm khi đủ nhỏ (mở được trên máy khác)
   data: InvitationData; // dữ liệu thiệp (chữ thường, KHÔNG có U+200B)
   extra?: Record<string, string>; // giá trị các khung ngoài CEP
+  externalImages?: string[]; // href ảnh ngoài chưa nhúng (để trang khách báo mất nền); thiếu = không rõ
 }
 
 /** Chỉ nhúng SVG kèm link khi đủ nhỏ (URL dài quá trình duyệt/CDN cắt). */

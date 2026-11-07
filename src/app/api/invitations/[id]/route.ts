@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getInvitation } from "@/lib/server-store";
+import { isAdminRequest } from "@/lib/server-auth";
 import { canEdit, guestAccess, previewAccess } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
@@ -65,8 +66,35 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     if (!canEdit(rec.status)) {
       return NextResponse.json({ ok: false, reason: "locked", serverRecord: true, status: rec.status }, { status: 403 });
     }
-    return NextResponse.json({ ok: true, serverRecord: true, status: rec.status, data: rec.data });
+    return NextResponse.json({
+      ok: true, serverRecord: true, status: rec.status, data: rec.data,
+      customerConfirmedAt: rec.customerConfirmedAt ?? null,
+      customTexts: rec.customTexts ?? {},
+      editedFields: rec.editedFields ?? [],
+      chat: rec.chat ?? [],
+      history: rec.history ?? [],
+      manualList: rec.manualList ?? [],
+    });
   }
 
-  return NextResponse.json({ ok: false, error: "Thiếu kind=preview|guest|edit." }, { status: 400 });
+  // kind=admin: Nancy xem trong Quản lý — ghost text + chat + lịch sử +
+  // danh sách sửa tay của một thiệp (cần token admin).
+  if (kind === "admin") {
+    if (!isAdminRequest(req)) {
+      return NextResponse.json({ ok: false, error: "Cần token admin (THIEP_ADMIN_TOKEN)." }, { status: 401 });
+    }
+    if (!rec) return NextResponse.json({ ok: false, reason: "not_found", serverRecord: true }, { status: 404 });
+    return NextResponse.json({
+      ok: true, serverRecord: true,
+      id: rec.id, status: rec.status, data: rec.data,
+      customerConfirmedAt: rec.customerConfirmedAt ?? null,
+      customTexts: rec.customTexts ?? {},
+      editedFields: rec.editedFields ?? [],
+      chat: rec.chat ?? [],
+      history: rec.history ?? [],
+      manualList: rec.manualList ?? [],
+    });
+  }
+
+  return NextResponse.json({ ok: false, error: "Thiếu kind=preview|guest|edit|admin." }, { status: 400 });
 }

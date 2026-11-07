@@ -29,6 +29,7 @@ function MauInner() {
   const [template, setTemplate] = useState<{ id: string; name: string; svgText: string } | null>(null);
   const [data, setData] = useState<InvitationData | null>(null);
   const [extra, setExtra] = useState<Record<string, string>>({});
+  const [externalImages, setExternalImages] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +37,7 @@ function MauInner() {
       try {
         const dParam = search.get("d");
         const payload = dParam ? decodeSvgShare(dParam) : null;
-        let tpl: { id: string; name: string; svgText: string; fields: { key: string; value: string; kind: "cep" | "generic"; occurrences: number }[] } | null = null;
+        let tpl: { id: string; name: string; svgText: string; fields: { key: string; value: string; kind: "cep" | "generic"; occurrences: number }[]; externalImages?: string[] } | null = null;
         if (payload?.svg) {
           const parsed = parseSvgTemplate(payload.svg, payload.name || "Mẫu SVG");
           tpl = { ...parsed, id: payload.tpl || parsed.id };
@@ -49,6 +50,9 @@ function MauInner() {
           if (!cancelled) setStatus("notfound");
           return;
         }
+        // Ảnh ngoài chưa nhúng: lấy từ link (mẫu đã parse từ SVG đã làm sạch
+        // nên không còn dấu vết) hoặc từ bản ghi đã lưu trên máy này.
+        const extImgs = payload?.externalImages ?? tpl.externalImages ?? [];
         let inv: InvitationData;
         let ex: Record<string, string> = {};
         if (payload?.data) {
@@ -66,6 +70,7 @@ function MauInner() {
           setTemplate({ id: tpl.id, name: tpl.name, svgText: tpl.svgText });
           setData(inv);
           setExtra(ex);
+          setExternalImages(extImgs);
           setStatus("ready");
         }
       } catch (e) {
@@ -102,6 +107,7 @@ function MauInner() {
       svgText={template.svgText}
       initialData={data}
       initialExtra={extra}
+      externalImages={externalImages}
     />
   );
 }

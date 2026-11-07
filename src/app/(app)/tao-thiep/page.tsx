@@ -46,6 +46,7 @@ function EditorInner() {
   const [serverStatus, setServerStatus] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
   const [serverEditUrl, setServerEditUrl] = useState("");
+  const [customerEditUrl, setCustomerEditUrl] = useState("");
   const [guestUrl, setGuestUrl] = useState("");
   const [payInfo, setPayInfo] = useState<{ amountText: string; memo: string; qrUrl: string | null; configured: boolean; error?: string } | null>(null);
   const [adminToken, setAdminToken] = useState("");
@@ -269,6 +270,7 @@ function EditorInner() {
       if (typeof j.status === "string") setServerStatus(j.status);
       setPreviewUrl(String(j.previewUrl ?? ""));
       setServerEditUrl(String(j.editUrl ?? ""));
+      setCustomerEditUrl(String(j.customerEditUrl ?? ""));
       setPanelNotice("Đã đồng bộ. Link xem trước bên dưới không có link khách — gửi cho khách duyệt in.");
     } catch {
       setPanelNotice("Không kết nối được máy chủ.");
@@ -365,8 +367,19 @@ function EditorInner() {
       setCepNotice(res.error);
       return;
     }
-    setData((prev) => ({ ...prev, ...res.data }));
-    setCepNotice("Đã điền dữ liệu từ Illustrator — kiểm tra lại rồi bấm Lưu thiệp.");
+    // Mẫu chuẩn #1: sau khi paste điền form, mẫu mặc định là song-phung-do
+    // (mẫu chuẩn) thay vì minimal-do-do; đã chọn mẫu khác thì giữ nguyên.
+    const useStandard = data.templateId === "minimal-do-do";
+    setData((prev) => ({
+      ...prev,
+      ...res.data,
+      templateId: useStandard ? "song-phung-do" : prev.templateId,
+    }));
+    setCepNotice(
+      useStandard
+        ? "Đã điền dữ liệu từ Illustrator — mẫu chuẩn #1 (Song Phụng Đỏ) đã được chọn, kiểm tra lại rồi bấm Lưu thiệp."
+        : "Đã điền dữ liệu từ Illustrator — kiểm tra lại rồi bấm Lưu thiệp."
+    );
   };
 
   const onImportPlain = () => {
@@ -575,6 +588,13 @@ function EditorInner() {
           <div className="mt-3">
             <label htmlFor="server-edit-url" className="text-sm font-semibold">Link cho khách sửa (qua máy chủ, không lộ dữ liệu trong link)</label>
             <input id="server-edit-url" readOnly value={serverEditUrl} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+          </div>
+        )}
+        {customerEditUrl && (
+          <div className="mt-3">
+            <label htmlFor="customer-edit-url" className="text-sm font-semibold">Link khách sửa mẫu chuẩn #1 (chỉ thấy thiệp — gửi link này cho khách)</label>
+            <input id="customer-edit-url" readOnly value={customerEditUrl} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+            <button type="button" onClick={async () => { const r = await copyText(customerEditUrl); setPanelNotice(r.ok ? "Đã sao chép link khách sửa mẫu chuẩn." : "Không sao chép được."); }} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép link khách sửa</button>
           </div>
         )}
         {payInfo && (

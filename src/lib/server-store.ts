@@ -135,6 +135,12 @@ export async function upsertInvitation(
     paidTemplateId: null,
     paidMemo: null,
     reconcileLog: [],
+    customerConfirmedAt: null,
+    customTexts: {},
+    editedFields: [],
+    chat: [],
+    history: [],
+    manualList: [],
   };
   all[id] = rec;
   await saveAll(all);

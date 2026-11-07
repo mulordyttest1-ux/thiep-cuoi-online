@@ -55,6 +55,34 @@ export interface ReconcileEntry {
   reason: string;
 }
 
+/** Một tin nhắn trong khung chat theo từng thiệp (khách ↔ Nancy).
+ *  Chữ thường, không realtime — xem khi mở trang / tải lại. */
+export interface ChatMessage {
+  from: "khach" | "nancy";
+  text: string;
+  at: string; // ISO
+}
+
+/** Một dòng lịch sử sửa của khách — ghi khi khách bấm Xong trong box sửa.
+ *  kind "dữ liệu": trường có khóa CEP, chảy về ghost text.
+ *  kind "câu mẫu": câu mẫu cố định, KHÔNG vào ghost text (xem manualList). */
+export interface HistoryEntry {
+  kind: "dữ liệu" | "câu mẫu";
+  label: string;
+  oldValue: string;
+  newValue: string;
+  at: string; // ISO
+}
+
+/** Một câu mẫu đã sửa, cần sửa tay trong Illustrator (không vào ghost text).
+ *  oldValue = chữ gốc của mẫu; newValue = chữ khách đã sửa. */
+export interface ManualListItem {
+  key: string;
+  label: string;
+  oldValue: string;
+  newValue: string;
+}
+
 export interface StoredInvitation {
   id: string;
   data: InvitationData;
@@ -84,6 +112,19 @@ export interface StoredInvitation {
   paidMemo: string | null;
   /** Lịch sử đối soát tay (chỉ Nancy). Webhook tự động không ghi vào đây. */
   reconcileLog: ReconcileEntry[];
+  /** Giờ khách bấm Chốt trên trang khách (null khi chưa chốt). */
+  customerConfirmedAt: string | null;
+  /** Câu mẫu đã sửa (khóa -> chữ mới) — KHÔNG vào ghost text, chỉ vào
+   *  danh sách sửa tay (manualList). */
+  customTexts: Record<string, string>;
+  /** Trường dữ liệu đã sửa — để đánh dấu trên thiệp khi mở lại link. */
+  editedFields: string[];
+  /** Chat khách ↔ Nancy theo từng thiệp (không realtime). */
+  chat: ChatMessage[];
+  /** Lịch sử sửa của khách (hiển thị mới nhất trước). */
+  history: HistoryEntry[];
+  /** Danh sách "CẦN SỬA TAY TRONG ILLUSTRATOR" lúc chốt (chữ cũ -> chữ mới). */
+  manualList: ManualListItem[];
 }
 
 export function addDays(iso: string, days: number): string {
