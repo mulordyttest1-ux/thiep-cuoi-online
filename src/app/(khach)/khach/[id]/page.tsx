@@ -8,7 +8,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import type { ChatMessage, ManualListItem } from "@/lib/access";
 import type { InvitationData } from "@/lib/types";
-import { decodeShare } from "@/lib/store";
+import { decodeCustomTexts, decodeShare, diffEditedFields, loadCustomerSnapshot, sameCustomerData } from "@/lib/store";
 import CustomerStandardEditor from "@/components/CustomerStandardEditor";
 
 function KhachInner() {
@@ -18,6 +18,15 @@ function KhachInner() {
   const [status, setStatus] = useState<"loading" | "ready" | "notfound">("loading");
   const [error, setError] = useState("");
   const [data, setData] = useState<InvitationData | null>(null);
+  // Dữ liệu GỐC trong ?d= (chỉ chế độ link tĩnh): làm `base` cho bản lưu
+  // localStorage để chỉ khôi phục khi đúng link đã lưu.
+  const [original, setOriginal] = useState<InvitationData | null>(null);
+  // Bản khách đã sửa ở link ?d= (không máy chủ), khôi phục từ localStorage
+  // trên cùng trình duyệt — chỉ dùng khi đúng link đã lưu (base khớp).
+  const [restore, setRestore] = useState<{ customTexts: Record<string, string>; editedFields: string[] }>({
+    customTexts: {},
+    editedFields: [],
+  });
   const [server, setServer] = useState<{
     editToken: string;
     customTexts: Record<string, string>;
@@ -26,6 +35,9 @@ function KhachInner() {
     customerConfirmedAt: string | null;
     manualList: ManualListItem[];
   } | null>(null);
+  // Mở link đã chốt (?c= có câu mẫu đã sửa): hiện dạng chỉ đọc + ghost text
+  // + danh sách sửa tay ngay cả trên máy khác (không có localStorage).
+  const [confirmedLinkOpened, setConfirmedLinkOpened] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,7 +79,26 @@ function KhachInner() {
             return;
           }
           if (!cancelled) {
-            setData(inv);
+            // Link ?d= (không máy chủ): nếu khách đã sửa trên cùng trình
+            // duyệt thì dùng dữ liệu đã sửa thay dữ liệu gốc trong link
+            // (kể cả bản nháp chưa chốt — khách tải lại thì sửa tiếp; đã
+            // chốt thì khóa như hiện tại). Chỉ khôi phục khi bản lưu đúng
+            // link đang mở (base khớp) để link mới của Nancy không bị đè.
+            // Link đã chốt mang ?c= (chỉ link đã chốt mới có ?c= — LUÔN
+            // có, kể cả {} rỗng khi khách không sửa câu mẫu nào): dùng
+            // làm customTexts ban đầu khi không có bản lưu; link có ?c=
+            // (kể cả {} rỗng) được coi là link đã chốt.
+            const linkCustomTexts = decodeCustomTexts(search.get("c"));
+            const snap = loadCustomerSnapshot(id);
+            const useSnap = snap !== null && sameCustomerData(snap.base, inv);
+            const effective = useSnap && snap ? { ...inv, ...snap.data } : inv;
+            setRestore({
+              customTexts: useSnap && snap ? snap.customTexts : (linkCustomTexts ?? {}),
+              editedFields: useSnap && snap ? diffEditedFields(inv, effective) : [],
+            });
+            setConfirmedLinkOpened(linkCustomTexts !== null);
+            setOriginal(inv);
+            setData(effective);
             setServer(null);
             setStatus("ready");
           }
@@ -108,10 +139,12 @@ function KhachInner() {
       invitationId={id}
       editToken={server?.editToken ?? null}
       initialData={data}
-      initialCustomTexts={server?.customTexts ?? {}}
-      initialEditedFields={server?.editedFields ?? []}
+      originalData={original ?? undefined}
+      initialCustomTexts={server?.customTexts ?? restore.customTexts}
+      initialEditedFields={server?.editedFields ?? restore.editedFields}
       initialChat={server?.chat ?? []}
       initialConfirmedAt={server?.customerConfirmedAt ?? null}
+      initialConfirmed={confirmedLinkOpened}
       initialManualList={server?.manualList ?? []}
     />
   );

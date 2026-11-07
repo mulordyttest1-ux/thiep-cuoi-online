@@ -1,4 +1,4 @@
-import type { Guest, InvitationData } from "./types";
+import type { Guest, InvitationData, StdEditField } from "./types";
 import { defaultInvitation, newId } from "./types";
 
 const K = {
@@ -101,25 +101,167 @@ export function buildShareUrl(origin: string, data: InvitationData): string {
 
 /** Link cho khách sửa mẫu in: mở trang khách /khach/<id>?d= (chỉ thấy mẫu
     form in, layout trần) kèm dữ liệu trong ?d=. Khác link chia sẻ thiệp
-    online (/thiep/...) — link này không mở trình sửa của Nancy. */
-export function buildCustomerEditUrl(origin: string, data: InvitationData): string {
+    online (/thiep/...) — link này không mở trình sửa của Nancy.
+    BẤT BIẾN: ?c= = link đã chốt — link đã chốt LUÔN mang ?c=, kể cả khi
+    khách không sửa câu mẫu nào (lúc đó customTexts = {} rỗng, ?c= mang
+    "{}"). Chỉ link CHƯA chốt (từ /tao-thiep, không truyền customTexts)
+    mới không có ?c=. Nhờ vậy Nancy mở link đã chốt trên máy khác vẫn
+    thấy đúng dạng chỉ đọc + ghost text + danh sách "CẦN SỬA TAY". */
+export function buildCustomerEditUrl(origin: string, data: InvitationData, customTexts?: Record<string, string>): string {
   const id = data.id || "demo";
-  return `${origin}/khach/${encodeURIComponent(id)}?d=${encodeShare(data)}`;
+  const base = `${origin}/khach/${encodeURIComponent(id)}?d=${encodeShare(data)}`;
+  if (customTexts === undefined) return base;
+  return `${base}&c=${encodeCustomTexts(customTexts)}`;
+}
+
+/** Mã hoá câu mẫu đã sửa thành tham số ?c= (JSON base64url). */
+export function encodeCustomTexts(customTexts: Record<string, string>): string {
+  const json = JSON.stringify(customTexts);
+  const utf8 = new TextEncoder().encode(json);
+  let bin = "";
+  utf8.forEach((b) => (bin += String.fromCharCode(b)));
+  const b64 = btoa(bin);
+  return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Giải mã tham số ?c= thành câu mẫu đã sửa; null khi không có / sai định dạng. */
+export function decodeCustomTexts(encoded: string | null | undefined): Record<string, string> | null {
+  if (!encoded) return null;
+  try {
+    const b64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const bin = atob(padded);
+    const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
+    const json = new TextDecoder().decode(bytes);
+    const parsed: unknown = JSON.parse(json);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof v === "string") out[k] = v;
+    }
+    return out;
+  } catch {
+    return null;
+  }
 }
 
 /** Cờ khách đã chốt cho link ?d= (không máy chủ): khóa sửa khi mở lại link
-    trên cùng trình duyệt. Khóa triệt để qua mọi máy chỉ có ở link máy chủ
-    (customerConfirmedAt trên bản ghi máy chủ). */
+    trên cùng trình duyệt. Khóa THEO BASE, không theo id: giá trị cờ là
+    {base, data} lúc chốt — link chỉ khóa khi base của link đang mở khớp
+    với base đã chốt HOẶC với dữ liệu đã chốt (link đã chốt có ?d= là dữ
+    liệu mới). Nancy gửi link mới (cùng id, base khác) thì mở ra KHÔNG
+    khóa, sửa tiếp bình thường. Khóa triệt để qua mọi máy chỉ có ở link
+    máy chủ (customerConfirmedAt trên bản ghi máy chủ). */
 export function customerConfirmedKey(id: string): string {
   return `td_customer_confirmed_${id}`;
 }
 
-export function isCustomerConfirmed(id: string): boolean {
-  return safeGet(customerConfirmedKey(id)) === "1";
+export function isCustomerConfirmed(id: string, linkBase: InvitationData): boolean {
+  const raw = safeGet(customerConfirmedKey(id));
+  if (!raw) return false;
+  if (raw === "1") return true; // cờ cũ (trước khi khóa theo base)
+  try {
+    const parsed = JSON.parse(raw) as { base?: InvitationData; data?: InvitationData };
+    if (!parsed || typeof parsed !== "object") return false;
+    if (parsed.base && sameCustomerData(parsed.base, linkBase)) return true;
+    if (parsed.data && sameCustomerData(parsed.data, linkBase)) return true;
+    return false;
+  } catch {
+    return false;
+  }
 }
 
-export function markCustomerConfirmed(id: string): void {
-  safeSet(customerConfirmedKey(id), "1");
+export function markCustomerConfirmed(id: string, base: InvitationData, data: InvitationData): void {
+  safeSet(customerConfirmedKey(id), JSON.stringify({ base, data }));
+}
+
+/* ---------- Bản lưu dữ liệu khách sửa cho link ?d= (không máy chủ) ---------- */
+
+/** Bản khách đã sửa trên trang /khach/ ở chế độ link ?d= (không máy chủ):
+    dữ liệu + câu mẫu đã sửa, kèm `base` là dữ liệu GỐC trong ?d= lúc tạo
+    bản lưu. Chỉ khôi phục khi base khớp link đang mở — Nancy gửi link mới
+    (cùng id, dữ liệu gốc khác) thì không bị bản cũ đè mất dữ liệu mới. */
+export interface CustomerSnapshot {
+  base: InvitationData;
+  data: InvitationData;
+  customTexts: Record<string, string>;
+}
+
+export function customerDataKey(id: string): string {
+  return `td_customer_data_${id}`;
+}
+
+export function loadCustomerSnapshot(id: string): CustomerSnapshot | null {
+  const parsed = safeParse<{ base?: unknown; data?: unknown; customTexts?: unknown } | null>(
+    safeGet(customerDataKey(id)),
+    null
+  );
+  if (!parsed || typeof parsed !== "object") return null;
+  const base = parsed.base as InvitationData | undefined;
+  const d = parsed.data as InvitationData | undefined;
+  if (
+    !base || typeof base !== "object" || !base.groomName || !base.brideName ||
+    !d || typeof d !== "object" || !d.groomName || !d.brideName
+  ) {
+    return null;
+  }
+  const ct = parsed.customTexts;
+  return { base, data: d, customTexts: ct && typeof ct === "object" ? (ct as Record<string, string>) : {} };
+}
+
+export function saveCustomerSnapshot(
+  id: string,
+  base: InvitationData,
+  data: InvitationData,
+  customTexts: Record<string, string>
+): boolean {
+  return safeSet(customerDataKey(id), JSON.stringify({ base, data, customTexts }));
+}
+
+/** Các trường dữ liệu khách sửa được trên form in (khóa CEP + lời mời).
+    ceremonyTime đổi thì đánh dấu khối ngày lễ (ceremonyDate), time đổi thì
+    đánh dấu khối ngày tiệc (date) — vì form in gộp ngày+giờ vào một khối.
+    hostType không có ô riêng trên form nên không đánh dấu (dữ liệu vẫn lưu
+    đúng và chảy vào ghost text). */
+const DIFF_FIELDS: StdEditField[] = [
+  "groomName",
+  "brideName",
+  "groomFather",
+  "groomMother",
+  "brideFather",
+  "brideMother",
+  "groomParentsAddress",
+  "brideParentsAddress",
+  "groomBirthOrder",
+  "brideBirthOrder",
+  "ceremonyType",
+  "ceremonyVenue",
+  "venue",
+  "address",
+  "message",
+];
+
+/** So dữ liệu đang hiển thị với dữ liệu GỐC trong ?d=, trả về các trường đã
+    sửa (để hiện dấu "Đã sửa" sau khi tải lại trang). */
+export function diffEditedFields(original: InvitationData, current: InvitationData): string[] {
+  const out: string[] = [];
+  const same = (f: keyof InvitationData) => String(original[f] ?? "") === String(current[f] ?? "");
+  for (const f of DIFF_FIELDS) {
+    if (!same(f)) out.push(f);
+  }
+  if (!same("ceremonyDate") || !same("ceremonyTime")) out.push("ceremonyDate");
+  if (!same("date") || !same("time")) out.push("date");
+  return out;
+}
+
+/** Hai bản dữ liệu có giống nhau ở các trường khách sửa được (+ id,
+    templateId) không — dùng để kiểm tra bản lưu có đúng link đang mở. */
+export function sameCustomerData(a: InvitationData, b: InvitationData): boolean {
+  return (
+    diffEditedFields(a, b).length === 0 &&
+    (a.id ?? "") === (b.id ?? "") &&
+    (a.templateId ?? "") === (b.templateId ?? "")
+  );
 }
 
 /* ---------- Khách mời ---------- */
