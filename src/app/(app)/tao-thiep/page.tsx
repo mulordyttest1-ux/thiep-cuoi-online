@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
-import { buildShareUrl, copyText, decodeShare, encodeShare, loadInvitation, saveInvitation } from "@/lib/store";
+import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, saveInvitation } from "@/lib/store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostText, parseCepPlainText } from "@/lib/cep";
 import InvitationPreview from "@/components/InvitationPreview";
 import OnlineDemoWizard from "@/components/OnlineDemoWizard";
@@ -228,14 +228,14 @@ function EditorInner() {
     }
   };
 
-  // Link cho khách sửa: mở TRÌNH SỬA kèm dữ liệu trong ?d= (không phải
-  // trang thiệp cho khách xem) để khách sửa trực tiếp trên form rồi gửi
-  // link lại cho mình.
+  // Link cho khách sửa: mở TRANG KHÁCH /khach/<id> (chỉ thấy mẫu form in,
+  // layout trần) kèm dữ liệu trong ?d=. Khách KHÔNG ĐƯỢC thấy trình sửa.
+  // Đã có bản ghi máy chủ thì ưu tiên link khách trên máy chủ
+  // (customerEditUrl, /khach/<id>?t=...).
   const onCopyEditLink = async () => {
     try {
-      // Đã có bản ghi máy chủ thì dùng link sửa qua máy chủ (không lộ dữ
-      // liệu trong ?d=); chưa có thì dùng link ?d= cũ như trước.
-      const link = serverEditUrl || `${window.location.origin}/tao-thiep?d=${encodeShare(data)}`;
+      const id = data.id || savedId || "demo";
+      const link = customerEditUrl || buildCustomerEditUrl(window.location.origin, { ...data, id });
       const res = await copyText(link);
       setEditLink(link);
       setNotice(res.ok ? "Đã sao chép link cho khách sửa." : "Không sao chép được link. Hãy thử lại.");
@@ -541,7 +541,7 @@ function EditorInner() {
       )}
       {editLink && (
         <div>
-          <label htmlFor="edit-link" className="text-sm font-semibold">Link cho khách sửa (mở trình sửa kèm dữ liệu trong ?d=)</label>
+          <label htmlFor="edit-link" className="text-sm font-semibold">Link cho khách sửa (mở trang khách — mẫu form in, kèm dữ liệu trong ?d=)</label>
           <input id="edit-link" readOnly value={editLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-[#fdf8f1]`} />
         </div>
       )}
