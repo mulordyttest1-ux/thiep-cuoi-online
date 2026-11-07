@@ -11,8 +11,18 @@
 //    lịch sử sửa của thiệp (Nancy xem trong Quản lý).
 //  - Chốt: lưu cuối + trả ghost text + metadata + danh sách sửa tay.
 //  - Sau chốt link khóa lại: máy chủ thì customerConfirmedAt giữ chỉ đọc
-//    khi mở lại; link ?d= thì cờ đã-chốt lưu ở localStorage theo id nên
-//    mở lại trên cùng trình duyệt vẫn chỉ đọc.
+//    khi mở lại; link ?d= thì cờ đã-chốt lưu ở localStorage theo id + base
+//    nên mở lại trên cùng trình duyệt vẫn chỉ đọc — link mới của Nancy
+//    (cùng id, base khác) thì KHÔNG khóa, sửa tiếp bình thường. Dữ liệu
+//    khách sửa ở link ?d= còn lưu bản nháp/chốt vào localStorage
+//    (td_customer_data_<id>) nên tải lại trang vẫn giữ đúng dữ liệu đã sửa;
+//    mở lại link đúng thì khôi phục, link mới của Nancy (dữ liệu gốc khác)
+//    thì không bị bản cũ đè.
+//  - Sau chốt có nút "Sao chép link đã chốt": link /khach/<id>?d= chứa dữ
+//    liệu mới nhất + ?c= (câu mẫu đã sửa, hoặc {} rỗng nếu không sửa câu
+//    mẫu nào) để khách gửi cho Nancy. Link đã chốt (LUÔN có ?c=) mở trên
+//    máy khác cũng hiện dạng chỉ đọc + ghost text + danh sách sửa tay —
+//    vì ?c= chỉ xuất hiện trên link đã chốt.
 //  - Chat box cuối trang: khách ghi chú/hỏi, Nancy trả lời trong Quản lý;
 //    khách mở lại link sẽ thấy trả lời (không realtime).
 "use client";
@@ -28,7 +38,7 @@ import {
   stdFieldLabel,
 } from "@/lib/custom-texts";
 import { getDateParts } from "@/lib/lunar";
-import { copyText, isCustomerConfirmed, markCustomerConfirmed } from "@/lib/store";
+import { buildCustomerEditUrl, copyText, isCustomerConfirmed, markCustomerConfirmed, saveCustomerSnapshot } from "@/lib/store";
 import {
   CEREMONY_TYPE_OPTIONS,
   HOST_TYPE_OPTIONS,
@@ -144,10 +154,17 @@ export interface CustomerStandardEditorProps {
   /** Token sửa — null khi mở bằng link ?d= (không máy chủ: chat/lịch sử không lưu được). */
   editToken: string | null;
   initialData: InvitationData;
+  /** Dữ liệu GỐC trong ?d= (chỉ có ở chế độ link ?d=): dùng làm `base` cho
+      bản lưu localStorage để chỉ khôi phục khi đúng link đã lưu. */
+  originalData?: InvitationData;
   initialCustomTexts?: Record<string, string>;
   initialEditedFields?: string[];
   initialChat?: ChatMessage[];
   initialConfirmedAt?: string | null;
+  /** true khi mở link đã chốt (link có ?c= — kể cả {} rỗng khi không sửa
+      câu mẫu nào): hiện dạng chỉ đọc + ghost text + danh sách sửa tay
+      ngay cả trên máy khác. */
+  initialConfirmed?: boolean;
   initialManualList?: ManualListItem[];
 }
 
@@ -155,10 +172,12 @@ export default function CustomerStandardEditor({
   invitationId,
   editToken,
   initialData,
+  originalData,
   initialCustomTexts,
   initialEditedFields,
   initialChat,
   initialConfirmedAt,
+  initialConfirmed,
   initialManualList,
 }: CustomerStandardEditorProps) {
   const serverMode = Boolean(editToken);
@@ -198,11 +217,12 @@ export default function CustomerStandardEditor({
   selectedRef.current = selected;
   const openValueRef = useRef<{ label: string; value: string; kind: "dữ liệu" | "câu mẫu" } | null>(null);
 
-  const [confirmed, setConfirmed] = useState(Boolean(initialConfirmedAt));
+  const [confirmed, setConfirmed] = useState(Boolean(initialConfirmedAt) || Boolean(initialConfirmed));
   const [confirmBusy, setConfirmBusy] = useState(false);
   const [ghostText, setGhostText] = useState("");
   const [metadata, setMetadata] = useState("");
   const [plainText, setPlainText] = useState("");
+  const [confirmedLink, setConfirmedLink] = useState("");
   const [manualList, setManualList] = useState<ManualListItem[]>(initialManualList ?? []);
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
@@ -214,14 +234,23 @@ export default function CustomerStandardEditor({
 
   // Đã chốt từ trước (mở lại link): dựng lại ghost text + danh sách sửa tay
   // ở máy khách để hiện ngay, không cần bấm Chốt lại. Link ?d= (không máy
-  // chủ): cờ đã-chốt lưu ở localStorage theo id, mở lại vẫn chỉ đọc.
+  // chủ): cờ đã-chốt lưu ở localStorage theo id + base, chỉ khóa khi base
+  // của link đang mở khớp base đã chốt (hoặc dữ liệu đã chốt, tức link đã
+  // chốt) — link mới của Nancy (base khác) thì không khóa. Link đã chốt mở
+  // trên máy khác (có ?c=, kể cả {} rỗng) thì initialConfirmed đã true nên hiện
+  // dạng chỉ đọc + ghost text + danh sách sửa tay.
   useEffect(() => {
-    const lockedByFlag = !serverMode && !initialConfirmedAt && isCustomerConfirmed(invitationId);
-    if (!initialConfirmedAt && !lockedByFlag) return;
+    const lockedByFlag =
+      !serverMode && !initialConfirmedAt && !initialConfirmed && isCustomerConfirmed(invitationId, originalData ?? initialData);
+    if (!initialConfirmedAt && !lockedByFlag && !initialConfirmed) return;
     if (lockedByFlag) setConfirmed(true);
     setGhostText(buildCepTextBlock(initialData));
     setMetadata(buildCepMetadataJson());
     setPlainText(buildCepPlainText(initialData));
+    setConfirmedLink(buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current));
+    if (lockedByFlag || initialConfirmed) {
+      setManualList(buildManualList(customTextsRef.current, dataRef.current, initialMessageRef.current));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -278,43 +307,55 @@ export default function CustomerStandardEditor({
     } else {
       newValue = customTextValue(sel.key, customTextsRef.current, dataRef.current);
     }
-    if (newValue === open.value) return; // không đổi thì không ghi lịch sử
-    const entry: HistoryEntry = {
-      kind: open.kind,
-      label: open.label,
-      oldValue: open.value,
-      newValue,
-      at: new Date().toISOString(),
-    };
-    // Đánh dấu chỗ đã sửa trên thiệp (giữ cả khi tải lại trang).
-    if (sel.kind === "field") {
-      const next = new Set(editedFieldsRef.current);
-      next.add(sel.field);
-      editedFieldsRef.current = next;
-      setEditedFields(next);
-    } else {
-      const next = new Set(editedCustomTextsRef.current);
-      next.add(sel.key);
-      editedCustomTextsRef.current = next;
-      setEditedCustomTexts(next);
-    }
-    // Lưu nháp lên máy chủ (không chặn UI khi lỗi — Chốt sẽ lưu lại toàn bộ).
-    if (serverMode) {
-      try {
-        await fetch(`/api/invitations/${encodeURIComponent(invitationId)}/save`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: editToken,
-            data: dataRef.current,
-            customTexts: customTextsRef.current,
-            editedFields: Array.from(editedFieldsRef.current),
-            historyEntry: entry,
-          }),
-        });
-      } catch {
-        // Bỏ qua — Chốt sẽ lưu lại toàn bộ.
+    if (newValue !== open.value) {
+      const entry: HistoryEntry = {
+        kind: open.kind,
+        label: open.label,
+        oldValue: open.value,
+        newValue,
+        at: new Date().toISOString(),
+      };
+      // Đánh dấu chỗ đã sửa trên thiệp (giữ cả khi tải lại trang).
+      if (sel.kind === "field") {
+        const next = new Set(editedFieldsRef.current);
+        next.add(sel.field);
+        editedFieldsRef.current = next;
+        setEditedFields(next);
+      } else {
+        const next = new Set(editedCustomTextsRef.current);
+        next.add(sel.key);
+        editedCustomTextsRef.current = next;
+        setEditedCustomTexts(next);
       }
+      // Lưu nháp lên máy chủ (không chặn UI khi lỗi — Chốt sẽ lưu lại toàn bộ).
+      if (serverMode) {
+        try {
+          await fetch(`/api/invitations/${encodeURIComponent(invitationId)}/save`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              token: editToken,
+              data: dataRef.current,
+              customTexts: customTextsRef.current,
+              editedFields: Array.from(editedFieldsRef.current),
+              historyEntry: entry,
+            }),
+          });
+        } catch {
+          // Bỏ qua — Chốt sẽ lưu lại toàn bộ.
+        }
+      }
+    }
+    // Link ?d= (không máy chủ): lưu ngay bản hiện tại sau mỗi lần đóng box
+    // sửa (kể cả chỉ đổi bên chủ tiệc mà không đổi giá trị ô) để tải lại
+    // trang không mất dữ liệu đã sửa. Máy chủ thì dữ liệu đã lên server.
+    if (!serverMode) {
+      saveCustomerSnapshot(
+        invitationId,
+        originalData ?? dataRef.current,
+        dataRef.current,
+        customTextsRef.current
+      );
     }
   };
 
@@ -434,11 +475,20 @@ export default function CustomerStandardEditor({
         setMetadata(buildCepMetadataJson());
         setPlainText(buildCepPlainText(dataRef.current));
         setManualList(list);
-        // Link ?d= (không máy chủ): ghi cờ đã-chốt để mở lại link vẫn chỉ đọc.
-        markCustomerConfirmed(invitationId);
+        // Link ?d= (không máy chủ): ghi cờ đã-chốt theo base + dữ liệu đã
+        // chốt để mở lại link vẫn chỉ đọc (link mới base khác thì không
+        // khóa) + lưu bản chốt để tải lại vẫn giữ đúng dữ liệu đã sửa.
+        markCustomerConfirmed(invitationId, originalData ?? dataRef.current, dataRef.current);
+        saveCustomerSnapshot(
+          invitationId,
+          originalData ?? dataRef.current,
+          dataRef.current,
+          customTextsRef.current
+        );
       }
       setConfirmed(true);
-      setNotice("Đã chốt xong — ghost text bên dưới để gửi cho Nancy.");
+      setConfirmedLink(buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current));
+      setNotice("Đã chốt xong — gửi link đã chốt (hoặc ghost text) cho Nancy.");
     } catch {
       setErrors(["Không chốt được — kiểm tra mạng rồi thử lại."]);
     }
@@ -448,6 +498,16 @@ export default function CustomerStandardEditor({
   const copyGhost = async (text: string, okMsg: string) => {
     const r = await copyText(text);
     setNotice(r.ok ? okMsg : "Không sao chép tự động được — bôi đen rồi copy thủ công.");
+  };
+
+  const copyConfirmedLink = async () => {
+    const url = confirmedLink || buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current);
+    const r = await copyText(url);
+    setNotice(
+      r.ok
+        ? "Đã sao chép link đã chốt — gửi cho Nancy nhé."
+        : "Không sao chép tự động được — bôi đen link rồi copy thủ công."
+    );
   };
 
   /* ---------- chat ---------- */
@@ -736,7 +796,7 @@ export default function CustomerStandardEditor({
           </button>
         ) : (
           <p className="rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-800" role="status">
-            Đã chốt xong. Nancy sẽ lấy chữ từ đây để in thiệp.
+            Đã chốt xong. Gửi link đã chốt bên dưới cho Nancy để chị in thiệp.
           </p>
         )}
         {errors.length > 0 && (
@@ -748,6 +808,31 @@ export default function CustomerStandardEditor({
         )}
         {confirmed && ghostText && (
           <div className="mt-4 space-y-4">
+            <div className="rounded-2xl border bg-white p-4 shadow-sm">
+              <label htmlFor="khach-confirmed-link" className="text-sm font-semibold">
+                Link đã chốt — gửi cho Nancy
+              </label>
+              <p className="mt-1 text-xs text-[#7a6a68]">
+                Link này chứa đúng dữ liệu vừa chốt. Nancy mở ra sẽ thấy thiệp đã sửa và ghost text đúng để in.
+              </p>
+              <input
+                id="khach-confirmed-link"
+                readOnly
+                value={confirmedLink}
+                onFocus={(e) => e.target.select()}
+                className={`${inputCls} mt-2 bg-[#fdf8f1] text-xs`}
+              />
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={copyConfirmedLink}
+                  data-testid="copy-confirmed-link"
+                  className="rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]"
+                >
+                  Sao chép link đã chốt
+                </button>
+              </div>
+            </div>
             <div className="rounded-2xl border bg-white p-4 shadow-sm">
               <label htmlFor="khach-ghost" className="text-sm font-semibold">
                 Chữ cho Illustrator (đã chốt — chỉ trường dữ liệu)
