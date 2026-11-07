@@ -1,8 +1,12 @@
 // Test trang khách mẫu form in (PrintFormPreview) + link khách /khach/ +
-// khóa link sau chốt (cờ localStorage cho link ?d=, khóa THEO BASE) + bản
-// lưu dữ liệu khách sửa cho link ?d= (snapshot localStorage: lưu/khôi phục,
-// dấu "Đã sửa" sau khôi phục, link đã chốt chứa dữ liệu mới) + link đã chốt
-// mang câu mẫu đã sửa trong ?c= (mở trên máy khác vẫn thấy danh sách sửa tay).
+// khóa link sau chốt (cờ localStorage cho link ?d=, khóa THEO BASE — cờ cũ
+// "1" không còn khóa) + bản lưu dữ liệu khách sửa cho link ?d= (snapshot
+// localStorage: lưu/khôi phục, dấu "Đã sửa" sau khôi phục, link đã chốt chứa
+// dữ liệu mới) + link đã chốt mang câu mẫu đã sửa trong ?c= (mở trên máy
+// khác vẫn thấy danh sách sửa tay). ?c= mang payload {customTexts,
+// initialMessage} — initialMessage là message GỐC lúc mở link lần đầu để
+// máy khác tính đúng diff "Lời mời"; link cũ chưa mang initialMessage vẫn
+// đọc được (dùng message trong ?d= làm gốc).
 //   ./node_modules/.bin/tsc src/lib/custom-texts.ts src/lib/cep.ts src/lib/lunar.ts src/lib/store.ts src/lib/types.ts src/lib/access.ts --outDir /tmp/printform-test-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --lib es2022,dom
 //   NODE_PATH=$PWD/node_modules node scripts/test_printform.mjs
 import { createRequire } from "module";
@@ -140,6 +144,11 @@ check(
     return store.isCustomerConfirmed("thiep-ghi", vuQuy);
   })() === true
 );
+// Cờ cũ "1" (trước khi khóa theo base) KHÔNG còn khóa nữa.
+globalThis.window.localStorage.setItem(store.customerConfirmedKey("thiep-cu"), "1");
+check("cờ cũ \"1\" không còn khóa (bỏ tương thích ngược)", store.isCustomerConfirmed("thiep-cu", vuQuy) === false);
+globalThis.window.localStorage.setItem(store.customerConfirmedKey("thiep-rac"), "khong-phai-json");
+check("giá trị cờ rác cũng không khóa", store.isCustomerConfirmed("thiep-rac", vuQuy) === false);
 
 // ---- 7. Nguồn component: đúng nội dung form in, không có mục online ----
 const pf = readSrc("src/components/PrintFormPreview.tsx");
@@ -222,31 +231,38 @@ check("editor không còn nói Nancy lấy chữ từ đây", !ed.includes("Nanc
 check("editor dặn gửi link đã chốt cho Nancy", ed.includes("Gửi link đã chốt bên dưới cho Nancy"));
 
 // ---- 12. Link đã chốt LUÔN mang ?c= (kể cả {} rỗng khi không sửa câu mẫu) ----
+// ?c= mang payload {customTexts, initialMessage} — initialMessage là message
+// GỐC lúc khách mở link lần đầu (trước khi sửa), để máy khác mở link đã
+// chốt vẫn tính đúng diff cho trường "Lời mời".
 const ctEdited = { printCeremonyTitle: "LỄ ĐƯỢC TỔ CHỨC TẠI", printPartyIntro: "MỜI ĐẾN DỰ TIỆC CÙNG GIA ĐÌNH" };
-const urlWithC = store.buildCustomerEditUrl(origin, edited, ctEdited);
+const urlWithC = store.buildCustomerEditUrl(origin, edited, ctEdited, "");
 check("link đã chốt có ?c=", urlWithC.includes("&c="), urlWithC.slice(0, 140));
 const cParam = new URL(urlWithC).searchParams.get("c");
 const cBack = store.decodeCustomTexts(cParam);
 check(
   "?c= giải mã ra đúng câu mẫu đã sửa",
-  cBack !== null && cBack.printCeremonyTitle === "LỄ ĐƯỢC TỔ CHỨC TẠI" && cBack.printPartyIntro === "MỜI ĐẾN DỰ TIỆC CÙNG GIA ĐÌNH",
+  cBack !== null && cBack.customTexts.printCeremonyTitle === "LỄ ĐƯỢC TỔ CHỨC TẠI" && cBack.customTexts.printPartyIntro === "MỜI ĐẾN DỰ TIỆC CÙNG GIA ĐÌNH",
   JSON.stringify(cBack)
 );
+check("?c= mang initialMessage gốc", cBack !== null && cBack.initialMessage === "", JSON.stringify(cBack));
 check("không truyền customTexts thì link không có ?c=", !store.buildCustomerEditUrl(origin, edited).includes("&c="));
 check("customTexts {} vẫn ra link có ?c=", store.buildCustomerEditUrl(origin, edited, {}).includes("&c="));
-const urlEmptyC = store.buildCustomerEditUrl(origin, edited, {});
+const urlEmptyC = store.buildCustomerEditUrl(origin, edited, {}, "");
 const cParamEmpty = new URL(urlEmptyC).searchParams.get("c");
 const cBackEmpty = store.decodeCustomTexts(cParamEmpty);
-check("?c= rỗng giải mã ra {}", cBackEmpty !== null && Object.keys(cBackEmpty).length === 0, JSON.stringify(cBackEmpty));
+check("?c= rỗng giải mã ra customTexts {} + initialMessage gốc", cBackEmpty !== null && Object.keys(cBackEmpty.customTexts).length === 0 && cBackEmpty.initialMessage === "", JSON.stringify(cBackEmpty));
 check(
   "link đã chốt không sửa câu mẫu vẫn có ?c= và ?d= đúng tên đã sửa",
   urlEmptyC.includes("&c=") && store.decodeShare(urlEmptyC.split("?d=")[1].split("&")[0])?.groomName === "Trần Văn Mới",
   urlEmptyC.slice(0, 140)
 );
+const urlNoIm = store.buildCustomerEditUrl(origin, edited, {});
+const cNoIm = store.decodeCustomTexts(new URL(urlNoIm).searchParams.get("c"));
+check("không truyền initialMessage thì ?c= không có initialMessage", cNoIm !== null && cNoIm.initialMessage === undefined, JSON.stringify(cNoIm));
 check("decode ?c= sai trả null", store.decodeCustomTexts("!!!khong-phai-base64") === null);
 check("decode ?c= null trả null", store.decodeCustomTexts(null) === null);
 check("decode ?c= rỗng trả null", store.decodeCustomTexts("") === null);
-const manualFromC = ct.buildManualList(cBack ?? {}, edited, "");
+const manualFromC = ct.buildManualList(cBack?.customTexts ?? {}, edited, "");
 check(
   "câu mẫu từ ?c= vào danh sách sửa tay đúng",
   manualFromC.length === 2 &&
@@ -254,12 +270,37 @@ check(
     manualFromC.some((m) => m.key === "printPartyIntro" && m.newValue === "MỜI ĐẾN DỰ TIỆC CÙNG GIA ĐÌNH"),
   JSON.stringify(manualFromC)
 );
+// ---- 12b. Lời mời sửa -> link đã chốt mang message gốc trong ?c= ----
+// Khách sửa Lời mời (message "" -> "Kính Mời Quý Khách!") rồi chốt: link đã
+// chốt mang initialMessage "" trong ?c=, máy khác mở link vẫn tính đúng
+// mục "Lời mời" cũ (trống) -> mới.
+const editedMsg = { ...edited, message: "Kính Mời Quý Khách!" };
+const urlMsg = store.buildCustomerEditUrl(origin, editedMsg, {}, "");
+const cMsg = store.decodeCustomTexts(new URL(urlMsg).searchParams.get("c"));
+check("?c= của link chốt sau khi sửa Lời mời mang initialMessage gốc", cMsg !== null && cMsg.initialMessage === "" && Object.keys(cMsg.customTexts).length === 0, JSON.stringify(cMsg));
+const manualMsg = ct.buildManualList(cMsg?.customTexts ?? {}, editedMsg, cMsg?.initialMessage);
+check(
+  "mở link đã chốt trên máy khác: danh sách sửa tay có mục Lời mời cũ (trống) -> mới",
+  manualMsg.length === 1 && manualMsg[0].key === "message" && manualMsg[0].label === "Lời mời" && manualMsg[0].oldValue === "" && manualMsg[0].newValue === "Kính Mời Quý Khách!",
+  JSON.stringify(manualMsg)
+);
+const manualNoMsg = ct.buildManualList({}, edited, "");
+check("không sửa Lời mời thì danh sách sửa tay không có mục message", manualNoMsg.length === 0, JSON.stringify(manualNoMsg));
+// ?c= dạng cũ (cả object là customTexts, chưa có initialMessage) vẫn đọc được.
+const oldC = Buffer.from(JSON.stringify(ctEdited), "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const oldBack = store.decodeCustomTexts(oldC);
+check("?c= dạng cũ (cả object là customTexts) vẫn đọc được", oldBack !== null && oldBack.customTexts.printCeremonyTitle === "LỄ ĐƯỢC TỔ CHỨC TẠI" && oldBack.initialMessage === undefined, JSON.stringify(oldBack));
+const manualOld = ct.buildManualList(oldBack?.customTexts ?? {}, editedMsg, editedMsg.message);
+check("link cũ: message trong ?d= làm gốc nên không có mục Lời mời giả", manualOld.length === 2 && manualOld.every((m) => m.key !== "message") && manualOld.some((m) => m.key === "printCeremonyTitle"), JSON.stringify(manualOld));
 check("trang khách đọc ?c=", khach.includes("decodeCustomTexts") && khach.includes('search.get("c")'));
 check("trang khách coi link có ?c= là link đã chốt", khach.includes("initialConfirmed={confirmedLinkOpened}"));
-check("trang khách coi link có ?c= rỗng là link đã chốt", khach.includes("setConfirmedLinkOpened(linkCustomTexts !== null)"));
+check("trang khách coi link có ?c= rỗng là link đã chốt", khach.includes("setConfirmedLinkOpened(linkConfirmed !== null)"));
 check("editor nhận prop link đã chốt", ed.includes("initialConfirmed?: boolean"));
-check("editor truyền customTexts vào link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current)"));
-check("editor truyền customTexts khi mở lại link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current)"));
+check("editor có prop initialMessageFromLink", ed.includes("initialMessageFromLink?: string"));
+check("editor ưu tiên message trong ?c= rồi message gốc trong ?d=", ed.includes("initialMessageFromLink ?? originalData?.message"));
+check("editor truyền customTexts + initialMessage vào link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current)"));
+check("editor truyền customTexts + initialMessage khi mở lại link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current, initialMessageRef.current)"));
+check("trang khách truyền initialMessage từ ?c= vào editor", khach.includes("initialMessageFromLink={confirmedInitialMessage}"));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

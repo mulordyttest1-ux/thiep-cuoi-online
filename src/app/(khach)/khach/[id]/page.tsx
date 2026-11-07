@@ -37,7 +37,12 @@ function KhachInner() {
   } | null>(null);
   // Mở link đã chốt (?c= có câu mẫu đã sửa): hiện dạng chỉ đọc + ghost text
   // + danh sách sửa tay ngay cả trên máy khác (không có localStorage).
+  // ?c= mang payload {customTexts, initialMessage} — initialMessage là
+  // message GỐC lúc khách mở link lần đầu, để editor tính đúng diff cho
+  // trường "Lời mời" khi mở link đã chốt trên máy khác (vì ?d= của link
+  // đã chốt chứa message MỚI).
   const [confirmedLinkOpened, setConfirmedLinkOpened] = useState(false);
+  const [confirmedInitialMessage, setConfirmedInitialMessage] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,8 +92,12 @@ function KhachInner() {
             // Link đã chốt mang ?c= (chỉ link đã chốt mới có ?c= — LUÔN
             // có, kể cả {} rỗng khi khách không sửa câu mẫu nào): dùng
             // làm customTexts ban đầu khi không có bản lưu; link có ?c=
-            // (kể cả {} rỗng) được coi là link đã chốt.
-            const linkCustomTexts = decodeCustomTexts(search.get("c"));
+            // (kể cả {} rỗng) được coi là link đã chốt. ?c= dạng mới mang
+            // thêm initialMessage (message gốc lúc mở link lần đầu) để
+            // tính đúng diff "Lời mời"; link cũ không có thì editor dùng
+            // message trong ?d= làm gốc.
+            const linkConfirmed = decodeCustomTexts(search.get("c"));
+            const linkCustomTexts = linkConfirmed?.customTexts ?? null;
             const snap = loadCustomerSnapshot(id);
             const useSnap = snap !== null && sameCustomerData(snap.base, inv);
             const effective = useSnap && snap ? { ...inv, ...snap.data } : inv;
@@ -96,7 +105,8 @@ function KhachInner() {
               customTexts: useSnap && snap ? snap.customTexts : (linkCustomTexts ?? {}),
               editedFields: useSnap && snap ? diffEditedFields(inv, effective) : [],
             });
-            setConfirmedLinkOpened(linkCustomTexts !== null);
+            setConfirmedLinkOpened(linkConfirmed !== null);
+            setConfirmedInitialMessage(linkConfirmed?.initialMessage);
             setOriginal(inv);
             setData(effective);
             setServer(null);
@@ -146,6 +156,7 @@ function KhachInner() {
       initialConfirmedAt={server?.customerConfirmedAt ?? null}
       initialConfirmed={confirmedLinkOpened}
       initialManualList={server?.manualList ?? []}
+      initialMessageFromLink={confirmedInitialMessage}
     />
   );
 }
