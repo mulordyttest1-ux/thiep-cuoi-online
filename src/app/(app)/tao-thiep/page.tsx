@@ -1,13 +1,15 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
+import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm, PHYSICAL_FORMS } from "@/lib/physical-forms";
 import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, saveInvitation } from "@/lib/store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostText, parseCepPlainText } from "@/lib/cep";
 import InvitationPreview from "@/components/InvitationPreview";
+import PrintFormPreview from "@/components/PrintFormPreview";
 import AdminGate from "@/components/AdminGate";
 import OnlineDemoWizard from "@/components/OnlineDemoWizard";
 import SvgTemplateSection from "@/components/SvgTemplateSection";
@@ -30,11 +32,21 @@ function EditorInner() {
   const { dict: d } = useLanguage();
   const [data, setData] = useState<InvitationData>(() => defaultInvitation("minimal-do-do"));
   const [tab, setTab] = useState<"form" | "preview">("form");
+  // Đường làm thiệp: VẬT LÝ (in) là đường chính của Nancy — dán ghost text
+  // → chọn form vật lý → đổ dữ liệu → gửi link khách. ONLINE là đường riêng
+  // (chọn mẫu online + demo + bán online). Mở link ?template= / ?demo= thì
+  // mặc định sang online (link đó vốn thuộc đường online).
+  const [mode, setMode] = useState<"physical" | "online">(() =>
+    params.get("template") || params.get("demo") ? "online" : "physical"
+  );
   const [notice, setNotice] = useState("");
   const [shareLink, setShareLink] = useState("");
   const [savedId, setSavedId] = useState("");
   const [editLink, setEditLink] = useState("");
   const [cepNotice, setCepNotice] = useState("");
+  // Thông báo riêng cho mục xuất ghost text (khác thông báo nhập ở trên):
+  // bấm sao chép ở mục xuất thì báo ngay tại đó, không hiện trùng 2 nơi.
+  const [cepCopyNotice, setCepCopyNotice] = useState("");
   const [importText, setImportText] = useState("");
   const [importMeta, setImportMeta] = useState("");
   const [plainImportText, setPlainImportText] = useState("");
@@ -59,6 +71,16 @@ function EditorInner() {
   const [reconcileNotice, setReconcileNotice] = useState("");
   // Đã chốt in / đã trả tiền thì editor chỉ đọc (mở khóa mới sửa được).
   const readOnly = serverStatus === "locked_for_print" || serverStatus === "paid_online";
+  // Link cho khách sửa theo dữ liệu HIỆN TẠI (đổi ngay khi sửa, không cần
+  // đợi bấm sao chép) — hiện nổi bật trong đường vật lý, ngay dưới form.
+  const customerLink = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    try {
+      return customerEditUrl || buildCustomerEditUrl(window.location.origin, { ...data, id: data.id || savedId || "demo" });
+    } catch {
+      return editLink;
+    }
+  }, [customerEditUrl, data, savedId, editLink]);
   const fileRef = useRef<HTMLInputElement>(null);
   const appliedTemplate = useRef(false);
 
@@ -357,30 +379,26 @@ function EditorInner() {
 
   const onCopyCep = async (text: string, okMsg: string) => {
     const res = await copyText(text);
-    setCepNotice(res.ok ? okMsg : "Không sao chép được. Hãy bôi đen rồi copy thủ công.");
+    setCepCopyNotice(res.ok ? okMsg : "Không sao chép được. Hãy bôi đen rồi copy thủ công.");
   };
 
   // Nhập từ Illustrator: điền vào form + xem trước, KHÔNG tự lưu (chỉ lưu
-  // khi bấm "Lưu thiệp" như mọi khi).
+  // khi bấm "Lưu thiệp" như mọi khi). Dán ghost text nghĩa là thiệp VẬT
+  // LÝ: chọn form vật lý chuẩn #1 (không động tới mẫu online), chuyển sang
+  // đường vật lý để chị thấy ngay form in đã đổ dữ liệu.
   const onImportGhost = () => {
     const res = parseCepGhostText(importText, importMeta);
     if (!res.ok) {
       setCepNotice(res.error);
       return;
     }
-    // Mẫu chuẩn #1: sau khi paste điền form, mẫu mặc định là song-phung-do
-    // (mẫu chuẩn) thay vì minimal-do-do; đã chọn mẫu khác thì giữ nguyên.
-    const useStandard = data.templateId === "minimal-do-do";
     setData((prev) => ({
       ...prev,
       ...res.data,
-      templateId: useStandard ? "song-phung-do" : prev.templateId,
+      physicalFormId: prev.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
     }));
-    setCepNotice(
-      useStandard
-        ? "Đã điền dữ liệu từ Illustrator — mẫu chuẩn #1 (Song Phụng Đỏ) đã được chọn, kiểm tra lại rồi bấm Lưu thiệp."
-        : "Đã điền dữ liệu từ Illustrator — kiểm tra lại rồi bấm Lưu thiệp."
-    );
+    setMode("physical");
+    setCepNotice("Đã điền dữ liệu từ Illustrator — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp.");
   };
 
   const onImportPlain = () => {
@@ -389,21 +407,30 @@ function EditorInner() {
       setCepNotice(res.error);
       return;
     }
-    setData((prev) => ({ ...prev, ...res.data }));
-    setCepNotice("Đã điền dữ liệu từ khối chữ thường — kiểm tra lại rồi bấm Lưu thiệp.");
+    setData((prev) => ({
+      ...prev,
+      ...res.data,
+      physicalFormId: prev.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
+    }));
+    setMode("physical");
+    setCepNotice("Đã điền dữ liệu từ khối chữ thường — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp.");
   };
+
+  // Chọn mẫu ONLINE — chỉ dùng ở đường online. Đường vật lý KHÔNG chọn
+  // mẫu online, chỉ chọn form vật lý (mục "Form vật lý" bên dưới).
+  const templatePicker = (
+    <Field label="Chọn mẫu (đổi mẫu giữ nguyên toàn bộ dữ liệu)" id="tpl-select">
+      <select id="tpl-select" value={data.templateId} onChange={(e) => set("templateId", e.target.value)} className={inputCls}>
+        {TEMPLATES.map((t) => (
+          <option key={t.id} value={t.id}>{t.name} — {t.styleLabel}</option>
+        ))}
+      </select>
+      <p className="mt-1 text-xs text-[#7a6a68]">{getTemplate(data.templateId).pattern}</p>
+    </Field>
+  );
 
   const form = (
     <div className="space-y-5 rounded-2xl border bg-white p-5 shadow-sm">
-      <Field label="Chọn mẫu (đổi mẫu giữ nguyên toàn bộ dữ liệu)" id="tpl-select">
-        <select id="tpl-select" value={data.templateId} onChange={(e) => set("templateId", e.target.value)} className={inputCls}>
-          {TEMPLATES.map((t) => (
-            <option key={t.id} value={t.id}>{t.name} — {t.styleLabel}</option>
-          ))}
-        </select>
-        <p className="mt-1 text-xs text-[#7a6a68]">{getTemplate(data.templateId).pattern}</p>
-      </Field>
-
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tên chú rể *" id="groom"><input id="groom" required value={data.groomName} onChange={(e) => set("groomName", e.target.value)} className={inputCls} /></Field>
         <Field label="Tên cô dâu *" id="bride"><input id="bride" required value={data.brideName} onChange={(e) => set("brideName", e.target.value)} className={inputCls} /></Field>
@@ -424,18 +451,24 @@ function EditorInner() {
         <Field label="Địa chỉ nhà gái" id="bpa"><input id="bpa" value={data.brideParentsAddress ?? ""} onChange={(e) => set("brideParentsAddress", e.target.value)} placeholder="Vd: 56 Đường Xuân Thủy, Cầu Giấy, Hà Nội" className={inputCls} /></Field>
       </div>
 
-      <Field label="Tiêu đề lễ thành hôn (mẫu Song Phụng Đỏ)" id="cheader">
-        <textarea id="cheader" rows={2} value={data.ceremonyHeader ?? ""} onChange={(e) => set("ceremonyHeader", e.target.value)} placeholder="Vd: LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI / TƯ GIA" className={inputCls} />
-        <p className="mt-1 text-xs text-[#7a6a68]">Để trống: dùng dòng mặc định của mẫu (“LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI / TƯ GIA”).</p>
-      </Field>
+      {/* Tiêu đề lễ + dress code chỉ dùng cho mẫu online (Song Phụng Đỏ) —
+          đường vật lý không hiện 2 trường này. */}
+      {mode === "online" && (
+        <>
+          <Field label="Tiêu đề lễ thành hôn (mẫu Song Phụng Đỏ)" id="cheader">
+            <textarea id="cheader" rows={2} value={data.ceremonyHeader ?? ""} onChange={(e) => set("ceremonyHeader", e.target.value)} placeholder="Vd: LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI / TƯ GIA" className={inputCls} />
+            <p className="mt-1 text-xs text-[#7a6a68]">Để trống: dùng dòng mặc định của mẫu (“LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI / TƯ GIA”).</p>
+          </Field>
 
-      {/* Dress code (mẫu Song Phụng Đỏ, vòng 12): bản gốc hiện mục này với 3
-          màu mẫu; nhập các mã màu cách nhau bằng dấu phẩy. Để trống thì ẩn
-          mục Dress Code. */}
-      <Field label="Dress code — màu trang phục (mẫu Song Phụng Đỏ)" id="dresscode">
-        <input id="dresscode" value={data.dressCode ?? ""} onChange={(e) => set("dressCode", e.target.value)} placeholder="Vd: #651212, #8d3a3a, #ffb2b2" className={inputCls} />
-        <p className="mt-1 text-xs text-[#7a6a68]">Nhập các mã màu cách nhau bằng dấu phẩy. Để trống: ẩn mục Dress Code.</p>
-      </Field>
+          {/* Dress code (mẫu Song Phụng Đỏ, vòng 12): bản gốc hiện mục này với 3
+              màu mẫu; nhập các mã màu cách nhau bằng dấu phẩy. Để trống thì ẩn
+              mục Dress Code. */}
+          <Field label="Dress code — màu trang phục (mẫu Song Phụng Đỏ)" id="dresscode">
+            <input id="dresscode" value={data.dressCode ?? ""} onChange={(e) => set("dressCode", e.target.value)} placeholder="Vd: #651212, #8d3a3a, #ffb2b2" className={inputCls} />
+            <p className="mt-1 text-xs text-[#7a6a68]">Nhập các mã màu cách nhau bằng dấu phẩy. Để trống: ẩn mục Dress Code.</p>
+          </Field>
+        </>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Ngày tiệc *" id="date"><input id="date" type="date" required value={data.date} onChange={(e) => set("date", e.target.value)} className={inputCls} /></Field>
@@ -643,15 +676,18 @@ function EditorInner() {
   );
 
   // Mục CEP — cũng render ngoài fieldset chỉ-đọc để vẫn sao chép được khi đã chốt.
-  const cepSection = (
+  // Tách làm 2 khối: cepImport (dán ghost text → "Điền vào form") đặt lên
+  // đầu đường vật lý (bước 1); cepExport (3 ô sao chép về Illustrator) đặt
+  // xuống dưới, sau link khách. Đường online vẫn dùng cả 2 gộp lại
+  // (cepSection) như cũ.
+  const cepExport = (
     <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
       {/* Nối với Illustrator (CEP "Wedding Scripter") — chỉ phía app web.
-          Xuất: 3 ô sao chép từ dữ liệu đang nhập. Nhập: dán đoạn từ
-          Illustrator về để điền lại form (không tự lưu). */}
-      <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Nối với Illustrator">
-        <h2 className="text-base font-bold text-[#7a1f2b]">Nối với Illustrator (CEP)</h2>
+          Xuất: 3 ô sao chép từ dữ liệu đang nhập. */}
+      <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Xuất sang Illustrator">
+        <h2 className="text-base font-bold text-[#7a1f2b]">Lấy ghost text về Illustrator (CEP)</h2>
         <p className="mt-1 text-sm text-[#5a4a48]">
-          Xuất dữ liệu sang Illustrator để in, hoặc nhập đoạn đã sửa trong Illustrator về form. Hai chiều dùng chung một chuẩn: chữ bọc bằng ký tự ẩn U+200B theo đúng thứ tự 32 trường của CEP.
+          Xuất dữ liệu sang Illustrator để in. Chữ bọc bằng ký tự ẩn U+200B theo đúng thứ tự 32 trường của CEP.
         </p>
 
         <div className="mt-4 space-y-4">
@@ -672,10 +708,18 @@ function EditorInner() {
             <button type="button" onClick={() => onCopyCep(buildCepPlainText(data), "Đã sao chép chữ thường.")} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép chữ thường</button>
           </div>
         </div>
+        {cepCopyNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{cepCopyNotice}</p>}
+      </section>
+    </div>
+  );
 
-        <div className="mt-6 border-t pt-4">
-          <h3 className="text-sm font-bold">Nhập từ Illustrator</h3>
-          <p className="mt-1 text-sm text-[#5a4a48]">Sửa trong Illustrator xong thì copy cả đoạn trong text frame (kể cả chữ thường xen giữa, không cần xóa) rồi dán vào đây.</p>
+  // Bước 1 của đường vật lý: dán đoạn ghost text copy từ Illustrator để
+  // điền vào form (không tự lưu — chỉ lưu khi bấm "Lưu thiệp").
+  const cepImport = (
+    <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Nhập từ Illustrator">
+        <h2 className="text-base font-bold text-[#7a1f2b]">Bước 1 — Dán dữ liệu từ Illustrator</h2>
+        <p className="mt-1 text-sm text-[#5a4a48]">Sửa trong Illustrator xong thì copy cả đoạn trong text frame (kể cả chữ thường xen giữa, không cần xóa) rồi dán vào đây, bấm “Điền vào form” — dữ liệu đổ vào form vật lý bên dưới.</p>
           <label htmlFor="cep-import" className="mt-3 block text-sm font-semibold">Đoạn có mã ẩn (U+200B) copy từ Illustrator</label>
           <textarea id="cep-import" rows={6} value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Dán đoạn chữ có mã ẩn vào đây…" className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
           <label htmlFor="cep-import-meta" className="mt-3 block text-sm font-semibold">Metadata (tùy chọn — nếu dán thì app dùng đúng thứ tự khóa trong đó)</label>
@@ -685,9 +729,60 @@ function EditorInner() {
           <label htmlFor="cep-import-plain" className="mt-5 block text-sm font-semibold">Hoặc dán khối chữ thường (cùng bố cục trên)</label>
           <textarea id="cep-import-plain" rows={6} value={plainImportText} onChange={(e) => setPlainImportText(e.target.value)} placeholder="Dán khối chữ thường vào đây…" className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
           <button type="button" onClick={onImportPlain} className="mt-3 rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]">Điền từ khối chữ thường</button>
-        </div>
         {cepNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{cepNotice}</p>}
       </section>
+    </div>
+  );
+
+  // Đường online vẫn dùng mục CEP gộp như cũ (xuất trước, nhập sau).
+  const cepSection = (
+    <>
+      {cepExport}
+      {cepImport}
+    </>
+  );
+
+  // Bước 2 của đường vật lý: chọn form in để đổ dữ liệu vào. Thiệp vật lý
+  // KHÔNG chọn mẫu online. Hiện chỉ có 1 form; thêm form mới chỉ cần thêm
+  // 1 dòng vào PHYSICAL_FORMS (src/lib/physical-forms.ts).
+  const physicalFormSection = (
+    <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+      <section aria-label="Chọn form vật lý">
+        <h2 className="text-base font-bold text-[#7a1f2b]">Bước 2 — Chọn form vật lý</h2>
+        <p className="mt-1 text-sm text-[#5a4a48]">
+          Thiệp vật lý không chọn mẫu online — chỉ chọn form in để đổ dữ liệu vào, rồi gửi link cho khách sửa đúng form đó.
+        </p>
+        <div className="mt-3">
+          <label htmlFor="physical-form" className="text-sm font-semibold">Form vật lý</label>
+          <select id="physical-form" value={data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID} onChange={(e) => set("physicalFormId", e.target.value)} className={`${inputCls} mt-1`}>
+            {PHYSICAL_FORMS.map((f) => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-[#7a6a68]">{getPhysicalForm(data.physicalFormId).description}</p>
+        </div>
+      </section>
+    </div>
+  );
+
+  // Link cho khách sửa — hiện NỔI BẬT trong đường vật lý, ngay dưới form:
+  // Lưu thiệp trước, rồi bấm sao chép để gửi khách. Link theo dữ liệu hiện
+  // tại (đổi ngay khi sửa), dạng /khach/<id>?d=... như cũ.
+  const customerLinkBox = (
+    <div data-testid="customer-link-box" className="mt-6 rounded-2xl border-2 border-[#7a1f2b] bg-[#fdf8f1] p-5 shadow-sm">
+      <h2 className="text-base font-bold text-[#7a1f2b]">Link cho khách sửa</h2>
+      <p className="mt-1 text-sm text-[#5a4a48]">
+        Bấm “Lưu thiệp” rồi “Sao chép link cho khách sửa” — gửi link này cho khách, khách mở ra thấy đúng mẫu form in để sửa.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={onSave} className="rounded-full bg-[#7a1f2b] px-5 py-3 font-semibold text-white hover:bg-[#5e1620]">Lưu thiệp</button>
+        <button type="button" onClick={onCopyEditLink} className="rounded-full border-2 border-[#7a1f2b] px-5 py-3 font-semibold text-[#7a1f2b]">Sao chép link cho khách sửa</button>
+      </div>
+      <div className="mt-3">
+        <label htmlFor="customer-link" className="text-sm font-semibold">Link cho khách sửa (mở trang khách — mẫu form in, kèm dữ liệu trong ?d=)</label>
+        <input id="customer-link" readOnly value={customerLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+      </div>
+      {notice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{notice}</p>}
     </div>
   );
 
@@ -695,6 +790,27 @@ function EditorInner() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="font-display text-4xl font-bold text-[#7a1f2b]">{d.editorTitle}</h1>
       <p className="mt-2 text-[#5a4a48]">{d.editorSub}</p>
+
+      {/* Chọn đường: thiệp vật lý (in) hay thiệp online — mỗi đường chỉ
+          hiện phần của mình. Đường vật lý: dán ghost text → chọn form in →
+          lưu → gửi link khách. Đường online: chọn mẫu + demo + bán online. */}
+      <div className="mt-6 flex gap-2" role="tablist" aria-label="Chọn loại thiệp">
+        <button type="button" role="tab" aria-selected={mode === "physical"} onClick={() => setMode("physical")} className={`flex-1 rounded-full py-2.5 font-semibold sm:flex-none sm:px-6 ${mode === "physical" ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}>Thiệp vật lý (in)</button>
+        <button type="button" role="tab" aria-selected={mode === "online"} onClick={() => setMode("online")} className={`flex-1 rounded-full py-2.5 font-semibold sm:flex-none sm:px-6 ${mode === "online" ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}>Thiệp online</button>
+      </div>
+      <p className="mt-2 text-sm text-[#5a4a48]">
+        {mode === "physical"
+          ? "Thiệp vật lý: dán dữ liệu từ Illustrator → chọn form in → lưu thiệp → gửi link cho khách sửa đúng form đó. Không chọn mẫu online."
+          : "Thiệp online: chọn mẫu online, xem trước, rồi bán qua demo + QR ở mục bên dưới."}
+      </p>
+
+      {/* Đường vật lý: bước 1 (dán dữ liệu) + bước 2 (chọn form in) lên đầu. */}
+      {mode === "physical" && (
+        <>
+          {cepImport}
+          {physicalFormSection}
+        </>
+      )}
 
       <div className="mt-6 flex gap-2 lg:hidden" role="tablist" aria-label="Chuyển giữa form và xem trước">
         <button type="button" role="tab" aria-selected={tab === "form"} onClick={() => setTab("form")} className={`flex-1 rounded-full py-2.5 font-semibold ${tab === "form" ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}>Form nhập liệu</button>
@@ -708,27 +824,39 @@ function EditorInner() {
               Thiệp đã {serverStatus === "paid_online" ? "được mua online" : "chốt in"} — editor đang chỉ đọc. Bấm “Mở khóa để sửa” ở mục “Gửi khách duyệt in &amp; bán thiệp online” (cần token admin) mới sửa được.
             </p>
           )}
+          {mode === "online" && templatePicker}
           {form}
         </fieldset>
         <div className={`${tab === "preview" ? "block" : "hidden"} lg:sticky lg:top-24 lg:block`}>
-          <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#7a6a68]">Xem trước trực tiếp</p>
-          <InvitationPreview data={data} />
+          <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#7a6a68]">{mode === "physical" ? "Mẫu form in — xem trước" : "Xem trước trực tiếp"}</p>
+          {mode === "physical" ? <PrintFormPreview data={data} /> : <InvitationPreview data={data} />}
         </div>
       </div>
 
-      {/* Mục "Xem demo thiệp online" (v3-final): demo duy nhất đã đổ dữ liệu
-          khách, blur tên/ngày/giờ/địa điểm, wizard 3 bước mua online. */}
-      {serverPanel}
-      {cepSection}
-      <SvgTemplateSection data={data} initialPayload={svgPayload} />
-      <OnlineDemoWizard
-        data={data}
-        onPatch={(patch) => setData((prev) => ({ ...prev, ...patch }))}
-        serverId={serverId}
-        serverStatus={serverStatus}
-        adminToken={adminToken}
-        onServerChange={(id, status) => { setServerId(id); setSavedId(id); setServerStatus(status); }}
-      />
+      {mode === "physical" ? (
+        <>
+          {customerLinkBox}
+          {cepExport}
+          {serverPanel}
+          <SvgTemplateSection data={data} initialPayload={svgPayload} />
+        </>
+      ) : (
+        <>
+          {/* Mục "Xem demo thiệp online" (v3-final): demo duy nhất đã đổ dữ liệu
+              khách, blur tên/ngày/giờ/địa điểm, wizard 3 bước mua online. */}
+          {serverPanel}
+          {cepSection}
+          <SvgTemplateSection data={data} initialPayload={svgPayload} />
+          <OnlineDemoWizard
+            data={data}
+            onPatch={(patch) => setData((prev) => ({ ...prev, ...patch }))}
+            serverId={serverId}
+            serverStatus={serverStatus}
+            adminToken={adminToken}
+            onServerChange={(id, status) => { setServerId(id); setSavedId(id); setServerStatus(status); }}
+          />
+        </>
+      )}
     </div>
   );
 }
