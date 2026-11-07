@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       statusLabel: STATUS_LABEL[rec.status],
       previewUrl: `${origin}/xem-thu/${encodeURIComponent(rec.id)}?t=${rec.previewToken}`,
       editUrl: `${origin}/tao-thiep?edit=${encodeURIComponent(rec.id)}&t=${rec.editToken}`,
+      customerEditUrl: `${origin}/khach/${encodeURIComponent(rec.id)}?t=${rec.editToken}`,
       paymentMemo: rec.paymentMemo,
       note: "Link xem trước không có link khách. Gửi link này cho khách duyệt in. Sau khi chốt in, mua thiệp online ở mục “Xem demo thiệp online” trong editor.",
     });
