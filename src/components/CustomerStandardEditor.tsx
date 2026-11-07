@@ -19,10 +19,12 @@
 //    mở lại link đúng thì khôi phục, link mới của Nancy (dữ liệu gốc khác)
 //    thì không bị bản cũ đè.
 //  - Sau chốt có nút "Sao chép link đã chốt": link /khach/<id>?d= chứa dữ
-//    liệu mới nhất + ?c= (câu mẫu đã sửa, hoặc {} rỗng nếu không sửa câu
-//    mẫu nào) để khách gửi cho Nancy. Link đã chốt (LUÔN có ?c=) mở trên
-//    máy khác cũng hiện dạng chỉ đọc + ghost text + danh sách sửa tay —
-//    vì ?c= chỉ xuất hiện trên link đã chốt.
+//    liệu mới nhất + ?c= (payload {customTexts, initialMessage} — câu mẫu đã
+//    sửa, hoặc {} rỗng nếu không sửa câu mẫu nào, kèm message GỐC lúc mở
+//    link lần đầu để máy khác tính đúng diff "Lời mời") để khách gửi cho
+//    Nancy. Link đã chốt (LUÔN có ?c=) mở trên máy khác cũng hiện dạng chỉ
+//    đọc + ghost text + danh sách sửa tay — vì ?c= chỉ xuất hiện trên link
+//    đã chốt.
 //  - Chat box cuối trang: khách ghi chú/hỏi, Nancy trả lời trong Quản lý;
 //    khách mở lại link sẽ thấy trả lời (không realtime).
 "use client";
@@ -166,6 +168,11 @@ export interface CustomerStandardEditorProps {
       ngay cả trên máy khác. */
   initialConfirmed?: boolean;
   initialManualList?: ManualListItem[];
+  /** Message GỐC mang trong ?c= của link đã chốt (message lúc khách mở link
+      lần đầu, trước khi sửa): dùng làm gốc để tính diff "Lời mời" khi mở
+      link đã chốt trên máy khác — vì ?d= của link đã chốt chứa message MỚI.
+      Không có (link cũ / chưa chốt) thì dùng message gốc trong ?d=. */
+  initialMessageFromLink?: string;
 }
 
 export default function CustomerStandardEditor({
@@ -179,9 +186,15 @@ export default function CustomerStandardEditor({
   initialConfirmedAt,
   initialConfirmed,
   initialManualList,
+  initialMessageFromLink,
 }: CustomerStandardEditorProps) {
   const serverMode = Boolean(editToken);
-  const initialMessageRef = useRef(initialData.message ?? "");
+  // Message GỐC để tính diff "Lời mời" trong danh sách sửa tay: ưu tiên
+  // initialMessage mang trong ?c= (link đã chốt mở trên máy khác), rồi tới
+  // message gốc trong ?d= (originalData), cuối cùng là message lúc mở link.
+  // Không dùng message trong initialData khi đã khôi phục snapshot (đó là
+  // message ĐÃ sửa, không phải gốc).
+  const initialMessageRef = useRef(initialMessageFromLink ?? originalData?.message ?? initialData.message ?? "");
 
   const [data, setDataState] = useState<InvitationData>(initialData);
   const dataRef = useRef(data);
@@ -247,7 +260,7 @@ export default function CustomerStandardEditor({
     setGhostText(buildCepTextBlock(initialData));
     setMetadata(buildCepMetadataJson());
     setPlainText(buildCepPlainText(initialData));
-    setConfirmedLink(buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current));
+    setConfirmedLink(buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current, initialMessageRef.current));
     if (lockedByFlag || initialConfirmed) {
       setManualList(buildManualList(customTextsRef.current, dataRef.current, initialMessageRef.current));
     }
@@ -487,7 +500,7 @@ export default function CustomerStandardEditor({
         );
       }
       setConfirmed(true);
-      setConfirmedLink(buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current));
+      setConfirmedLink(buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current));
       setNotice("Đã chốt xong — gửi link đã chốt (hoặc ghost text) cho Nancy.");
     } catch {
       setErrors(["Không chốt được — kiểm tra mạng rồi thử lại."]);
@@ -501,7 +514,9 @@ export default function CustomerStandardEditor({
   };
 
   const copyConfirmedLink = async () => {
-    const url = confirmedLink || buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current);
+    const url =
+      confirmedLink ||
+      buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current);
     const r = await copyText(url);
     setNotice(
       r.ok
