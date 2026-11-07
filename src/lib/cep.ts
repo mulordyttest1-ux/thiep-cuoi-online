@@ -38,6 +38,36 @@ export type CeremonyType = (typeof CEREMONY_TYPES)[number];
 export const HOST_TYPES = ["Nhà Trai", "Nhà Gái"] as const;
 export type HostType = (typeof HOST_TYPES)[number];
 
+/** Khóa năm 2 chữ số dẫn xuất: date.<nhóm>.namyy — KHÔNG phải lỗi chính tả.
+    Một số mẫu dùng định dạng năm 2 chữ số cuối ("26" thay vì "2026").
+    Khóa dẫn xuất từ date.<nhóm>.nam — KHÔNG thuộc 32 khóa CEP (thứ tự
+    ghost text giữ nguyên 32). Khái quát theo mẫu *.namyy (cả date.le.namyy). */
+export function isNamyyKey(key: string): boolean {
+  return /^date\.(le|tiec)\.namyy$/.test(key);
+}
+
+export function namyyGroup(key: string): "le" | "tiec" | null {
+  const m = /^date\.(le|tiec)\.namyy$/.exec(key);
+  return m ? (m[1] as "le" | "tiec") : null;
+}
+
+/** Đọc giá trị khung namyy thành năm 4 chữ số: "26" → 2026; "2026" → 2026. */
+export function resolveNamyyYear(raw: string | undefined | null): string {
+  const v = (raw ?? "").trim();
+  if (/^\d{2}$/.test(v)) return `20${v}`;
+  if (/^\d{4}$/.test(v)) return v;
+  return "";
+}
+
+/** Ghi năm vào khung namyy, giữ nguyên số chữ số như giá trị gốc trong khung:
+    gốc 2 chữ số → "26"; gốc 4 chữ số → "2026". */
+export function formatNamyyYear(year4: string, original: string | undefined | null): string {
+  const y = (year4 ?? "").trim();
+  const orig = (original ?? "").trim();
+  if (/^\d{4}$/.test(y) && /^\d{2}$/.test(orig)) return y.slice(2);
+  return y;
+}
+
 function isCeremonyType(v: string): v is CeremonyType {
   return (CEREMONY_TYPES as readonly string[]).includes(v);
 }
@@ -325,11 +355,15 @@ export function cepValuesToData(values: Record<string, string>): Partial<Invitat
   };
   if (isCeremonyType(tenLe)) out.ceremonyType = tenLe;
   out.hostType = brideHost ? "Nhà Gái" : "Nhà Trai";
-  const leDate = dateFromParts(v("date.le.ngay"), v("date.le.thang"), v("date.le.nam"));
+  // Năm có thể nằm ở khóa dẫn xuất namyy (năm 2 chữ số "26" = 2026):
+  // chỉ dùng khi khóa nam 4 chữ số vắng mặt.
+  const leNam = v("date.le.nam") || resolveNamyyYear(v("date.le.namyy"));
+  const tiecNam = v("date.tiec.nam") || resolveNamyyYear(v("date.tiec.namyy"));
+  const leDate = dateFromParts(v("date.le.ngay"), v("date.le.thang"), leNam);
   const leTime = timeFromParts(v("date.le.gio"), v("date.le.phut"));
   if (leDate) out.ceremonyDate = leDate;
   if (leTime) out.ceremonyTime = leTime;
-  const tiecDate = dateFromParts(v("date.tiec.ngay"), v("date.tiec.thang"), v("date.tiec.nam"));
+  const tiecDate = dateFromParts(v("date.tiec.ngay"), v("date.tiec.thang"), tiecNam);
   const tiecTime = timeFromParts(v("date.tiec.gio"), v("date.tiec.phut"));
   if (tiecDate) out.date = tiecDate;
   if (tiecTime) out.time = tiecTime;

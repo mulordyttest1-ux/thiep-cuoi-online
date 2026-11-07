@@ -1,6 +1,32 @@
 export type InvitationLang = "vi" | "en" | "both";
 export type GuestSide = "trai" | "gai";
 
+/** Trường sửa được trên trang khách mẫu chuẩn #1 (B1): tất cả đều gắn khóa
+ *  CEP (chảy về ghost text) — TRỪ message (lời mời): message là trường
+ *  InvitationData nhưng KHÔNG có khóa CEP nên sửa lời mời vào danh sách
+ *  sửa tay, không vào ghost text (xem src/lib/custom-texts.ts). */
+export type StdEditField =
+  | "groomName"
+  | "brideName"
+  | "groomFather"
+  | "groomMother"
+  | "brideFather"
+  | "brideMother"
+  | "groomParentsAddress"
+  | "brideParentsAddress"
+  | "groomBirthOrder"
+  | "brideBirthOrder"
+  | "ceremonyType"
+  | "hostType"
+  | "ceremonyDate"
+  | "ceremonyTime"
+  | "ceremonyVenue"
+  | "date"
+  | "time"
+  | "venue"
+  | "address"
+  | "message";
+
 export interface ScheduleItem {
   time: string;
   label: string;
