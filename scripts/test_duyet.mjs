@@ -402,6 +402,18 @@ function makeRec(status, extra = {}) {
   delete process.env.VERCEL;
 }
 
+// --- Link khách (?t=) cho bảng duyệt: customerEditUrlFor + list route ---
+// Nút "Sao chép link khách" trên /quan-ly — link chỉ hiện trong bảng
+// duyệt (admin), không bao giờ lộ ra trang khách.
+{
+  check("customerEditUrlFor: đúng dạng origin + /khach/<id>?t=<token>",
+    store.customerEditUrlFor("https://chung-doi.vercel.app", { id: "thiep-mw4eckgr-2f66ur", editToken: "abc123token" }) ===
+    "https://chung-doi.vercel.app/khach/thiep-mw4eckgr-2f66ur?t=abc123token");
+  check("customerEditUrlFor: id có ký tự đặc biệt được encode",
+    store.customerEditUrlFor("https://x", { id: "thiep a/b", editToken: "t" }) ===
+    "https://x/khach/thiep%20a%2Fb?t=t");
+}
+
 // --- Mã nguồn: route list + review tồn tại, confirm set confirmed ---
 {
   const confirmSrc = readSrc("src/app/api/invitations/[id]/confirm/route.ts");
@@ -412,6 +424,9 @@ function makeRec(status, extra = {}) {
   const listSrc = readSrc("src/app/api/invitations/list/route.ts");
   check("list route: chỉ admin", listSrc.includes("isAdminRequest"));
   check("list route: trả store kind", listSrc.includes("storeKind()"));
+  check("list route: trả customerEditUrl", listSrc.includes("customerEditUrl"));
+  check("list route: link khách dùng originOf + customerEditUrlFor", listSrc.includes("originOf") && listSrc.includes("customerEditUrlFor"));
+  check("server-store: customerEditUrlFor dùng editToken", readSrc("src/lib/server-store.ts").includes("rec.editToken"));
   const reviewSrc = readSrc("src/app/api/invitations/[id]/review/route.ts");
   check("review route: dùng reviewRecord", reviewSrc.includes("reviewRecord"));
   const unlockSrc = readSrc("src/app/api/invitations/[id]/unlock/route.ts");
@@ -427,6 +442,11 @@ function makeRec(status, extra = {}) {
   check("quan-ly: có banner chờ duyệt", quanLy.includes("đang chờ duyệt"));
   check("quan-ly: có 5 tab", quanLy.includes('"Chờ duyệt"') && quanLy.includes('"Đã duyệt"') && quanLy.includes('"Đã in"') && quanLy.includes('"Nháp"'));
   check("quan-ly: nút Đã duyệt/Đã in/Mở lại", quanLy.includes("Đã duyệt") && quanLy.includes("Đã in") && quanLy.includes("Mở lại"));
+  check("quan-ly: có nút Sao chép link khách", quanLy.includes("Sao chép link khách"));
+  check("quan-ly: nút copy dùng customerEditUrl của thiệp", quanLy.includes("customerEditUrl"));
+  check("quan-ly: link khách chỉ ở trang quản lý, không lộ ra trang khách",
+    !readSrc("src/components/CustomerStandardEditor.tsx").includes("customerEditUrl") &&
+    !readSrc("src/app/(khach)/khach/[id]/page.tsx").includes("customerEditUrl"));
   const taoThiep = readSrc("src/app/(app)/tao-thiep/page.tsx");
   check("tao-thiep: tự đồng bộ khi có Supabase", taoThiep.includes("SUPABASE_CONFIGURED"));
   check("tao-thiep: link máy chủ khi đồng bộ xong", taoThiep.includes("qua máy chủ"));
