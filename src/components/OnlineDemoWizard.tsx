@@ -278,12 +278,12 @@ export default function OnlineDemoWizard({
           </div>
 
           {/* Xem demo — mở trang thiệp đầy đủ riêng (cùng component trang
-              khách GuestInvitationView: phong bì + mở thiệp + hiệu ứng),
+              khách GuestInvitationView: cover + bộ sưu tập ảnh + nút “Xem thiệp” + hiệu ứng),
               KHÔNG còn hộp demo tĩnh inline trong wizard. */}
           <div className="mx-auto mt-4 max-w-3xl rounded-2xl border bg-[#fdf8f1] p-4 text-center">
             <p className="text-sm font-semibold text-[#7a1f2b]">Xem demo đúng như khách sẽ thấy</p>
             <p className="mt-1 text-sm text-[#5a4a48]">
-              Bấm “Xem demo” để mở trang thiệp đầy đủ riêng: phong bì, nút “Mở thiệp”, hiệu ứng đúng
+              Bấm “Xem demo” để mở trang thiệp đầy đủ riêng: màn mở đầu, bộ sưu tập ảnh, nút “Xem thiệp”, hiệu ứng đúng
               biến thể của mẫu đang chọn. Tên + ngày + giờ + địa điểm vẫn mờ. Xem xong bấm
               “← Quay lại sửa thiệp” để về đây sửa tiếp / trả tiền.
             </p>

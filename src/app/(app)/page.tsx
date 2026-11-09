@@ -32,7 +32,7 @@ const FAQS = [
   },
   {
     q: "Mỗi khách có link riêng thật không?",
-    a: "Có. Mỗi khách có link riêng dạng /thiep/<id>?guest=<tên>. Khách mở thiệp sẽ thấy tên mình trên phong bì.",
+    a: "Có. Mỗi khách có link riêng dạng /thiep/<id>?guest=<tên>. Khách mở thiệp sẽ thấy tên mình trong phần mở đầu.",
   },
   {
     q: "Khách mở thiệp bằng điện thoại có cần cài app không?",
