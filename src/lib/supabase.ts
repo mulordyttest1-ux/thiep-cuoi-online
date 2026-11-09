@@ -62,7 +62,15 @@ export interface InvitationRow {
 async function sbFetch(path: string, init: RequestInit = {}): Promise<unknown> {
   const url = supabaseBase();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  // BẮT BUỘC no-store: đây là database đang thay đổi, KHÔNG được để Next.js
+  // cache lời gọi fetch (Data Cache). Lỗi live 2026-11-09: GET route handler
+  // (dù đã force-dynamic) vẫn trả dữ liệu cũ đã cache — khách chốt xong
+  // (POST đọc tươi, ghi confirmed thành công) nhưng /quan-ly và ?kind=admin
+  // vẫn thấy preview_for_print / danh sách trống vì lần đọc đầu đã bị cache.
+  // Ở dev không lộ lỗi vì dev không cache fetch. POST cũng phải no-store
+  // để lần GET ngay sau đó (supabaseGet trong supabaseSave) đọc tươi.
   const res = await fetch(`${url}/rest/v1/${path}`, {
+    cache: "no-store",
     ...init,
     headers: {
       apikey: key,
