@@ -305,6 +305,22 @@ export function sameCustomerData(a: InvitationData, b: InvitationData): boolean 
   );
 }
 
+/** Gộp dữ liệu dán từ Illustrator vào dữ liệu đang có: giá trị RỖNG trong
+    đoạn dán KHÔNG đè chữ đã có (nhiều file .ai để địa điểm tiệc dạng
+    outline, không phải chữ sống, nên ghost text không mang địa điểm — dán
+    chỉ đổ thêm những gì Illustrator có; chữ chị đã gõ thì giữ). Giá trị
+    có chữ thì đè như cũ. id/templateId/physicalFormId không nằm trong
+    đoạn dán nên luôn giữ nguyên. */
+export function mergeImportedData(prev: InvitationData, imported: Partial<InvitationData>): InvitationData {
+  const out: InvitationData = { ...prev };
+  for (const [k, v] of Object.entries(imported)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    (out as unknown as Record<string, unknown>)[k] = v;
+  }
+  return out;
+}
+
 /* ---------- Khách mời ---------- */
 
 export function seedGuestsIfEmpty(): Guest[] {
