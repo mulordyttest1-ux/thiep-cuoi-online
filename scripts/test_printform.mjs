@@ -185,8 +185,8 @@ check("PrintFormPreview có chế độ plain cho trang khách",
   pf.includes("plain") && pf.includes("data-plain"));
 check("plain: chữ đen + font hệ thống (không serif/đỏ/kem)",
   pf.includes("text-black") && pf.includes("-apple-system") && pf.includes('"Segoe UI"'));
-check("plain: câu kết có hàng chấm",
-  pf.includes("border-b border-dotted border-black/70"));
+check("plain: câu kết có hàng chấm leader '.............Kính mời!' (không phải gạch chấm dưới chữ)",
+  pf.includes("min-w-0 flex-1 overflow-hidden whitespace-nowrap") && pf.includes('customWrap("printClosing"') && !pf.includes("border-b border-dotted border-black/70 px-1 pb-0.5"));
 check("plain: chuẩn hoá NFC khi hiển thị",
   pf.includes('.normalize("NFC")'));
 
@@ -404,6 +404,8 @@ check("tao-thiep cảnh báo riêng khi thiếu nơi làm lễ",
   tt.includes("Đoạn dán không có nơi làm lễ") && tt.includes("cepWarning") && tt.includes("border-amber-500"));
 check("PrintFormPreview có dòng tên khách + câu kết sửa được",
   pf.includes('customWrap("printGuestLine"') && pf.includes('customWrap("printClosing"'));
+check("câu kết mẫu in là hàng chấm leader + 'Kính mời!' (chuẩn '.............Kính mời!'), không còn gạch chấm dưới chữ",
+  pf.includes('customWrap("printClosing"') && pf.includes("min-w-0 flex-1 overflow-hidden whitespace-nowrap") && pf.includes("{ block: true }") && !pf.includes("border-b border-dotted border-black/70 px-1 pb-0.5"));
 check("editor có chips chọn tên khách (Bỏ trống / Quý Gia Đình / Quý Khách)",
   ed.includes('selCustomKey === "printGuestLine"') && ed.includes('"Bỏ trống"') && ed.includes('"Quý Gia Đình"') && ed.includes('"Quý Khách"'));
 
@@ -421,12 +423,13 @@ check("không còn notice dặn gửi link sau chốt",
   !ed.includes("Đã chốt xong — gửi link đã chốt cho Thiết kế.") && !ed.includes("(hoặc ghost text)"));
 check("không còn dòng mô tả link đã chốt",
   !ed.includes("Gửi link này cho Thiết kế là xong."));
-check("khối chữ để in gấp trong <details> đóng mặc định, chỉ với link ?d=",
-  ed.includes("<details") && ed.includes("Dành cho Thiết kế — chữ để in") && ed.includes("{!serverMode && ("));
-check("nút copy chữ dùng tên thường 'Sao chép chữ có mã ẩn'",
-  ed.includes("Sao chép chữ có mã ẩn") && ed.includes("Đã sao chép chữ có mã ẩn."));
-check("nút copy metadata dùng tên thường 'Sao chép thông tin kèm theo'",
-  ed.includes("Sao chép thông tin kèm theo") && ed.includes("Đã sao chép thông tin kèm theo."));
+check("trang khách KHÔNG BAO GIỜ hiện khối chữ để in (ghost text / metadata) — cả link ?d= lẫn ?t=",
+  !ed.includes("<details") && !ed.includes("Dành cho Thiết kế — chữ để in") && !ed.includes("khach-ghost"));
+check("khung chat chỉ hiện trên link máy chủ — không còn dòng 'không qua máy chủ' cho khách",
+  !ed.includes("Link này không qua máy chủ") &&
+    (() => { const i = ed.indexOf('aria-label="Chat với Thiết kế"'); return i > 0 && ed.slice(Math.max(0, i - 400), i).includes("{serverMode && ("); })());
+check("editor không còn nút copy chữ để in của khách (chỉ /quan-ly + /tao-thiep mới có)",
+  !ed.includes("Sao chép chữ có mã ẩn") && !ed.includes("Sao chép thông tin kèm theo") && !ed.includes("Sao chép chữ thường") && !ed.includes("copyGhost"));
 check("editor không còn nút 'Sao chép ghost text' / 'Sao chép metadata'",
   !ed.includes('"Sao chép ghost text"') && !ed.includes('"Sao chép metadata"'));
 check("editor không còn nhãn 'Chữ cho Illustrator'",
