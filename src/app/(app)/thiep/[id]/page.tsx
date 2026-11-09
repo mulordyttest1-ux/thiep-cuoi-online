@@ -12,6 +12,7 @@ import TemplateMotif from "@/components/TemplateMotif";
 import { BurstParticles, ScrollProgress, Shimmer, SmoothScroll } from "@/components/effects";
 import { decodeShare, loadInvitationById, vietQrUrl } from "@/lib/store";
 import InvitationPreview from "@/components/InvitationPreview";
+import { STATUS_LABEL, type InvitationStatus } from "@/lib/access";
 
 function CardInner() {
   const params = useParams();
@@ -221,6 +222,37 @@ function CardInner() {
     return <p className="mx-auto max-w-3xl px-4 py-16 text-center">Đang mở thiệp…</p>;
   }
 
+  // Thiệp đã lên máy chủ nhưng người mở không có link khách hợp lệ / chưa
+  // trả tiền: KHÔNG hiện thiệp, chỉ hiện lý do. Đây là chốt chặn chính
+  // chống xài chùa (kể cả khi khách còn giữ link ?d= cũ).
+  // PHẢI đứng trước nhánh "không tìm thấy": đường gate không setData nên
+  // data vẫn null — để nhánh !data trước thì gate không bao giờ hiện.
+  if (gate?.blocked) {
+    const reasonText =
+      gate.reason === "expired"
+        ? "Link khách đã hết hạn (quá 30 ngày sau ngày cưới)."
+        : gate.reason === "need_guest_link"
+          ? "Thiệp này đã được mua online. Hãy mở bằng link xịn (link có dữ liệu mã hóa trong link) hoặc link khách chính thức do Thiết kế gửi — link cũ không mở được nữa."
+          : gate.reason === "invalid_token"
+            ? "Link khách không hợp lệ. Hãy xin lại link khách chính thức từ Thiết kế."
+            : "Thiệp này chưa được mua online nên chưa mở link mời khách. Khách mua thiệp online (quét QR, chuyển đúng số tiền + đúng mã) thì link sẽ tự mở.";
+    return (
+      <div className="mx-auto max-w-xl px-4 py-16 text-center">
+        <p className="font-display text-6xl text-[#c9a86a]" aria-hidden="true">♥</p>
+        <h1 className="mt-4 font-display text-3xl font-bold text-[#7a1f2b]">Thiệp chưa mở</h1>
+        <p className="mt-2 text-[#5a4a48]">{reasonText}</p>
+        <p className="mt-2 text-sm text-[#7a6a68]">
+          Trạng thái: {gate.status ? STATUS_LABEL[gate.status as InvitationStatus] ?? gate.status : "—"}.
+          Liên hệ Thiết kế để nhận link xem trước hoặc mua thiệp online.
+        </p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link href="/thiep/demo" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white">Xem thiệp demo</Link>
+          <Link href="/" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b]">Về trang chủ</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (status === "notfound" || !data) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -232,35 +264,6 @@ function CardInner() {
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/thiep/demo" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white">Xem thiệp demo</Link>
-        </div>
-      </div>
-    );
-  }
-
-  // Thiệp đã lên máy chủ nhưng người mở không có link khách hợp lệ / chưa
-  // trả tiền: KHÔNG hiện thiệp, chỉ hiện lý do. Đây là chốt chặn chính
-  // chống xài chùa (kể cả khi khách còn giữ link ?d= cũ).
-  if (gate?.blocked) {
-    const reasonText =
-      gate.reason === "expired"
-        ? "Link khách đã hết hạn (quá 30 ngày sau ngày cưới)."
-        : gate.reason === "need_guest_link"
-          ? "Thiệp này đã được mua online. Hãy mở bằng link xịn (link có dữ liệu mã hóa trong link) hoặc link khách chính thức do Nancy gửi — link cũ không mở được nữa."
-          : gate.reason === "invalid_token"
-            ? "Link khách không hợp lệ. Hãy xin lại link khách chính thức từ Nancy."
-            : "Thiệp này chưa được mua online nên chưa mở link mời khách. Khách mua thiệp online (quét QR, chuyển đúng số tiền + đúng mã) thì link sẽ tự mở.";
-    return (
-      <div className="mx-auto max-w-xl px-4 py-16 text-center">
-        <p className="font-display text-6xl text-[#c9a86a]" aria-hidden="true">♥</p>
-        <h1 className="mt-4 font-display text-3xl font-bold text-[#7a1f2b]">Thiệp chưa mở</h1>
-        <p className="mt-2 text-[#5a4a48]">{reasonText}</p>
-        <p className="mt-2 text-sm text-[#7a6a68]">
-          Trạng thái: {gate.status === "locked_for_print" ? "đã chốt in — chỉ đọc" : gate.status === "paid_online" ? "đã trả tiền" : gate.status ?? "—"}.
-          Liên hệ Nancy để nhận link xem trước hoặc mua thiệp online.
-        </p>
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/thiep/demo" className="rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white">Xem thiệp demo</Link>
-          <Link href="/" className="rounded-full border-2 border-[#7a1f2b] px-6 py-3 font-semibold text-[#7a1f2b]">Về trang chủ</Link>
         </div>
       </div>
     );
