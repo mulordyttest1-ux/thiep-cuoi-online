@@ -24,16 +24,29 @@ mờ đi, ghi "Mẫu đang chọn không có mục này."
 `InvitationData` thêm 2 trường tùy chọn (`src/lib/types.ts`):
 
 - `hiddenBlocks?: string[]` — khối ẩn tay (thắng cả khi có nội dung).
-- `shownBlocks?: string[]` — khối hiện tay dù đang trống nội dung.
+- `shownBlocks?: string[]` — CHỈ ĐỂ ĐỌC dữ liệu cũ, không sinh giá trị mới
+  nữa: `isBlockVisible` bỏ qua trường này. Khối trống nội dung thì ẩn, kể
+  cả khi từng được bật tay — bật khối trống chỉ gỡ ẩn, khối chỉ hiện khi
+  đã có nội dung thật.
 
-Thiếu cả hai = như trước (hiện đủ, trừ khối trống thì ẩn) nên dữ liệu cũ
+Thiếu cả hai = hiện theo nội dung (trừ khối trống thì ẩn) nên dữ liệu cũ
 tương thích ngược. Hai trường đi theo link `?d=` (encode toàn bộ object)
 và link máy chủ `?t=` (máy chủ merge nguyên object) — không cần sửa
 store/server.
 
 Logic ở `src/lib/blocks.ts`: `BLOCKS`, `hasBlockContent`,
-`isBlockVisible(data, id)`, `toggleBlockPatch`, `resetBlocksPatch`,
-`blockAppliesTo`.
+`isBlockVisible(data, id)` (= có nội dung thật VÀ không bị ẩn tay),
+`toggleBlockPatch`, `resetBlocksPatch`, `blockAppliesTo`.
+
+## Không để thông tin sẵn
+
+Thiệp thật bắt đầu từ TRỐNG (`emptyInvitation()` trong `src/lib/types.ts`):
+API tạo thiệp (`src/app/api/invitations/route.ts`), `decodeShare`
+(`src/lib/store.ts`) và editor `/tao-thiep` đều lấy trống làm nền — trường
+nào khách không đưa thì trống, khối đó tự ẩn; khách bổ sung thì mới
+thêm/hiện. `defaultInvitation()` chỉ còn để trưng bày/demo (ảnh nhỏ thư
+viện, hero trang chủ, route `/thiep/demo`), KHÔNG làm nền cho thiệp thật
+nữa.
 
 ## Giao diện
 

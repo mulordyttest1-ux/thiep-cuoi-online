@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { InvitationData } from "@/lib/types";
-import { defaultInvitation } from "@/lib/types";
+import { emptyInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
 import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm } from "@/lib/physical-forms";
 import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, mergeImportedData, saveInvitation } from "@/lib/store";
@@ -36,7 +36,9 @@ const inputCls = "w-full rounded-xl border px-3 py-2";
 function EditorInner() {
   const params = useSearchParams();
   const { dict: d } = useLanguage();
-  const [data, setData] = useState<InvitationData>(() => defaultInvitation("minimal-do-do"));
+  // Editor mở ra từ TRỐNG (emptyInvitation): chưa dán dữ liệu thì form
+  // trống, không hiện tên/ngày/màu/câu chuyện mẫu của cặp demo nào.
+  const [data, setData] = useState<InvitationData>(() => emptyInvitation("minimal-do-do"));
   const [tab, setTab] = useState<"form" | "preview">("form");
   // Đường làm thiệp: VẬT LÝ (in) là đường chính của Nancy — dán ghost text
   // → chọn form vật lý → đổ dữ liệu → gửi link khách. ONLINE là đường riêng
@@ -181,7 +183,10 @@ function EditorInner() {
       const saved = loadInvitation();
       const tpl = params.get("template");
       if (saved) {
-        setData(tpl && !appliedTemplate.current ? { ...saved, templateId: tpl } : saved);
+        // Gộp dữ liệu đã lưu lên nền trống: thiệp lưu cũ/thiếu trường (ví
+        // dụ không có photoUrl) không được làm editor vỡ (photoUrl.startsWith).
+        const base = emptyInvitation(saved.templateId ?? "minimal-do-do");
+        setData(tpl && !appliedTemplate.current ? { ...base, ...saved, templateId: tpl } : { ...base, ...saved });
         if (saved.id) {
           setSavedId(saved.id);
           // Thiệp này đã từng đưa lên máy chủ chưa? Nếu đã chốt thì editor chỉ đọc.
@@ -196,7 +201,9 @@ function EditorInner() {
             .catch(() => undefined);
         }
       } else if (tpl) {
-        setData(defaultInvitation(tpl));
+        // Mở editor bằng ?template= mà chưa có thiệp lưu: bắt đầu từ trống
+        // với mẫu đó (không lọt dữ liệu mẫu vào thiệp mới).
+        setData(emptyInvitation(tpl));
       }
       appliedTemplate.current = true;
     } catch {

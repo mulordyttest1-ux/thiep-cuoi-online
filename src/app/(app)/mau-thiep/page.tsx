@@ -1,17 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { STYLE_LABELS, TEMPLATES, type Template, type TemplateStyle } from "@/lib/templates";
-import { defaultInvitation } from "@/lib/types";
+import { STYLE_LABELS, TEMPLATES, type TemplateStyle } from "@/lib/templates";
 import TemplateCard from "@/components/TemplateCard";
-import InvitationPreview from "@/components/InvitationPreview";
 
 type Filter = "all" | TemplateStyle;
 
 export default function TemplatesPage() {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [preview, setPreview] = useState<Template | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -60,22 +57,9 @@ export default function TemplatesPage() {
 
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((tpl) => (
-          <TemplateCard key={tpl.id} template={tpl} onPreview={setPreview} />
+          <TemplateCard key={tpl.id} template={tpl} />
         ))}
       </div>
-
-      {preview && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={`Xem trước mẫu ${preview.name}`} onClick={() => setPreview(null)}>
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#fdf8f1] p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-xl font-bold text-[#7a1f2b]">{preview.name}</h2>
-              <button type="button" onClick={() => setPreview(null)} className="rounded-full border px-3 py-1 text-sm" aria-label="Đóng xem trước">✕</button>
-            </div>
-            <p className="mb-3 text-sm text-[#5a4a48]">{preview.description} {preview.pattern}</p>
-            <InvitationPreview data={defaultInvitation(preview.id)} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

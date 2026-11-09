@@ -1,5 +1,5 @@
 import type { Guest, InvitationData, StdEditField } from "./types";
-import { defaultInvitation, newId } from "./types";
+import { emptyInvitation, newId } from "./types";
 import { DEFAULT_PHYSICAL_FORM_ID } from "./physical-forms";
 
 const K = {
@@ -81,14 +81,11 @@ export function decodeShare(encoded: string): InvitationData | null {
     const json = new TextDecoder().decode(bytes);
     const parsed = JSON.parse(json) as InvitationData;
     if (!parsed || typeof parsed !== "object" || !parsed.groomName || !parsed.brideName) return null;
-    const merged = { ...defaultInvitation(), ...parsed };
-    // Các trường tùy chọn chỉ hiện khi link mang theo (vòng 12): dữ liệu
-    // mặc định có sẵn thứ bậc/địa chỉ/dress code mẫu cho preview editor,
-    // nhưng link cũ (tạo trước khi có các trường này) không được lọt giá
-    // trị mẫu vào thiệp thật — thiếu trường thì ẩn, đúng như bản gốc.
-    for (const k of ["groomBirthOrder", "brideBirthOrder", "groomParentsAddress", "brideParentsAddress", "dressCode"] as const) {
-      if (!(k in parsed)) delete merged[k];
-    }
+    // Nền TRỐNG (emptyInvitation), không phải dữ liệu mẫu: link chỉ mang
+    // bao nhiêu thì thiệp có bấy nhiêu — trường nào link không có thì
+    // trống, khối đó tự ẩn (không lọt màu/câu chuyện/lịch trình/ảnh mẫu
+    // vào thiệp thật như trước đây khi nền là defaultInvitation).
+    const merged = { ...emptyInvitation(parsed.templateId ?? "minimal-do-do"), ...parsed };
     return merged;
   } catch {
     return null;

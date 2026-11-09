@@ -36,7 +36,8 @@ export default function BlockToggles({
       <legend className="text-sm font-semibold">Chọn mục hiển thị trên thiệp online</legend>
       <p className="mt-1 text-sm text-[#5a4a48]">
         Khách nào không có mục nào thì tắt mục đó đi — thiệp chỉ hiện những mục đang bật.
-        Mục chưa có nội dung thì tự ẩn; bật lên vẫn hiện lại được. Phần chính
+        Mục chưa có nội dung thì tự ẩn; thêm nội dung vào thì mục tự hiện lại.
+        Bật một mục đang trống chỉ gỡ ẩn, không hiện ra mục rỗng. Phần chính
         (tên, thông tin lễ, thông tin tiệc) lúc nào cũng hiện, không tắt được.
       </p>
       <ul className="mt-3 space-y-2">

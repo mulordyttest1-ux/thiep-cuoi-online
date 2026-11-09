@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getInvitation, upsertInvitation } from "@/lib/server-store";
 import { isAdminRequest, originOf } from "@/lib/server-auth";
 import { STATUS_LABEL } from "@/lib/access";
-import { defaultInvitation } from "@/lib/types";
+import { emptyInvitation } from "@/lib/types";
 import type { InvitationData } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Cần token admin (THIEP_ADMIN_TOKEN)." }, { status: 401 });
     }
     const body = (await req.json()) as { data?: Partial<InvitationData> };
-    const data = { ...defaultInvitation(), ...(body.data ?? {}) } as InvitationData;
+    // Nền TRỐNG (emptyInvitation): thiệp mới chỉ có đúng dữ liệu gửi lên
+    // — trường nào không gửi thì trống, không lọt dữ liệu mẫu vào.
+    const data = { ...emptyInvitation(), ...(body.data ?? {}) } as InvitationData;
     if (!data.groomName?.trim() || !data.brideName?.trim()) {
       return NextResponse.json({ ok: false, error: "Thiếu tên chú rể / cô dâu." }, { status: 400 });
     }

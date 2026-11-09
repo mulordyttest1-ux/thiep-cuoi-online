@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useReducedMotion } from "framer-motion";
 import type { Template } from "@/lib/templates";
 import { TEMPLATE_FONT_CLASS, TEMPLATE_FONT_LABEL } from "@/lib/templates";
 import { defaultInvitation } from "@/lib/types";
+import { encodeShare } from "@/lib/store";
 import TemplateMotif from "./TemplateMotif";
 import InvitationPreview from "./InvitationPreview";
 import { BurstParticles } from "./effects";
@@ -134,6 +136,8 @@ function DecoThumbnail({ template }: { template: Template }) {
           visibility: scale > 0 ? "visible" : "hidden",
         }}
       >
+        {/* Ảnh nhỏ trưng mẫu: dữ liệu mẫu (cặp Minh Quân & Thu An) chỉ để
+            trưng bày trong lưới thư viện, không phải thiệp của khách nào. */}
         <InvitationPreview data={defaultInvitation(template.id)} />
       </div>
     </div>
@@ -142,15 +146,14 @@ function DecoThumbnail({ template }: { template: Template }) {
 
 export default function TemplateCard({
   template,
-  onPreview,
 }: {
   template: Template;
-  onPreview: (t: Template) => void;
 }) {
+  const router = useRouter();
   const p = template.palette;
   const reduce = useReducedMotion();
   // TapBurst (spec §4h): chạm vào thẻ demo thì nổ một chùm hạt vàng nhỏ ngay
-  // điểm chạm rồi mới mở hộp xem trước (300ms để kịp thấy vụ nổ). Giảm
+  // điểm chạm rồi mới mở trang demo (300ms để kịp thấy vụ nổ). Giảm
   // chuyển động thì mở ngay, không nổ. Chỉ chạm nhẹ, không đổi bố cục thư viện.
   // Bài học QA19: để vụ nổ TRONG thẻ (article overflow-hidden, z-40) thì hộp
   // xem trước (fixed z-50, nền đen 60%) mở ra ở 300ms đã che mất nó, trong
@@ -159,13 +162,18 @@ export default function TemplateCard({
   // z-70 (trên cả hộp xem trước), hạt to/rộng hơn, sống tới khi bay xong
   // (onDone) dù hộp đã mở.
   const [burst, setBurst] = useState<{ x: number; y: number; key: number } | null>(null);
+  // Bấm mẫu = mở trang demo đầy đủ riêng (/thiep/demo mang dữ liệu mẫu
+  // trưng bày trong ?d=), KHÔNG mở hộp xem mẫu nữa — xem trước là sản phẩm
+  // (cùng GuestInvitationView như trang khách). Dữ liệu ở đây là mẫu trưng
+  // bày (cặp Minh Quân & Thu An), không phải thiệp của khách nào.
+  const demoUrl = `/thiep/demo?d=${encodeShare(defaultInvitation(template.id))}`;
   const handlePreview = (e: React.MouseEvent) => {
     if (reduce) {
-      onPreview(template);
+      router.push(demoUrl);
       return;
     }
     setBurst({ x: e.clientX, y: e.clientY, key: Date.now() });
-    window.setTimeout(() => onPreview(template), 300);
+    window.setTimeout(() => router.push(demoUrl), 300);
   };
   const tapBurstOverlay = burst && typeof document !== "undefined" ? createPortal(
     <div aria-hidden="true" className="pointer-events-none fixed z-[70]" style={{ left: burst.x, top: burst.y }}>
