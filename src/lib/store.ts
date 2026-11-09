@@ -112,8 +112,8 @@ export function buildShareUrl(origin: string, data: InvitationData): string {
     đã chốt chứa message MỚI, không còn chữ gốc để so). Link đã chốt cũ
     (chưa mang initialMessage) vẫn đọc được: thiếu initialMessage thì
     message trong ?d= được dùng làm gốc (hành vi cũ). Nhờ vậy Nancy mở
-    link đã chốt trên máy khác vẫn thấy đúng dạng chỉ đọc + ghost text +
-    danh sách "CẦN SỬA TAY". */
+    link đã chốt trên máy khác vẫn thấy đúng dạng chỉ đọc + danh sách sửa
+    tay (chữ để in thì lấy từ /quan-ly — trang khách không hiện chữ để in). */
 export function buildCustomerEditUrl(
   origin: string,
   data: InvitationData,
