@@ -7,10 +7,11 @@ import Link from "next/link";
 import { motion, MotionConfig, useReducedMotion } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation, formatDateVi } from "@/lib/types";
-import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
+import { getTemplate, getTemplateEffects, getVariantEffects, isEffectVariant, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
 import TemplateMotif from "@/components/TemplateMotif";
 import { BurstParticles, ScrollProgress, Shimmer, SmoothScroll } from "@/components/effects";
 import { decodeShare, loadInvitationById, vietQrUrl } from "@/lib/store";
+import { isBlockVisible } from "@/lib/blocks";
 import InvitationPreview from "@/components/InvitationPreview";
 import { STATUS_LABEL, type InvitationStatus } from "@/lib/access";
 
@@ -69,7 +70,12 @@ function CardInner() {
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, [opened, data?.templateId]);
-  const fx = getTemplateEffects(data?.templateId ?? "");
+  const fxParam = search.get("fx");
+  // Thử nhanh biến thể (?fx=le-nghi|hoa-bay|anh-vang|toi-gian|dien-anh|
+  // le-hoi — xem docs/effect-variants-research.md): ghi đè preset của mẫu
+  // CHỈ khi xem, không đổi dữ liệu thiệp. Giá trị lạ → bỏ qua.
+  const fxOverride = fxParam && isEffectVariant(fxParam) ? getVariantEffects(fxParam) : undefined;
+  const fx = fxOverride ?? getTemplateEffects(data?.templateId ?? "");
   const handleOpen = () => {
     if (reduce) {
       setOpened(true);
@@ -93,7 +99,9 @@ function CardInner() {
   // rồi bị cắt ở 1100ms (chỉ bay được ~450ms) nên mắt không thấy hạt nào.
   // Portal cũng tránh bị overflow-hidden của phong bì/cột thiệp cắt và luôn
   // nằm trên cùng (z-70). Chỉ render khi bursting (sau cú chạm, client).
-  const burstOverlay = bursting && typeof document !== "undefined" ? createPortal(
+  // count 0 (biến thể Tối Giản) = không nổ, không chớp — phong bì vẫn mở
+  // theo biên đạo thường. Màu hạt theo preset (Lễ Hội = nhiều màu).
+  const burstOverlay = bursting && (fx.burst?.count ?? 40) > 0 && typeof document !== "undefined" ? createPortal(
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-[70] flex items-center justify-center">
       {/* Chớp vàng tỏa tròn — "pop" nhìn rõ ngay cả trước khi hạt bay xa. */}
       <motion.div
@@ -108,7 +116,7 @@ function CardInner() {
           key={burstKey}
           count={fx.burst?.count ?? 40}
           size={[8, 16]}
-          colors={["#c9a86a", "#e8c87e", "#f6d365", "#fff0e7", "#710001"]}
+          colors={fx.burst?.colors ?? ["#c9a86a", "#e8c87e", "#f6d365", "#fff0e7", "#710001"]}
           duration={fx.burst?.duration ?? 1.1}
           spread={fx.burst?.spread ?? 220}
         />
@@ -420,11 +428,12 @@ function CardInner() {
     <SmoothScroll lerp={0.09}>
       <ScrollProgress color="linear-gradient(90deg,#c9a86a,#710001)" disabled={fx.progressBar === false} chapter={fx.cinema?.chapters === false || chapterTotal === 0 ? null : { current: chapter, total: chapterTotal }} />
       <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
-        <InvitationPreview data={data} guestName={guestName} motion />
+        <InvitationPreview data={data} guestName={guestName} motion effectsOverride={fxOverride} />
 
       {/* Album — mẫu deco đã có album ngay sau khối THÔNG TIN trong
-          InvitationPreview nên ẩn section riêng này để không trùng (vòng 11). */}
-      {!isDeco && (
+          InvitationPreview nên ẩn section riêng này để không trùng (vòng 11).
+          Khối thêm/bớt: ẩn khi khách tắt album (hoặc chưa có ảnh). */}
+      {!isDeco && isBlockVisible(data, "album") && (
       <section className="mt-10" aria-labelledby="album-title">
         <h2 id="album-title" className="text-center font-display text-2xl font-bold text-[#7a1f2b]">Album ảnh cưới</h2>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
