@@ -3,6 +3,7 @@
 // canEdit/isLocked/isPrintConfirmed/previewAccess, mapping dòng Supabase
 // (recordToRow/rowToRecord + mặc định khi thiếu cột), isSupabaseConfigured,
 // storeKind (file / none / supabase), cookie phiên admin + isAdminRequest,
+// KHÔNG cache lần đọc Supabase (sbFetch cache no-store — lỗi live 09/11),
 // và vòng đời file-store (upsert/get/list/update + khóa chốt in).
 //   printf '%s' '{"compilerOptions":{"baseUrl":"'$PWD'","paths":{"@/*":["src/*"]},"outDir":"/tmp/duyet-test-out","module":"commonjs","target":"es2022","moduleResolution":"node","skipLibCheck":true,"esModuleInterop":true,"lib":["es2022","dom"],"types":["node"],"typeRoots":["'$PWD'/node_modules/@types"]},"include":["'$PWD'/src/lib/access.ts","'$PWD'/src/lib/supabase.ts","'$PWD'/src/lib/server-store.ts","'$PWD'/src/lib/server-auth.ts","'$PWD'/src/lib/admin-session.ts","'$PWD'/src/lib/payment.ts","'$PWD'/src/lib/types.ts","'$PWD'/src/lib/physical-forms.ts"]}' > /tmp/duyet-tsconfig.json
 //   (include phải là đường dẫn tuyệt đối vì tsconfig nằm ở /tmp; types node bắt buộc vì các lib dùng Buffer/process/fs/crypto)
@@ -214,6 +215,64 @@ function makeRec(status, extra = {}) {
   if (savedKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = savedKey;
 }
 
+// --- Supabase: KHÔNG cache lần đọc (lỗi live 2026-11-09) ---
+// Next.js Data Cache giữ lại lời gọi fetch GET trong route handler ở bản
+// production: lần đọc đầu (preview_for_print / bảng trống) bị cache, mọi
+// lần đọc sau vẫn trả cũ dù POST confirm đã ghi confirmed — /quan-ly mãi
+// trống, ?kind=admin mãi thấy preview_for_print. Ở dev không cache nên
+// test local trước đây không lộ. Mọi lời gọi sbFetch phải mang
+// cache:"no-store". Test bằng fetch giả có trạng thái (fake PostgREST).
+{
+  const savedUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const savedKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://x.supabase.co";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "key-abc";
+  const dbRow = {
+    id: "thiep-cache-1", data: { groomName: "A" }, status: "preview_for_print",
+    edit_token: "et1", preview_token: "pt1", custom_texts: {}, history: [], messages: [],
+    created_at: null, updated_at: null, confirmed_at: null, guest_token: "",
+    guest_tokens: {}, payment_memo: "", locked_at: null, preview_expires_at: null,
+    paid_at: null, paid_amount: null, paid_ref: null, paid_template_id: null,
+    paid_memo: null, reconcile_log: [], edited_fields: [], manual_list: [],
+  };
+  const db = new Map([["thiep-cache-1", dbRow]]);
+  const calls = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), init });
+    const u = new URL(String(url));
+    const idEq = u.searchParams.get("id")?.replace(/^eq\./, "");
+    if (init.method === "PATCH" && idEq && db.has(idEq)) {
+      const body = JSON.parse(init.body);
+      db.set(idEq, { ...db.get(idEq), ...body });
+      return { ok: true, text: async () => JSON.stringify([db.get(idEq)]) };
+    }
+    if (init.method === "POST") {
+      const body = JSON.parse(init.body);
+      db.set(body.id, body);
+      return { ok: true, text: async () => JSON.stringify([body]) };
+    }
+    const rows = idEq ? (db.has(idEq) ? [db.get(idEq)] : []) : [...db.values()];
+    return { ok: true, text: async () => JSON.stringify(rows) };
+  };
+  try {
+    const before = await sup.supabaseGet("thiep-cache-1");
+    check("cache: GET trước PATCH thấy preview_for_print", before !== null && before.status === "preview_for_print");
+    const rec = { ...before, status: "confirmed", customerConfirmedAt: "2026-11-09T10:00:00.000Z", updatedAt: "2026-11-09T10:00:00.000Z" };
+    await sup.supabaseSave(rec);
+    const after = await sup.supabaseGet("thiep-cache-1");
+    check("cache: GET sau PATCH thấy confirmed (không trả cũ)", after !== null && after.status === "confirmed");
+    const list = await sup.supabaseListAll();
+    check("cache: list sau khi có bản ghi không trả []", list.length === 1 && list[0].status === "confirmed");
+    check("cache: mọi lời gọi sbFetch đều mang cache no-store", calls.length > 0 && calls.every((c) => c.init.cache === "no-store"));
+    check("cache: có cả GET lẫn PATCH trong các lời gọi", calls.some((c) => !c.init.method || c.init.method === "GET") && calls.some((c) => c.init.method === "PATCH"));
+  } finally {
+    globalThis.fetch = realFetch;
+    if (savedUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL; else process.env.NEXT_PUBLIC_SUPABASE_URL = savedUrl;
+    if (savedKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY; else process.env.SUPABASE_SERVICE_ROLE_KEY = savedKey;
+  }
+}
+
 // --- storeKind: file / none / supabase ---
 {
   delete process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -314,6 +373,7 @@ function makeRec(status, extra = {}) {
   check("schema.sql: có confirmed_at", schemaSrc.includes("confirmed_at"));
   check("schema.sql: bật RLS", schemaLower.includes("enable row level security"));
   check("schema.sql: không policy công khai", !/create policy/i.test(schemaSrc));
+  check("supabase.ts: sbFetch dùng cache no-store (chống đọc cũ)", readSrc("src/lib/supabase.ts").includes('cache: "no-store"'));
   const quanLy = readSrc("src/app/(app)/quan-ly/page.tsx");
   check("quan-ly: có banner chờ duyệt", quanLy.includes("đang chờ duyệt"));
   check("quan-ly: có 5 tab", quanLy.includes('"Chờ duyệt"') && quanLy.includes('"Đã duyệt"') && quanLy.includes('"Đã in"') && quanLy.includes('"Nháp"'));
