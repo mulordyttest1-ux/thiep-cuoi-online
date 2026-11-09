@@ -287,11 +287,13 @@ props; không có code riêng theo mẫu bên trong thư viện). Tất cả đ�
   useSpring scaleX). Props: color, height.
 
 ### Gán hiệu ứng theo mẫu — src/lib/templates.ts
-- Trường `effects?: TemplateEffects` trên mỗi mẫu (burst/ambient/shimmer/
-  kenBurns/reveal/parallax/progressBar + thông số). `getTemplateEffects(id)`
-  trả effects khai báo, không có thì `defaultEffectsFor(id)` sinh từ hash
-  của id (mulberry32, src/lib/seeded.ts) — mỗi mẫu một combo khác nhau
-  nhưng ổn định, không xáo lại mỗi lần render.
+- Trường `effects?: TemplateEffects` + `variant?: EffectVariant` trên mỗi
+  mẫu (burst/ambient/shimmer/kenBurns/reveal/parallax/progressBar + thông
+  số). Từ 2026-11-09 (§4i): mọi mẫu gán 1 trong 6 preset đặt tên
+  (`VARIANT_PRESETS`); `getTemplateEffects(id)` trả effects khai báo, không
+  có thì preset theo variant, cuối cùng mới `defaultEffectsFor(id)` sinh từ
+  hash của id (mulberry32, src/lib/seeded.ts) — fallback cuối, hiện không
+  mẫu nào rơi tới đó.
 - **Song Phụng Đỏ (bộ đầy đủ):** burst 40 hạt / 1.1s / spread 220 (+ chớp
   vàng, sống tới 1600ms); ambient 36 hạt, mờ 0.9 (30% hạt ở dải hero);
   shimmer strong 3s;
@@ -377,6 +379,79 @@ progress bar mọc, cross-dissolve + shimmer thấy rõ). Nguyên nhân + sửa:
    đi 0 → tớiScrollY rồi giữ nguyên, clamp); phụng trái dùng range
    [900, −180] — đuôi thành chấm nhỏ ngay khi chỗ nối vào khung, không bay
    đi xa khi cuộn tiếp. Phụng phải +0.08 / HOA +0.05 giữ nguyên speed.
+
+## 4i. 6 biến thể hiệu ứng đặt tên (2026-11-09)
+
+Bối cảnh: trước đây chỉ Song Phụng Đỏ có effects khai báo riêng, 27 mẫu
+còn lại dùng `defaultEffectsFor(id)` sinh NGẪU NHIÊN theo hash — mỗi mẫu
+một combo khác nhau nhưng không có chủ đích, không bán được như "phong
+cách". Nay mỗi mẫu gán đúng 1 trong 6 preset đặt tên trong
+`VARIANT_PRESETS` (src/lib/templates.ts); `defaultEffectsFor` chỉ còn là
+fallback cuối, không mẫu nào rơi tới đó. Nghiên cứu ý tưởng (chỉ học
+motion, không copy code/assets): docs/effect-variants-research.md.
+
+| Biến thể | Cảm giác | Nổ | Ambient | Khác |
+|---|---|---|---|---|
+| `le-nghi` Truyền Thống Lễ Nghi | Chậm, trang trọng | 60 hạt vàng, 1.4s | tia vàng 16 + cánh hoa 6 | shimmer mạnh, hero ghim, hạt phim, đếm chương, marquee, parallax mạnh |
+| `hoa-bay` Lãng Mạn Hoa Bay | Nhẹ, mơ màng | 24 hạt hồng/vàng | CHỈ cánh hoa rơi (14, hồng/vàng) | reveal subtle, KHÔNG hạt phim/chương/ghim |
+| `anh-vang` Sang Trọng Ánh Vàng | Lấp lánh, xa xỉ | 70 hạt vàng, 1.5s | bokeh mờ (BokehGlow mới) + sao 4 cánh khắp trang (Twinkle) | shimmer mạnh, KHÔNG cánh hoa, KHÔNG hạt phim |
+| `toi-gian` Tối Giản Hiện Đại | Sạch, nhanh | KHÔNG (count 0, cả chớp cũng tắt) | KHÔNG | reveal subtle, Ken Burns 10s/1.05, KHÔNG marquee/ghim/chương/hạt phim, parallax 0 |
+| `dien-anh` Điện Ảnh Cuộn Chuyện | Như xem phim | 36 hạt | tia vàng 12 | hero ghim, hạt phim, đếm chương, marquee, parallax mạnh nhất, Ken Burns chậm 12s |
+| `le-hoi` Lễ Hội Rực Rỡ | Vui, náo nhiệt | 90 hạt NHIỀU MÀU, 1.6s | tia vàng 14 + cánh hoa 10 màu + sao 4 cánh | marquee, Ken Burns nhanh 6s, KHÔNG hạt phim/ghim/chương |
+
+Bảng gán mẫu → biến thể:
+
+(Cột Ambient trong bảng trên là Ý ĐỊNH của preset — lớp nền theo `kind`
+chưa cắm vào trang khách, xem "CHỜ CẮM" dưới đây; hiện mọi biến thể có
+ambient vẫn hiện tia vàng + cánh hoa như cũ.)
+
+- **le-nghi** (4): song-phung-do (flagship — preset Y HỆT bộ inline cũ),
+  long-phung, song-hy-do, nhat-binh-do.
+- **dien-anh** (3): song-phung-hong, song-hy-xanh, nhat-binh-xanh-ngoc.
+- **hoa-bay** (5): hoa-moc, mai-lan-trang, vuon-kinh, hoa-sen-hong,
+  lavender-tim.
+- **anh-vang** (6): cam-thach-vang, baroque, ren-theu, hoang-gia-vang,
+  cam-thach-hong, bien-xanh.
+- **toi-gian** (8): minimal-do-do, minimal-nau, minimal-lam-dam,
+  minimal-den-trang, minimal-hong-phan, minimal-xanh-reu, minimal-kem-vang,
+  hien-dai-be.
+- **le-hoi** (2): vuon-hong, song-hy-vang.
+
+Thay đổi kỹ thuật:
+
+- `TemplateEffects.ambient` thêm `kind` ("sparkle" | "petals" | "both" |
+  "bokeh", mặc định "both" giữ hành vi cũ), `petals` (số cánh hoa, mặc
+  định 6), `petalColors`; thêm `twinkle?: { count }` (sao 4 cánh khắp
+  trang — riêng 4 sao quanh tên hero mẫu deco luôn có, không theo mục này).
+- Component mới: **BokehGlow** (src/components/effects/BokehGlow.tsx) —
+  đốm sáng mờ radial-gradient trôi chậm, chỉ transform/opacity, tắt khi
+  prefers-reduced-motion (keyframes `.bokeh-drift` trong globals.css, đã
+  thêm vào danh sách tắt khi reduce); và **AmbientLayer**
+  (src/components/effects/AmbientLayer.tsx) — gom tia vàng + cánh hoa +
+  bokeh + sao 4 cánh theo `fx` vào một chỗ. ScrollReveal `wipe`
+  (clip-path) đã có từ C10 nên không cần CurtainWipe riêng.
+- CHỜ CẮM (ranh giới file với task khối thêm/bớt, 2026-11-09):
+  InvitationPreview vẫn render khối ambient cũ (tia vàng + cánh hoa cố
+  định khi `fx.ambient` có mặt) — KHÔNG sửa render section của file đó
+  trong task này. Cắm sau, 1 dòng, khi task khối xong: thay khối ambient
+  cuối article bằng
+  `{motion && <AmbientLayer fx={fx} templateId={data.templateId} />}` —
+  xem docs/effect-variants-research.md § "CHỜ CẮM". Tới lúc đó `hoa-bay`
+  mới chỉ còn cánh hoa rơi, `anh-vang` mới chỉ còn bokeh + sao; các khác
+  biệt khác của biến thể (nổ, hạt phim, marquee, hero ghim, đếm chương,
+  Ken Burns, reveal, parallax) đã chạy qua code render có sẵn.
+- `Template` thêm trường `variant?: EffectVariant`; `getTemplateEffects`
+  ưu tiên effects khai báo → preset theo variant → fallback theo id.
+  `isEffectVariant` + `getVariantEffects` phục vụ `?fx=`.
+- Thử nhanh: `/thiep/<id>?fx=<variant>` trên trang khách (vd
+  `/thiep/demo?fx=hoa-bay`, kết hợp `?d=` thật:
+  `/thiep/<id>?d=<...>&fx=anh-vang`). Giá trị lạ → bỏ qua, dùng preset
+  của mẫu. Chỉ để thử khi xem demo — không đổi dữ liệu, không thêm UI cho
+  khách thật. Trang khách truyền `effectsOverride` xuống InvitationPreview;
+  editor/thumbnail/library preview giữ tĩnh như cũ.
+- Quy tắc sắt giữ nguyên: ảnh album opacity 1 mọi lúc (không fade,
+  không crossfade); sparkle là sao 4 cánh / tia vàng mảnh, KHÔNG hạt tròn
+  vàng trên nền kem.
 
 ## 5. Không tìm được trong file đã tải (không bịa)
 
