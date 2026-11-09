@@ -139,7 +139,7 @@ function KhachInner() {
       <div className="mx-auto max-w-2xl px-4 py-10">
         <h1 className="font-display text-3xl font-bold text-[#7a1f2b]">Không mở được thiệp này</h1>
         <p className="mt-2 text-sm text-[#5a4a48]">
-          Link sửa đã hết hạn hoặc không đúng. Nhờ Nancy gửi lại link mới.{error ? ` (${error})` : ""}
+          Link sửa đã hết hạn hoặc không đúng. Nhờ Thiết kế gửi lại link mới.{error ? ` (${error})` : ""}
         </p>
       </div>
     );
