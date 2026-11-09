@@ -4,14 +4,15 @@ import { useState } from "react";
 import { motion as FM, useReducedMotion } from "framer-motion";
 import type { InvitationData, StdEditField } from "@/lib/types";
 import { formatDateVi, minusMinutes, parseDressCode, parseSchedule } from "@/lib/types";
-import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS } from "@/lib/templates";
+import { getTemplate, getTemplateEffects, PRESET_PHOTOS, TEMPLATE_FONT_CLASS, type TemplateEffects } from "@/lib/templates";
 import { getDateParts } from "@/lib/lunar";
 import { effectiveCeremonyDate } from "@/lib/cep";
 import { customTextValue } from "@/lib/custom-texts";
+import { isBlockVisible } from "@/lib/blocks";
 import Countdown from "./Countdown";
 import TemplateMotif from "./TemplateMotif";
 import { SongPhungBand } from "./SongPhungDecor";
-import { GoldSparkles, ImageReveal, KenBurns, Marquee, ParallaxLayer, PetalFall, PinnedHero, ScrollReveal, SplitLines, StaggeredText, Twinkle } from "./effects";
+import { AmbientLayer, ImageReveal, KenBurns, Marquee, ParallaxLayer, PinnedHero, ScrollReveal, SplitLines, StaggeredText, Twinkle } from "./effects";
 
 const FRAME_OUTER: Record<string, number> = { single: 2, double: 3, triple: 4, scallop: 2, band: 2 };
 const FRAME_INNER: Record<string, string> = {
@@ -24,10 +25,14 @@ const FRAME_INNER: Record<string, string> = {
 
 export type SensitiveField = "names" | "date" | "time" | "venue";
 
-export default function InvitationPreview({ data, guestName, motion, blurred, revealedField, onSensitiveClick, editable, onFieldTap, onCustomTextTap, customTexts, editedFields, editedCustomTexts }: {
+export default function InvitationPreview({ data, guestName, motion, blurred, revealedField, onSensitiveClick, editable, onFieldTap, onCustomTextTap, customTexts, editedFields, editedCustomTexts, effectsOverride }: {
   data: InvitationData;
   guestName?: string;
   motion?: boolean;
+  /** Ghi đè bộ hiệu ứng của mẫu (vd ?fx= trên trang khách để thử biến thể
+   *  khác — chỉ để thử, không đổi dữ liệu thiệp). Không truyền = preset
+   *  của mẫu như thường. */
+  effectsOverride?: TemplateEffects;
   /** Demo online (v3-final): blur tên/ngày/giờ/địa điểm. Không truyền = thiệp rõ như cũ (trang khách, editor thường). */
   blurred?: boolean;
   /** Trường đang được bấm xem rõ / sửa trong demo — hiện rõ lại. */
@@ -51,10 +56,11 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   const tpl = getTemplate(data.templateId);
   const p = tpl.palette;
   const deco = tpl.decorationImages;
-  // Bộ hiệu ứng của mẫu (khai báo trong templates.ts, không có thì sinh theo
-  // id — xem specs/song-phung-do.md §4h). motion=true chỉ ở trang khách:
-  // editor/thumbnail/dialog preview để false để bố cục đứng yên như QA17.
-  const fx = getTemplateEffects(data.templateId);
+  // Bộ hiệu ứng của mẫu (preset của biến thể trong templates.ts, không có
+  // thì sinh theo id — xem specs/song-phung-do.md §4h/§4i). motion=true chỉ
+  // ở trang khách: editor/thumbnail/dialog preview để false để bố cục đứng
+  // yên như QA17. effectsOverride (?fx=) thắng preset của mẫu.
+  const fx = effectsOverride ?? getTemplateEffects(data.templateId);
   const fontClass = TEMPLATE_FONT_CLASS[tpl.font];
   const reduce = useReducedMotion();
   const nameSize = tpl.font === "script" ? "text-5xl sm:text-6xl" : "text-4xl sm:text-5xl";
@@ -99,6 +105,16 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   // giờ lễ; các mục tiệc vẫn dùng giờ tiệc.
   const ceremonyTime = data.ceremonyTime?.trim() ? data.ceremonyTime : data.time;
   const dressColors = deco ? parseDressCode(data.dressCode) : [];
+  // Khối online thêm/bớt (src/lib/blocks.ts): chỉ quyết định section nào
+  // render — không đụng hiệu ứng, không đụng dữ liệu in. Lõi (hero +
+  // thông tin lễ + thông tin tiệc) không nằm trong danh sách này nên lúc
+  // nào cũng hiện.
+  const showAlbum = isBlockVisible(data, "album");
+  const showCountdown = isBlockVisible(data, "countdown");
+  const showTimeline = isBlockVisible(data, "timeline");
+  const showDresscode = isBlockVisible(data, "dresscode");
+  const showMap = isBlockVisible(data, "map");
+  const showStory = isBlockVisible(data, "story");
   // Vòng 17: query embed CHỈ lấy địa chỉ (data.address) — query kèm tên
   // địa điểm ("Trung tâm Tiệc cưới Sen Hồng 123 Đường Láng...") khiến
   // Google match nhầm sang khu Hồ Tây/Thụy Khuê (có địa điểm tên Sen Hồng
@@ -554,6 +570,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 như bản gốc (~320×485) — vòng 13 khung ngang 300×220.
                 Ảnh stock ngang bị crop dọc bằng object-cover, chấp nhận
                 được, đúng định dạng gốc; hình học xòe ngang giữ nguyên. */}
+            {showAlbum && (
             <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
             <section data-chapter="3" className="relative z-20 mx-auto mt-10 w-full max-w-[560px]" aria-label={vi ? "Album ảnh cưới" : "Wedding album"}>
               <h3 className="font-display text-center text-[20px] font-bold uppercase md:text-[24px]" style={{ color: "#710001" }}>
@@ -599,6 +616,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
               </div>
             </section>
             </ScrollReveal>
+            )}
           </>
         ) : (
           <>
@@ -659,13 +677,13 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         )}
         {/* Đếm ngược: bản gốc KHÔNG có đếm ngược trong khối THÔNG TIN — nó nằm
             ở section tiệc, sau Lịch trình. Mẫu không-deco giữ vị trí cũ. */}
-        {!deco && <Countdown date={data.date} time={data.time} accent={p.accent} />}
+        {!deco && showCountdown && <Countdown date={data.date} time={data.time} accent={p.accent} />}
         {(!deco && (data.message || editable)) && (
         <p className="mx-auto mt-6 max-w-lg whitespace-pre-line text-sm leading-relaxed sm:text-base">{editWrap("message", data.message || "+ Thêm lời mời", { strong: true })}</p>
         )}
         {/* Lịch trình dạng hàng be chỉ giữ cho mẫu không-deco; mẫu deco
             dùng timeline dọc có chấm ở cuối trang (sau dress code). */}
-        {!deco && schedule.length > 0 && (
+        {!deco && showTimeline && schedule.length > 0 && (
           <section className="mx-auto mt-6 max-w-md text-left" aria-label={vi ? "Lịch trình" : "Schedule"}>
             <h3 className="text-center font-semibold" style={{ color: p.accent }}>{vi ? "Lịch trình" : "Schedule"}</h3>
             <ul className="mt-3 space-y-2 text-sm">
@@ -806,7 +824,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             không thấy ghim; bản gốc zoom vào địa điểm với ghim + place
             card), cao 280px md:380px, tối đa 340px md:560px, bo 16px —
             đúng số gốc, link "Xem bản đồ". */}
-        {deco && (
+        {deco && showMap && (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
           <section data-chapter="4" className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Địa điểm tiệc cưới" : "Reception venue"}>
             <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: "#710001" }}>
@@ -847,7 +865,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             "DRESS CODE", phụ đề "Trang phục dự tiệc" / "Party Attire").
             Chỉ hiện khi dữ liệu có màu; thứ tự gốc: sau bản đồ, trước
             timeline. */}
-        {deco && dressColors.length > 0 && (
+        {deco && showDresscode && dressColors.length > 0 && (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
           <section data-chapter="5" className="relative z-20 mx-auto mt-10 text-center" aria-label="Dress code">
             <h3 className="font-display text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
@@ -898,7 +916,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         {deco && motion && fx.cinema?.marquee !== false && (
           <Marquee text={`${data.brideName} & ${data.groomName}`} />
         )}
-        {deco && schedule.length > 0 && (
+        {deco && showTimeline && schedule.length > 0 && (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
           <section data-chapter="6" className="relative z-20 mx-auto mt-10 w-full text-left" aria-label={vi ? "Lịch trình ngày cưới" : "Wedding day schedule"}>
             <h3 className="font-display text-center text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
@@ -931,7 +949,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         )}
         {/* Câu chuyện chỉ giữ cho mẫu không-deco; bản gốc không có section
             này với mẫu Song Phụng Đỏ nên ẩn với deco (vòng 12). */}
-        {!deco && data.story && (
+        {!deco && showStory && data.story && (
           <section className="mx-auto mt-6 max-w-lg text-left" aria-label={vi ? "Câu chuyện tình yêu" : "Our story"}>
             <h3 className="text-center font-semibold" style={{ color: p.accent }}>{vi ? "Câu chuyện của chúng tôi" : "Our story"}</h3>
             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{data.story}</p>
@@ -949,15 +967,10 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
           <TemplateMotif motif={tpl.motif} accent={p.accent} gold={p.gold} size="sm" />
         </div>
       )}
-      {/* Lấp lánh vàng (shadcn Sparkles: bụi mịn + điểm sáng + tia 4 cánh)
-          + cánh hoa rơi khắp thiệp (chỉ trang khách, theo effects.ambient
-          của mẫu; không chặn chạm/đọc — §4h). */}
-      {motion && fx.ambient && (
-        <>
-          <GoldSparkles count={fx.ambient.count ?? 16} speed={fx.ambient.speed ?? 1} seed={data.templateId} className="pointer-events-none absolute inset-0 z-30" />
-          <PetalFall count={6} seed={data.templateId} className="z-30" />
-        </>
-      )}
+      {/* Lớp ambient theo biến thể (§4i): tia vàng / cánh hoa / bokeh /
+          sao 4 cánh — AmbientLayer đọc kind từ preset của mẫu; chỉ trang
+          khách, không chặn chạm/đọc. */}
+      {motion && <AmbientLayer fx={fx} templateId={data.templateId} />}
     </article>
     </div>
   );
