@@ -47,6 +47,110 @@ export default function ManagePage() {
   const [localGhost, setLocalGhost] = useState<{ ghost: string; meta: string; plain: string } | null>(null);
   const [replyText, setReplyText] = useState("");
 
+  // Bảng duyệt thiệp (giai đoạn 2): danh sách thiệp trên máy chủ theo trạng
+  // thái — khách vừa chốt thì hiện thông báo + số lượng để Nancy vào xem.
+  // Chỉ admin (cookie phiên AdminGate hoặc token nhập tay). Tải khi mở
+  // trang và sau mỗi lần đổi trạng thái.
+  interface BoardItem {
+    id: string;
+    groomName: string;
+    brideName: string;
+    date: string;
+    time: string;
+    venue: string;
+    status: string;
+    statusLabel: string;
+    customerConfirmedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }
+  type BoardTab = "all" | "pending" | "reviewed" | "printed" | "draft";
+  const BOARD_TABS: { key: BoardTab; label: string }[] = [
+    { key: "all", label: "Tất cả" },
+    { key: "pending", label: "Chờ duyệt" },
+    { key: "reviewed", label: "Đã duyệt" },
+    { key: "printed", label: "Đã in" },
+    { key: "draft", label: "Nháp" },
+  ];
+  const [board, setBoard] = useState<BoardItem[]>([]);
+  const [boardTab, setBoardTab] = useState<BoardTab>("all");
+  const [boardStore, setBoardStore] = useState<string>("");
+  const [boardLoading, setBoardLoading] = useState(false);
+  const [boardNotice, setBoardNotice] = useState("");
+  const [reviewBusy, setReviewBusy] = useState(false);
+
+  const loadBoard = async () => {
+    setBoardLoading(true);
+    try {
+      const res = await fetch("/api/invitations/list", {
+        headers: adminToken ? { "x-admin-token": adminToken } : {},
+      });
+      const j = (await res.json()) as Record<string, unknown>;
+      if (!res.ok || !j.ok) {
+        setBoard([]);
+        setBoardNotice(typeof j.error === "string" ? j.error : "Không tải được bảng duyệt.");
+        return;
+      }
+      setBoard((j.items as BoardItem[] | undefined) ?? []);
+      setBoardStore(typeof j.store === "string" ? j.store : "");
+      setBoardNotice("");
+    } catch {
+      setBoardNotice("Không kết nối được máy chủ.");
+    }
+    setBoardLoading(false);
+  };
+
+  // Đếm từng tab từ danh sách (khớp reviewTabOf trong access.ts: chờ
+  // duyệt = confirmed + locked_for_print cũ; nháp = draft + preview).
+  const boardCounts = useMemo(() => {
+    const c: Record<BoardTab, number> = { all: board.length, pending: 0, reviewed: 0, printed: 0, draft: 0 };
+    for (const b of board) {
+      if (b.status === "confirmed" || b.status === "locked_for_print") c.pending++;
+      else if (b.status === "reviewed") c.reviewed++;
+      else if (b.status === "printed") c.printed++;
+      else if (b.status === "draft" || b.status === "preview_for_print") c.draft++;
+    }
+    return c;
+  }, [board]);
+  const pendingCount = boardCounts.pending;
+  const filteredBoard = useMemo(() => {
+    if (boardTab === "all") return board;
+    return board.filter((b) => {
+      if (boardTab === "pending") return b.status === "confirmed" || b.status === "locked_for_print";
+      if (boardTab === "reviewed") return b.status === "reviewed";
+      if (boardTab === "printed") return b.status === "printed";
+      return b.status === "draft" || b.status === "preview_for_print";
+    });
+  }, [board, boardTab]);
+
+  const changeReview = async (id: string, action: "reviewed" | "printed" | "reopen") => {
+    setReviewBusy(true);
+    try {
+      const res = await fetch(`/api/invitations/${encodeURIComponent(id)}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(adminToken ? { "x-admin-token": adminToken } : {}) },
+        body: JSON.stringify({ action }),
+      });
+      const j = (await res.json()) as Record<string, unknown>;
+      if (!res.ok || !j.ok) {
+        setServerNotice(typeof j.error === "string" ? j.error : "Không đổi được trạng thái.");
+        return;
+      }
+      setServerNotice("");
+      await loadBoard();
+      await loadServerRecord(id);
+    } catch {
+      setServerNotice("Không kết nối được máy chủ.");
+    }
+    setReviewBusy(false);
+  };
+
+  const fmtDate = (iso: string) => {
+    if (!iso) return "—";
+    const [y, m, d] = iso.split("-");
+    return d && m && y ? `${d}/${m}/${y}` : iso;
+  };
+
   const fmtTime = (iso: string) => {
     try {
       const d = new Date(iso);
@@ -65,15 +169,17 @@ export default function ManagePage() {
     };
   }, [serverRecord]);
 
-  const loadServerRecord = async () => {
-    if (!invitationId) {
+  const loadServerRecord = async (id?: string) => {
+    const targetId = id ?? invitationId;
+    if (id) setInvitationId(id);
+    if (!targetId) {
       setServerNotice("Chưa có id thiệp.");
       return;
     }
     setServerLoading(true);
     setLocalGhost(null);
     try {
-      const res = await fetch(`/api/invitations/${encodeURIComponent(invitationId)}?kind=admin`, {
+      const res = await fetch(`/api/invitations/${encodeURIComponent(targetId)}?kind=admin`, {
         headers: adminToken ? { "x-admin-token": adminToken } : {},
       });
       const j = (await res.json()) as Record<string, unknown>;
@@ -142,6 +248,8 @@ export default function ManagePage() {
     } catch {
       setNotice("Không đọc được dữ liệu đã lưu. Trang hiển thị danh sách trống.");
     }
+    loadBoard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const persist = (next: Guest[]) => {
@@ -267,6 +375,86 @@ export default function ManagePage() {
       )}
       {notice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{notice}</p>}
 
+      {/* Bảng duyệt thiệp (giai đoạn 2): khách chốt xong hiện thông báo ở
+          đây để Nancy vào xem — không cần khách copy-paste gì. */}
+      {pendingCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setBoardTab("pending")}
+          className="mt-4 block w-full rounded-2xl bg-amber-100 px-4 py-3 text-left text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-200"
+          role="status"
+        >
+          Có {pendingCount} thiệp khách vừa chốt — đang chờ duyệt. Bấm để xem.
+        </button>
+      )}
+
+      <section className="mt-6 rounded-2xl border bg-white p-5 shadow-sm" aria-label="Bảng duyệt thiệp">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-semibold text-[#7a1f2b]">Bảng duyệt thiệp</h2>
+          <button
+            type="button"
+            onClick={loadBoard}
+            disabled={boardLoading}
+            className="rounded-full border px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          >
+            {boardLoading ? "Đang tải…" : "↻ Tải lại"}
+          </button>
+        </div>
+        {boardStore === "none" && (
+          <p className="mt-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">
+            Chưa cấu hình máy chủ (Supabase) nên bảng duyệt trống. Cần tạo project Supabase + chạy SQL + đặt biến môi trường thì thiệp khách chốt mới hiện ở đây.
+          </p>
+        )}
+        {boardStore === "file" && (
+          <p className="mt-2 text-xs text-[#7a6a68]">Đang dùng file local (chỉ để test — lên Vercel sẽ mất, cần Supabase).</p>
+        )}
+        {boardNotice && <p className="mt-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status">{boardNotice}</p>}
+        <div className="mt-3 flex flex-wrap gap-2" role="tablist" aria-label="Lọc thiệp theo trạng thái">
+          {BOARD_TABS.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              role="tab"
+              aria-selected={boardTab === t.key}
+              onClick={() => setBoardTab(t.key)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold ${boardTab === t.key ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}
+            >
+              {t.label} ({boardCounts[t.key]})
+            </button>
+          ))}
+        </div>
+        {filteredBoard.length === 0 ? (
+          <p className="mt-4 text-sm text-[#7a6a68]">
+            {board.length === 0 ? "Chưa có thiệp nào trên máy chủ." : "Không có thiệp nào ở trạng thái này."}
+          </p>
+        ) : (
+          <ul className="mt-4 space-y-2">
+            {filteredBoard.map((b) => (
+              <li key={b.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadServerRecord(b.id);
+                    document.getElementById("chu-illustrator")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="block w-full rounded-xl border bg-[#fdf8f1] px-4 py-3 text-left hover:border-[#7a1f2b]"
+                >
+                  <span className="block font-semibold text-[#7a1f2b]">
+                    {b.groomName || "(chưa có tên chú rể)"} &amp; {b.brideName || "(chưa có tên cô dâu)"}
+                  </span>
+                  <span className="mt-1 block text-sm text-[#5a4a48]">
+                    Tiệc: {fmtDate(b.date)}{b.time ? ` lúc ${b.time}` : ""}{b.venue ? ` · ${b.venue}` : ""} · {b.statusLabel}
+                  </span>
+                  <span className="mt-1 block text-xs text-[#7a6a68]">
+                    {b.customerConfirmedAt ? `Khách chốt lúc ${fmtTime(b.customerConfirmedAt)}` : "Khách chưa chốt"} · id: {b.id}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
       {/* Tổng số khách */}
       <div className="mt-6" aria-label="Tổng số khách mời">
         <div className="w-fit rounded-2xl border bg-white px-6 py-4 shadow-sm">
@@ -349,7 +537,7 @@ export default function ManagePage() {
       </div>
 
       {/* Chữ cho Illustrator + chat + lịch sử (mẫu chuẩn #1) */}
-      <section className="mt-10 rounded-2xl border bg-white p-5 shadow-sm" aria-label="Chữ cho Illustrator">
+      <section id="chu-illustrator" className="mt-10 rounded-2xl border bg-white p-5 shadow-sm" aria-label="Chữ cho Illustrator">
         <h2 className="font-semibold text-[#7a1f2b]">Chữ cho Illustrator — khách đã chốt</h2>
         <p className="mt-1 text-sm text-[#5a4a48]">
           Tải bản ghi máy chủ của thiệp (id: <code className="rounded bg-[#f3e8d8] px-1">{invitationId}</code>) để lấy
@@ -364,7 +552,7 @@ export default function ManagePage() {
           />
           <button
             type="button"
-            onClick={loadServerRecord}
+            onClick={() => loadServerRecord()}
             disabled={serverLoading}
             className="rounded-full bg-[#7a1f2b] px-5 py-2.5 font-semibold text-white disabled:opacity-60"
           >
@@ -381,6 +569,42 @@ export default function ManagePage() {
                 ? <>Khách đã chốt lúc {fmtTime(serverRecord.customerConfirmedAt)}</>
                 : "Khách chưa chốt"}
             </p>
+            {/* Đổi trạng thái duyệt: chỉ hiện nút hợp lệ với trạng thái hiện tại. */}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(serverRecord.status === "confirmed" || serverRecord.status === "locked_for_print") && (
+                <button
+                  type="button"
+                  onClick={() => changeReview(invitationId, "reviewed")}
+                  disabled={reviewBusy}
+                  className="rounded-full bg-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  Đã duyệt
+                </button>
+              )}
+              {serverRecord.status === "reviewed" && (
+                <button
+                  type="button"
+                  onClick={() => changeReview(invitationId, "printed")}
+                  disabled={reviewBusy}
+                  className="rounded-full bg-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                >
+                  Đã in
+                </button>
+              )}
+              {(serverRecord.status === "confirmed" ||
+                serverRecord.status === "reviewed" ||
+                serverRecord.status === "printed" ||
+                serverRecord.status === "locked_for_print") && (
+                <button
+                  type="button"
+                  onClick={() => changeReview(invitationId, "reopen")}
+                  disabled={reviewBusy}
+                  className="rounded-full border px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
+                >
+                  Mở lại
+                </button>
+              )}
+            </div>
             <div>
               <label htmlFor="ql-ghost" className="text-sm font-semibold">Ghost text (chỉ trường dữ liệu)</label>
               <textarea
