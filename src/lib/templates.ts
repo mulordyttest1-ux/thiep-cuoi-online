@@ -41,23 +41,52 @@ export interface TemplateDecorationImages {
   phuongRight: string; // Phụng Phải
 }
 
+// Biến thể hiệu ứng (2026-11-09, xem specs/song-phung-do.md §4i +
+// docs/effect-variants-research.md): 6 preset ĐẶT TÊN, có chủ đích — mỗi
+// mẫu trong TEMPLATES gán đúng 1 biến thể, không còn random theo hash.
+// - le-nghi: Truyền Thống Lễ Nghi (chậm, trang trọng, pinned hero)
+// - hoa-bay: Lãng Mạn Hoa Bay (cánh hoa rơi nhẹ, mơ màng)
+// - anh-vang: Sang Trọng Ánh Vàng (bokeh + sao 4 cánh, lấp lánh)
+// - toi-gian: Tối Giản Hiện Đại (sạch, nhanh, gần như không effect)
+// - dien-anh: Điện Ảnh Cuộn Chuyện (chương + hạt phim + hero ghim)
+// - le-hoi: Lễ Hội Rực Rỡ (nổ lớn nhiều màu, năng động)
+export type EffectVariant = "le-nghi" | "hoa-bay" | "anh-vang" | "toi-gian" | "dien-anh" | "le-hoi";
+
+export const VARIANT_LABELS: Record<EffectVariant, string> = {
+  "le-nghi": "Truyền Thống Lễ Nghi",
+  "hoa-bay": "Lãng Mạn Hoa Bay",
+  "anh-vang": "Sang Trọng Ánh Vàng",
+  "toi-gian": "Tối Giản Hiện Đại",
+  "dien-anh": "Điện Ảnh Cuộn Chuyện",
+  "le-hoi": "Lễ Hội Rực Rỡ",
+};
+
 // Bộ hiệu ứng của một mẫu — chọn từ thư viện src/components/effects (mỗi
-// hiệu ứng nhận thông số riêng, xem specs/song-phung-do.md §4h). Mẫu nào
-// không khai báo thì tự nhận một bộ khác nhau nhưng ổn định theo id
-// (defaultEffectsFor) để mỗi mẫu trông hơi khác nhau mà không cần cấu hình.
+// hiệu ứng nhận thông số riêng, xem specs/song-phung-do.md §4h). Mỗi mẫu
+// gán 1 biến thể trong VARIANT_PRESETS; effects khai báo = preset đó.
 export interface TemplateEffects {
   burst?: { count?: number; colors?: string[]; duration?: number; spread?: number };
-  ambient?: { count?: number; speed?: number };
+  ambient?: {
+    count?: number; // số tia vàng (GoldSparkles)
+    speed?: number;
+    // Lớp ambient nào chạy: "sparkle" = tia vàng, "petals" = cánh hoa rơi,
+    // "both" = cả hai (mặc định, giữ hành vi cũ), "bokeh" = hào quang mờ.
+    kind?: "sparkle" | "petals" | "both" | "bokeh";
+    petals?: number; // số cánh hoa rơi (PetalFall), mặc định 6
+    petalColors?: string[];
+  };
+  // Sao 4 cánh lấp lánh phủ khắp trang (Twinkle) — riêng với 4 sao quanh
+  // tên hero của mẫu deco (luôn có, không theo mục này).
+  twinkle?: { count?: number };
   shimmer?: { duration?: number; intensity?: "soft" | "strong" };
   kenBurns?: { duration?: number; scale?: number };
   reveal?: { strength?: "subtle" | "standard" };
   parallax?: { left?: number; right?: number; hoa?: number };
   // Điện ảnh (giai đoạn B/C): hero ghim, marquee tên cặp đôi, hạt phim,
-  // đếm chương. Mẫu không khai báo thì lấy mặc định theo id
-  // (defaultEffectsFor) — tính năng nào không có mục tương ứng trong mẫu
-  // thì tự ẩn (vd mẫu không-deco không có data-chapter nên không hiện số
-  // chương). Tốc độ parallax ở trên là tốc độ GỐC; tốc độ hiệu dụng = gốc
-  // × depth của lớp (phụng phải ×0.5, HOA ×0.2 — xem ParallaxLayer).
+  // đếm chương. Tính năng nào không có mục tương ứng trong mẫu thì tự ẩn
+  // (vd mẫu không-deco không có data-chapter nên không hiện số chương).
+  // Tốc độ parallax ở trên là tốc độ GỐC; tốc độ hiệu dụng = gốc × depth
+  // của lớp (phụng phải ×0.5, HOA ×0.2 — xem ParallaxLayer).
   cinema?: { pinned?: boolean; marquee?: boolean; grain?: boolean; chapters?: boolean };
   progressBar?: boolean;
 }
@@ -78,8 +107,89 @@ export interface Template {
   font: TemplateFont;
   envelope: string; // màu phong bì của mẫu
   paper: string; // tông giấy của mẫu
-  effects?: TemplateEffects; // bộ hiệu ứng của mẫu (không có = tự sinh theo id)
+  effects?: TemplateEffects; // bộ hiệu ứng của mẫu = preset của biến thể (xem VARIANT_PRESETS)
+  variant?: EffectVariant; // biến thể hiệu ứng của mẫu (mọi mẫu đều có)
 }
+
+// 6 preset biến thể hiệu ứng (2026-11-09, §4i). Mỗi preset là 1
+// TemplateEffects ĐẦY ĐỦ — khác nhau RÕ RỆT về cảm giác khi xem, không chỉ
+// khác thông số nhẹ:
+// - le-nghi: nổ vàng lớn + tia vàng + cánh hoa + shimmer mạnh + hero ghim +
+//   hạt phim + đếm chương + marquee (đầy đủ nhất, chậm, trang trọng).
+// - hoa-bay: CHỈ cánh hoa rơi (14 cánh, màu hồng/vàng) + tia nhẹ, KHÔNG hạt
+//   phim/chương/ghim — mơ màng, chậm.
+// - anh-vang: bokeh + sao 4 cánh khắp trang + shimmer mạnh, KHÔNG cánh hoa,
+//   KHÔNG hạt phim — lấp lánh, xa xỉ.
+// - toi-gian: KHÔNG nổ (count 0), KHÔNG ambient, KHÔNG hạt phim/marquee/
+//   ghim/chương, reveal subtle, Ken Burns rất nhẹ — sạch, nhanh.
+// - dien-anh: hero ghim + hạt phim + đếm chương + marquee + parallax mạnh
+//   nhất + Ken Burns chậm 12s — như xem phim; KHÔNG shimmer mạnh, KHÔNG
+//   cánh hoa.
+// - le-hoi: nổ 90 hạt NHIỀU MÀU + cánh hoa nhiều màu + sao 4 cánh +
+//   marquee, Ken Burns nhanh 6s, KHÔNG hạt phim/ghim/chương — vui, náo nhiệt.
+export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
+  "le-nghi": {
+    burst: { count: 60, duration: 1.4, spread: 280 },
+    ambient: { count: 16, kind: "both", petals: 6 },
+    shimmer: { duration: 2, intensity: "strong" },
+    kenBurns: { duration: 5, scale: 1.2 },
+    reveal: { strength: "standard" },
+    parallax: { left: -0.15, right: 0.24, hoa: 0.4 },
+    cinema: { pinned: true, marquee: true, grain: true, chapters: true },
+    progressBar: true,
+  },
+  "hoa-bay": {
+    burst: { count: 24, duration: 1.2, spread: 200, colors: ["#ffb2b2", "#f6d365", "#e8c87e", "#f9c5d5"] },
+    ambient: { kind: "petals", petals: 14, petalColors: ["#ffb2b2", "#f6d365", "#e8c87e", "#f9c5d5"] },
+    shimmer: { duration: 3, intensity: "soft" },
+    kenBurns: { duration: 9, scale: 1.12 },
+    reveal: { strength: "subtle" },
+    parallax: { left: -0.08, right: 0.12, hoa: 0.25 },
+    cinema: { pinned: false, marquee: true, grain: false, chapters: false },
+    progressBar: true,
+  },
+  "anh-vang": {
+    burst: { count: 70, duration: 1.5, spread: 300 },
+    ambient: { count: 10, kind: "bokeh" },
+    twinkle: { count: 12 },
+    shimmer: { duration: 2, intensity: "strong" },
+    kenBurns: { duration: 7, scale: 1.14 },
+    reveal: { strength: "standard" },
+    parallax: { left: -0.1, right: 0.15, hoa: 0.3 },
+    cinema: { pinned: false, marquee: true, grain: false, chapters: false },
+    progressBar: true,
+  },
+  "toi-gian": {
+    burst: { count: 0 },
+    shimmer: { duration: 3, intensity: "soft" },
+    kenBurns: { duration: 10, scale: 1.05 },
+    reveal: { strength: "subtle" },
+    parallax: { left: 0, right: 0, hoa: 0 },
+    cinema: { pinned: false, marquee: false, grain: false, chapters: false },
+    progressBar: true,
+  },
+  "dien-anh": {
+    burst: { count: 36, duration: 1.2, spread: 240 },
+    ambient: { count: 12, kind: "sparkle" },
+    shimmer: { duration: 2.6, intensity: "soft" },
+    kenBurns: { duration: 12, scale: 1.15 },
+    reveal: { strength: "standard" },
+    parallax: { left: -0.2, right: 0.3, hoa: 0.5 },
+    cinema: { pinned: true, marquee: true, grain: true, chapters: true },
+    progressBar: true,
+  },
+  "le-hoi": {
+    burst: { count: 90, duration: 1.6, spread: 340, colors: ["#c9a86a", "#f6d365", "#e85d75", "#ff8fa3", "#d4af37", "#a31621"] },
+    ambient: { count: 14, kind: "both", petals: 10, petalColors: ["#ff8fa3", "#f6d365", "#e85d75", "#ffb2b2"] },
+    twinkle: { count: 8 },
+    shimmer: { duration: 1.8, intensity: "strong" },
+    kenBurns: { duration: 6, scale: 1.15 },
+    reveal: { strength: "standard" },
+    parallax: { left: -0.12, right: 0.18, hoa: 0.35 },
+    cinema: { pinned: false, marquee: true, grain: false, chapters: false },
+    progressBar: true,
+  },
+};
 
 export const STYLE_LABELS: Record<TemplateStyle, string> = {
   minimal: "Tối giản",
@@ -145,6 +255,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#7a1f2b",
     paper: "Giấy kem",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "minimal-nau",
@@ -161,6 +273,8 @@ export const TEMPLATES: Template[] = [
     font: "sans",
     envelope: "#6b4a2f",
     paper: "Giấy kem trắng",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "minimal-lam-dam",
@@ -177,6 +291,8 @@ export const TEMPLATES: Template[] = [
     font: "sans",
     envelope: "#1f3a5f",
     paper: "Giấy trắng xanh",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "song-hy-do",
@@ -193,6 +309,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#a31621",
     paper: "Giấy kem",
+    variant: "le-nghi",
+    effects: VARIANT_PRESETS["le-nghi"],
   },
   {
     id: "song-hy-xanh",
@@ -209,6 +327,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#1e6f5c",
     paper: "Giấy trắng",
+    variant: "dien-anh",
+    effects: VARIANT_PRESETS["dien-anh"],
   },
   {
     id: "long-phung",
@@ -225,6 +345,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#8c1d18",
     paper: "Giấy kem ấm",
+    variant: "le-nghi",
+    effects: VARIANT_PRESETS["le-nghi"],
   },
   {
     id: "hoa-moc",
@@ -241,6 +363,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#5a7a4f",
     paper: "Giấy kem xanh",
+    variant: "hoa-bay",
+    effects: VARIANT_PRESETS["hoa-bay"],
   },
   {
     id: "mai-lan-trang",
@@ -257,6 +381,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#4a5d4e",
     paper: "Giấy kem trắng",
+    variant: "hoa-bay",
+    effects: VARIANT_PRESETS["hoa-bay"],
   },
   {
     id: "vuon-kinh",
@@ -273,6 +399,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#3e6b4f",
     paper: "Giấy trắng xanh",
+    variant: "hoa-bay",
+    effects: VARIANT_PRESETS["hoa-bay"],
   },
   {
     id: "cam-thach-vang",
@@ -289,6 +417,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#7a1f2b",
     paper: "Giấy kem",
+    variant: "anh-vang",
+    effects: VARIANT_PRESETS["anh-vang"],
   },
   {
     id: "baroque",
@@ -305,6 +435,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#5c3d1a",
     paper: "Giấy vàng nhạt",
+    variant: "anh-vang",
+    effects: VARIANT_PRESETS["anh-vang"],
   },
   {
     id: "ren-theu",
@@ -321,6 +453,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#8a5a6b",
     paper: "Giấy kem trắng",
+    variant: "anh-vang",
+    effects: VARIANT_PRESETS["anh-vang"],
   },
   {
     id: "song-phung-do",
@@ -337,27 +471,16 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#710001",
     paper: "Giấy kem",
-    // Bộ hiệu ứng đầy đủ của thư viện (spec §4h): vụ nổ vàng khi mở phong
-    // bì, lấp lánh vàng, Hỷ/con dấu phát sáng, Ken Burns album, cross-dissolve
-    // khi cuộn, parallax phụng/hoa, thanh tiến trình.
+    // Flagship của biến thể Truyền Thống Lễ Nghi (VARIANT_PRESETS["le-nghi"]
+    // — giá trị Y HỆT bộ inline cũ: nổ 60 hạt / 1.4s / spread 280, tia
+    // vàng 16 + cánh hoa 6, shimmer strong 2s, Ken Burns 5s/1.2, reveal
+    // standard, parallax gốc -0.15/0.24/0.4, cinema đầy đủ, progress bar).
     // Giai đoạn A (2026-11-06): hiệu ứng đậm hơn theo đo độ rõ + nghiên cứu
-    // trang chuyên nghiệp — nổ lớn hơn, Ken Burns nhanh hơn, parallax nhanh
-    // hơn một chút. Bụi tròn cũ (2026-11-06) thay bằng lấp lánh shadcn
-    // Sparkles: bụi mịn + điểm sáng + tia 4 cánh, vì hạt tròn 10–20px nhìn
-    // như vết bẩn trên giấy kem.
-    effects: {
-      burst: { count: 60, duration: 1.4, spread: 280 },
-      ambient: { count: 16 },
-      shimmer: { duration: 2, intensity: "strong" },
-      kenBurns: { duration: 5, scale: 1.2 },
-      reveal: { strength: "standard" },
-      // Tốc độ parallax GỐC (hiệu dụng = gốc × depth): phụng phải 0.24 ×
-      // 0.5 = 0.12, HOA 0.4 × 0.2 = 0.08; đuôi phụng trái depth 1 nên rút
-      // trọn [900, −180] như giai đoạn A.
-      parallax: { left: -0.15, right: 0.24, hoa: 0.4 },
-      cinema: { pinned: true, marquee: true, grain: true, chapters: true },
-      progressBar: true,
-    },
+    // trang chuyên nghiệp. Bụi tròn cũ thay bằng lấp lánh shadcn Sparkles:
+    // bụi mịn + điểm sáng + tia 4 cánh, vì hạt tròn 10–20px nhìn như vết
+    // bẩn trên giấy kem.
+    variant: "le-nghi",
+    effects: VARIANT_PRESETS["le-nghi"],
     // Same-origin proxy URLs (see src/app/api/songphung/[file]/route.ts).
     // Original source URLs, kept here for reference:
     // https://chungdoi.com/images/themes/songphung-red/Phuong%20line.webp
@@ -388,6 +511,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#a63d57",
     paper: "Giấy hồng phấn",
+    variant: "dien-anh",
+    effects: VARIANT_PRESETS["dien-anh"],
   },
   {
     id: "nhat-binh-do",
@@ -404,6 +529,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#7c4a21",
     paper: "Giấy kem",
+    variant: "le-nghi",
+    effects: VARIANT_PRESETS["le-nghi"],
   },
   {
     id: "nhat-binh-xanh-ngoc",
@@ -420,6 +547,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#0f766e",
     paper: "Giấy kem nhạt",
+    variant: "dien-anh",
+    effects: VARIANT_PRESETS["dien-anh"],
   },
   {
     id: "song-hy-vang",
@@ -436,6 +565,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#92600a",
     paper: "Giấy kem vàng",
+    variant: "le-hoi",
+    effects: VARIANT_PRESETS["le-hoi"],
   },
   {
     id: "minimal-den-trang",
@@ -452,6 +583,8 @@ export const TEMPLATES: Template[] = [
     font: "sans",
     envelope: "#1c1917",
     paper: "Giấy trắng",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "minimal-hong-phan",
@@ -468,6 +601,8 @@ export const TEMPLATES: Template[] = [
     font: "sans",
     envelope: "#be5a7a",
     paper: "Giấy hồng phấn",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "minimal-xanh-reu",
@@ -484,6 +619,8 @@ export const TEMPLATES: Template[] = [
     font: "sans",
     envelope: "#4d5e43",
     paper: "Giấy trắng xanh rêu",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "minimal-kem-vang",
@@ -500,6 +637,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#8a6d1f",
     paper: "Giấy kem vàng",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "hoa-sen-hong",
@@ -516,6 +655,8 @@ export const TEMPLATES: Template[] = [
     font: "script",
     envelope: "#a63d6b",
     paper: "Giấy hồng phấn",
+    variant: "hoa-bay",
+    effects: VARIANT_PRESETS["hoa-bay"],
   },
   {
     id: "vuon-hong",
@@ -532,6 +673,8 @@ export const TEMPLATES: Template[] = [
     font: "script",
     envelope: "#9d3a4a",
     paper: "Giấy hồng nhạt",
+    variant: "le-hoi",
+    effects: VARIANT_PRESETS["le-hoi"],
   },
   {
     id: "lavender-tim",
@@ -548,6 +691,8 @@ export const TEMPLATES: Template[] = [
     font: "script",
     envelope: "#6d5a9e",
     paper: "Giấy tím nhạt",
+    variant: "hoa-bay",
+    effects: VARIANT_PRESETS["hoa-bay"],
   },
   {
     id: "hoang-gia-vang",
@@ -564,6 +709,8 @@ export const TEMPLATES: Template[] = [
     font: "elegant",
     envelope: "#6b4e0a",
     paper: "Giấy vàng nhạt",
+    variant: "anh-vang",
+    effects: VARIANT_PRESETS["anh-vang"],
   },
   {
     id: "cam-thach-hong",
@@ -580,6 +727,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#7a2e3f",
     paper: "Giấy hồng nhạt",
+    variant: "anh-vang",
+    effects: VARIANT_PRESETS["anh-vang"],
   },
   {
     id: "hien-dai-be",
@@ -596,6 +745,8 @@ export const TEMPLATES: Template[] = [
     font: "sans",
     envelope: "#5b4a35",
     paper: "Giấy be",
+    variant: "toi-gian",
+    effects: VARIANT_PRESETS["toi-gian"],
   },
   {
     id: "bien-xanh",
@@ -612,6 +763,8 @@ export const TEMPLATES: Template[] = [
     font: "display",
     envelope: "#155e75",
     paper: "Giấy trắng xanh biển",
+    variant: "anh-vang",
+    effects: VARIANT_PRESETS["anh-vang"],
   },
 ];
 
@@ -619,10 +772,11 @@ export function getTemplate(id: string): Template {
   return TEMPLATES.find((t) => t.id === id) ?? TEMPLATES[0];
 }
 
-// Bộ hiệu ứng mặc định cho mẫu không khai báo effects: sinh từ hash của id
-// nên mỗi mẫu nhận một combo khác nhau (mật độ bụi, có/không shimmer, độ
-// mạnh reveal, tốc độ parallax, thời lượng Ken Burns...) nhưng ỔN ĐỊNH —
-// cùng một mẫu luôn ra cùng một bộ, không xáo lại mỗi lần render.
+// Bộ hiệu ứng dự phòng cho mẫu không khai báo effects lẫn variant — CHỈ
+// còn là fallback cuối (từ 2026-11-09 mọi mẫu trong TEMPLATES đều có preset
+// đặt tên, không mẫu nào còn random). Sinh từ hash của id nên mỗi mẫu nhận
+// một combo khác nhau nhưng ỔN ĐỊNH — cùng một mẫu luôn ra cùng một bộ,
+// không xáo lại mỗi lần render.
 export function defaultEffectsFor(id: string): TemplateEffects {
   const rand = mulberry32(hashSeed(id));
   const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(rand() * arr.length)];
@@ -640,9 +794,20 @@ export function defaultEffectsFor(id: string): TemplateEffects {
   };
 }
 
-// Bộ hiệu ứng thực tế của một mẫu: dùng effects khai báo sẵn, nếu không có
-// thì sinh mặc định theo id.
+// Bộ hiệu ứng thực tế của một mẫu: effects khai báo sẵn (preset của biến
+// thể), nếu không có thì preset theo variant, cuối cùng mới sinh mặc định
+// theo id (fallback — hiện không mẫu nào rơi tới đây).
 export function getTemplateEffects(id: string): TemplateEffects {
   const t = getTemplate(id);
-  return t.effects ?? defaultEffectsFor(id);
+  return t.effects ?? (t.variant ? VARIANT_PRESETS[t.variant] : defaultEffectsFor(id));
+}
+
+// Bộ hiệu ứng của một biến thể (dùng cho ?fx= trên trang khách).
+export function getVariantEffects(variant: EffectVariant): TemplateEffects {
+  return VARIANT_PRESETS[variant];
+}
+
+// Tên biến thể có hợp lệ không (dùng để kiểm tra ?fx=).
+export function isEffectVariant(value: string): value is EffectVariant {
+  return value in VARIANT_PRESETS;
 }

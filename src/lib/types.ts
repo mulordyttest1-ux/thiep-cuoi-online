@@ -86,6 +86,13 @@ export interface InvitationData {
   accountNumber: string;
   accountName: string;
   scheduleText: string; // mỗi dòng "HH:MM - Nội dung"
+  // Khối online thêm/bớt (chỉ online, không đụng in/ghost text): id khối
+  // ẩn tay, và id khối hiện tay dù đang trống nội dung. Thiếu cả hai =
+  // hiện đủ như trước (dữ liệu cũ tương thích ngược), trừ khối trống nội
+  // dung thì mặc định ẩn (xem src/lib/blocks.ts). Đi theo link ?d=/?t=
+  // như mọi trường khác (encode toàn bộ object, máy chủ merge object).
+  hiddenBlocks?: string[];
+  shownBlocks?: string[];
 }
 
 export interface Guest {

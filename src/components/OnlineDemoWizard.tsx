@@ -5,6 +5,7 @@ import type { InvitationData } from "@/lib/types";
 import { TEMPLATES, PRESET_PHOTOS } from "@/lib/templates";
 import { buildShareUrl, copyText } from "@/lib/store";
 import InvitationPreview, { type SensitiveField } from "@/components/InvitationPreview";
+import BlockToggles from "@/components/BlockToggles";
 import { ONLINE_PRICE_VND, formatVnd } from "@/lib/payment";
 import { isPrintConfirmed, type InvitationStatus } from "@/lib/access";
 
@@ -274,6 +275,11 @@ export default function OnlineDemoWizard({
             />
           </div>
 
+          {/* Chọn mục hiển thị (khối thêm/bớt): bấm là demo trên đổi ngay. */}
+          <div className="mx-auto mt-4 max-w-3xl">
+            <BlockToggles data={data} onPatch={onPatch} />
+          </div>
+
           {/* Sửa trực tiếp trên demo: bấm ô mờ thì hiện ô nhập ngay dưới demo, sửa xong mờ lại. */}
           {revealed && (
             <div className="mx-auto mt-4 max-w-3xl rounded-2xl border bg-[#fdf8f1] p-4">
@@ -370,6 +376,10 @@ export default function OnlineDemoWizard({
             <label htmlFor="demo-message" className="text-sm font-semibold">Lời mời</label>
             <textarea id="demo-message" rows={3} value={data.message} onChange={(e) => onPatch({ message: e.target.value })} className={`${inputCls} mt-1`} />
           </div>
+
+          {/* Chọn mục hiển thị (khối thêm/bớt) — đi theo dữ liệu thiệp lên
+              link xịn sau khi trả tiền; chỉ online, không đụng form in. */}
+          <BlockToggles data={data} onPatch={onPatch} />
 
           <fieldset>
             <legend className="text-sm font-semibold">Mừng cưới (VietQR trên thiệp — tiền này về tài khoản cô dâu chú rể, khác tài khoản nhận tiền mua thiệp của Thiết kế)</legend>
