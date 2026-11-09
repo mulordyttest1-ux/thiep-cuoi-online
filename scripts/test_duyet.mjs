@@ -4,6 +4,7 @@
 // (recordToRow/rowToRecord + mặc định khi thiếu cột), isSupabaseConfigured,
 // storeKind (file / none / supabase), cookie phiên admin + isAdminRequest,
 // KHÔNG cache lần đọc Supabase (sbFetch cache no-store — lỗi live 09/11),
+// mở lại phải xóa mốc chốt (reopen/unlock — lỗi live 09/11),
 // và vòng đời file-store (upsert/get/list/update + khóa chốt in).
 //   printf '%s' '{"compilerOptions":{"baseUrl":"'$PWD'","paths":{"@/*":["src/*"]},"outDir":"/tmp/duyet-test-out","module":"commonjs","target":"es2022","moduleResolution":"node","skipLibCheck":true,"esModuleInterop":true,"lib":["es2022","dom"],"types":["node"],"typeRoots":["'$PWD'/node_modules/@types"]},"include":["'$PWD'/src/lib/access.ts","'$PWD'/src/lib/supabase.ts","'$PWD'/src/lib/server-store.ts","'$PWD'/src/lib/server-auth.ts","'$PWD'/src/lib/admin-session.ts","'$PWD'/src/lib/payment.ts","'$PWD'/src/lib/types.ts","'$PWD'/src/lib/physical-forms.ts"]}' > /tmp/duyet-tsconfig.json
 //   (include phải là đường dẫn tuyệt đối vì tsconfig nằm ở /tmp; types node bắt buộc vì các lib dùng Buffer/process/fs/crypto)
@@ -108,6 +109,37 @@ function makeRec(status, extra = {}) {
   check("review: reopen draft bị chặn", acc.reviewRecord(makeRec("draft"), "reopen").ok === false);
   check("review: paid_online không đổi được", acc.reviewRecord(makeRec("paid_online"), "reviewed").ok === false && acc.reviewRecord(makeRec("paid_online"), "reopen").ok === false);
   check("review: đổi trạng thái cập nhật updatedAt", acc.reviewRecord(makeRec("confirmed"), "reviewed").rec.updatedAt !== "2026-11-09T00:00:00.000Z");
+}
+
+// --- reopen/unlock: mở lại phải xóa mốc chốt (lỗi live 09/11) ---
+// Trang khách khóa theo mốc chốt (initialConfirmedAt): mở lại mà giữ mốc
+// cũ thì khách vẫn thấy câu cảm ơn + chỉ đọc dù trạng thái đã về nháp.
+{
+  const confirmedRec = (status) => makeRec(status, {
+    customerConfirmedAt: "2026-11-09T09:36:00.000Z",
+    lockedAt: "2026-11-09T09:36:00.000Z",
+    editedFields: ["groomName"],
+    customTexts: { printClosing: "Kính mời!" },
+    history: [{ kind: "dữ liệu", label: "Tên chú rể", oldValue: "Văn A", newValue: "Văn A Sửa", at: "2026-11-09T09:35:00.000Z" }],
+    manualList: [{ label: "Câu kết", cu: "Kính mời!", moi: "Kính mời quý khách!" }],
+  });
+  for (const s of ["confirmed", "reviewed", "printed", "locked_for_print"]) {
+    const r = acc.reviewRecord(confirmedRec(s), "reopen");
+    check(`reopen: ${s} -> draft + xóa mốc chốt`, r.ok === true && r.rec.status === "draft" && r.rec.customerConfirmedAt === null);
+    check(`reopen: ${s} giữ token + dữ liệu khách đã sửa`, r.rec.editToken === "et" && r.rec.customTexts.printClosing === "Kính mời!" && r.rec.editedFields.includes("groomName") && r.rec.history.length === 1 && r.rec.manualList.length === 1);
+    check(`reopen: ${s} xong sửa được lại`, acc.canEdit(r.rec.status) === true && acc.isPrintConfirmed(r.rec.status) === false);
+  }
+  // Chốt lại sau khi mở lại vẫn ghi mốc chốt mới.
+  const reopened = acc.reviewRecord(confirmedRec("confirmed"), "reopen").rec;
+  const reconfirmed = acc.confirmRecord(reopened, new Date("2026-11-09T11:00:00.000Z"));
+  check("reopen: chốt lại được + ghi mốc chốt mới", reconfirmed.status === "confirmed" && reconfirmed.customerConfirmedAt === "2026-11-09T11:00:00.000Z");
+  // unlockRecord (nút "Mở khóa để sửa" ở /tao-thiep): cùng lỗi, cùng sửa.
+  const unlocked = acc.unlockRecord(confirmedRec("confirmed"));
+  check("unlock: confirmed -> draft + xóa mốc chốt", unlocked.status === "draft" && unlocked.customerConfirmedAt === null);
+  check("unlock: giữ token + lịch sử sửa", unlocked.editToken === "et" && unlocked.history.length === 1);
+  const unlockedLocked = acc.unlockRecord(confirmedRec("locked_for_print"));
+  check("unlock: locked_for_print -> draft + xóa mốc chốt", unlockedLocked.status === "draft" && unlockedLocked.customerConfirmedAt === null);
+  check("unlock: xóa cả lockedAt", unlockedLocked.lockedAt === null);
 }
 
 // --- reviewTabOf / reviewTabCounts: tab + số lượng banner ---
@@ -340,6 +372,21 @@ function makeRec(status, extra = {}) {
   check("file: đã chốt -> địa điểm vật lý KHÔNG đổi", attempted.data.venue === "Tư gia");
   check("file: đã chốt -> trường online vẫn đổi được", attempted.data.templateId === "song-phung-do");
   check("file: đã chốt -> status vẫn confirmed", attempted.status === "confirmed");
+  // Mở lại rồi ghi đè: mốc chốt cũ không được sống lại (lỗi live 09/11).
+  const reopened = await store.updateInvitation(created.id, (r) => acc.reviewRecord(r, "reopen").rec);
+  check("file: reopen -> draft", reopened !== null && reopened.status === "draft");
+  check("file: reopen xóa customerConfirmedAt", reopened !== null && reopened.customerConfirmedAt === null);
+  const overwritten = await store.upsertInvitation({ ...data, id: created.id, groomName: "Tên Mới" });
+  check("file: ghi đè sau reopen đổi được tên", overwritten.data.groomName === "Tên Mới");
+  check("file: ghi đè sau reopen không khôi phục mốc chốt", overwritten.customerConfirmedAt === null);
+  // Mở khóa (unlockRecord) cũng xóa mốc chốt.
+  await store.updateInvitation(created.id, (r) => acc.confirmRecord(r, new Date("2026-11-09T12:00:00.000Z")));
+  const unlocked = await store.updateInvitation(created.id, (r) => acc.unlockRecord(r));
+  check("file: unlock -> draft + xóa mốc chốt", unlocked !== null && unlocked.status === "draft" && unlocked.customerConfirmedAt === null);
+  // Bản ghi hỏng sẵn (preview + mốc chốt cũ, như bản live): upsert sửa lại cũng xóa mốc.
+  await store.updateInvitation(created.id, (r) => ({ ...r, customerConfirmedAt: "2026-11-09T09:36:00.000Z" }));
+  const repaired = await store.upsertInvitation({ ...data, id: created.id, groomName: "Tên Mới 2" }, { status: "preview_for_print" });
+  check("file: upsert bản preview hỏng -> xóa mốc chốt cũ", repaired.customerConfirmedAt === null && repaired.status === "preview_for_print");
   // getInvitation id lạ -> null; update id lạ -> null.
   check("file: get id lạ -> null", (await store.getInvitation("khong-co")) === null);
   check("file: update id lạ -> null", (await store.updateInvitation("khong-co", (r) => r)) === null);
@@ -367,6 +414,8 @@ function makeRec(status, extra = {}) {
   check("list route: trả store kind", listSrc.includes("storeKind()"));
   const reviewSrc = readSrc("src/app/api/invitations/[id]/review/route.ts");
   check("review route: dùng reviewRecord", reviewSrc.includes("reviewRecord"));
+  const unlockSrc = readSrc("src/app/api/invitations/[id]/unlock/route.ts");
+  check("unlock route: dùng unlockRecord", unlockSrc.includes("unlockRecord"));
   const schemaSrc = readSrc("supabase/schema.sql");
   const schemaLower = schemaSrc.toLowerCase();
   check("schema.sql: bảng invitations", schemaLower.includes("create table") && schemaLower.includes("invitations"));
