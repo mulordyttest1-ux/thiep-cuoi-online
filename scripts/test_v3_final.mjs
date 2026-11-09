@@ -170,9 +170,22 @@ async function main() {
   const { readdirSync: readdir2, readFileSync: readFile2 } = await import("node:fs");
   const { join } = await import("node:path");
   const chunksDir = new URL("../.next/static/chunks", import.meta.url).pathname;
-  const pageDir = join(chunksDir, "app", "tao-thiep");
+  // Route group (app) đổi đường dẫn chunk: app/(app)/tao-thiep (cũ: app/tao-thiep).
+  const pageDirCandidates = [join(chunksDir, "app", "(app)", "tao-thiep"), join(chunksDir, "app", "tao-thiep")];
+  const pageDir = pageDirCandidates.find((d) => { try { readdir2(d); return true; } catch { return false; } }) ?? pageDirCandidates[1];
   const pageBundle = readdir2(pageDir).filter((f) => f.endsWith(".js")).map((f) => readFile2(join(pageDir, f), "utf-8")).join("\n");
-  const sharedBundle = readdir2(chunksDir).filter((f) => /^\d+-.*\.js$/.test(f)).map((f) => readFile2(join(chunksDir, f), "utf-8")).join("\n");
+  // Class blur demo có thể nằm ở chunk trang (vd app/(app)/page.js) chứ không
+  // nhất thiết ở chunk chung — quét đệ quy toàn bộ .next/static/chunks.
+  const walkJs = (dir) => {
+    const out = [];
+    for (const e of readdir2(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) out.push(...walkJs(p));
+      else if (e.name.endsWith(".js")) out.push(readFile2(p, "utf-8"));
+    }
+    return out;
+  };
+  const sharedBundle = walkJs(chunksDir).join("\n");
   check("bundle editor có 'Xem demo thiệp online'", pageBundle.includes("Xem demo thiệp online"));
   check("bundle chung có class blur demo (blur-[7px])", sharedBundle.includes("blur-[7px]"));
   check("bundle có wizard 3 bước + nút kiểm tra", pageBundle.includes("QR nhận link") && pageBundle.includes("chuyển — kiểm tra"));
