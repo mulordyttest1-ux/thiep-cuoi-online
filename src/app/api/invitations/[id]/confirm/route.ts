@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getInvitation, updateInvitation } from "@/lib/server-store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock } from "@/lib/cep";
 import { canEdit, confirmRecord } from "@/lib/access";
+import { notifyOwner } from "@/lib/notify";
 import type { ManualListItem } from "@/lib/access";
 import type { InvitationData } from "@/lib/types";
 
@@ -50,6 +51,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await updateInvitation(id, (r) => ({
       ...confirmRecord({ ...r, data, customTexts, editedFields, manualList }, new Date(confirmedAt)),
     }));
+    // Thông báo cho Nancy — fire-and-forget: lỗi/chậm không được làm
+    // hỏng phản hồi chốt của khách. Chỉ link máy chủ (?t=) mới báo được
+    // (link ?d= cũ chốt ở trình duyệt khách, máy chủ không biết).
+    notifyOwner(data).catch(() => {});
     return NextResponse.json({
       ok: true,
       status: "confirmed",
