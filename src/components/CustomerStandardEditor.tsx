@@ -9,7 +9,7 @@
 //    "CẦN SỬA TAY TRONG ILLUSTRATOR" lúc chốt.
 //  - Mỗi lần bấm Xong trong box sửa: lưu nháp lên máy chủ + ghi 1 dòng vào
 //    lịch sử sửa của thiệp (Nancy xem trong Quản lý).
-//  - Chốt: lưu cuối + trả ghost text + metadata + danh sách sửa tay.
+//  - Chốt: lưu cuối + danh sách sửa tay.
 //  - Sau chốt link khóa lại: máy chủ thì customerConfirmedAt giữ chỉ đọc
 //    khi mở lại; link ?d= thì cờ đã-chốt lưu ở localStorage theo id + base
 //    nên mở lại trên cùng trình duyệt vẫn chỉ đọc — link mới của Nancy
@@ -19,28 +19,28 @@
 //    mở lại link đúng thì khôi phục, link mới của Nancy (dữ liệu gốc khác)
 //    thì không bị bản cũ đè.
 //  - Sau chốt khách KHÔNG copy-paste gì: chỉ hiện câu cảm ơn, còn lại là
-//    việc của backend (máy chủ lấy dữ liệu đã chốt từ /quan-ly). Riêng
-//    link ?d= cũ (không máy chủ) còn giữ khối chữ để in gấp trong
-//    <details> "Dành cho Thiết kế — chữ để in" — đó là cách duy nhất lấy
-//    chữ đã chốt từ link cũ. Link đã chốt (LUÔN có ?c=) mở trên máy khác
-//    cũng hiện dạng chỉ đọc + ghost text + danh sách sửa tay — vì ?c= chỉ
-//    xuất hiện trên link đã chốt.
+//    việc của backend (máy chủ lấy dữ liệu đã chốt từ /quan-ly). Trang khách
+//    KHÔNG BAO GIỜ hiện chữ để in / ghost text / metadata — đó là phần việc
+//    của Thiết kế, khách không được thấy: chị lấy chữ đã chốt từ /quan-ly
+//    (chi tiết thiệp) hoặc /tao-thiep (ô chữ có mã ẩn). Link đã chốt (LUÔN
+//    có ?c=) mở trên máy khác cũng chỉ hiện dạng chỉ đọc + danh sách sửa tay.
 //  - Chat box cuối trang: khách ghi chú/hỏi, Nancy trả lời trong Quản lý;
 //    khách mở lại link sẽ thấy trả lời (không realtime).
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage, HistoryEntry, ManualListItem } from "@/lib/access";
-import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, effectiveCeremonyDate } from "@/lib/cep";
+import { effectiveCeremonyDate } from "@/lib/cep";
 import { normalizeName, suggestAddress, validateData } from "@/lib/cep-logic";
 import {
   buildManualList,
   customTextDef,
   customTextValue,
+  isCustomTextEdited,
   stdFieldLabel,
 } from "@/lib/custom-texts";
 import { getDateParts } from "@/lib/lunar";
-import { copyText, isCustomerConfirmed, markCustomerConfirmed, saveCustomerSnapshot } from "@/lib/store";
+import { isCustomerConfirmed, markCustomerConfirmed, saveCustomerSnapshot } from "@/lib/store";
 import {
   CEREMONY_TYPE_OPTIONS,
   HOST_TYPE_OPTIONS,
@@ -217,8 +217,16 @@ export default function CustomerStandardEditor({
 
   const [editedFields, setEditedFields] = useState<Set<string>>(new Set(initialEditedFields ?? []));
   const editedFieldsRef = useRef(editedFields);
+  // Chỉ đánh dấu câu mẫu khi giá trị đã lưu THỰC SỰ khác mặc định (đã chuẩn
+  // hoá câu kết: hàng chấm đầu dòng không tính) — trước đây đánh dấu theo
+  // "có khóa trong customTexts" nên cả giá trị bằng mặc định cũng bị vàng.
   const [editedCustomTexts, setEditedCustomTexts] = useState<Set<string>>(
-    new Set(Object.keys(initialCustomTexts ?? {}))
+    () =>
+      new Set(
+        Object.keys(initialCustomTexts ?? {}).filter((k) =>
+          isCustomTextEdited(k, initialCustomTexts?.[k], initialData)
+        )
+      )
   );
   const editedCustomTextsRef = useRef(editedCustomTexts);
 
@@ -232,9 +240,6 @@ export default function CustomerStandardEditor({
 
   const [confirmed, setConfirmed] = useState(Boolean(initialConfirmedAt) || Boolean(initialConfirmed));
   const [confirmBusy, setConfirmBusy] = useState(false);
-  const [ghostText, setGhostText] = useState("");
-  const [metadata, setMetadata] = useState("");
-  const [plainText, setPlainText] = useState("");
   const [manualList, setManualList] = useState<ManualListItem[]>(initialManualList ?? []);
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
@@ -244,21 +249,18 @@ export default function CustomerStandardEditor({
   const [chatBusy, setChatBusy] = useState(false);
   const [chatNotice, setChatNotice] = useState("");
 
-  // Đã chốt từ trước (mở lại link): dựng lại ghost text + danh sách sửa tay
-  // ở máy khách để hiện ngay, không cần bấm Chốt lại. Link ?d= (không máy
-  // chủ): cờ đã-chốt lưu ở localStorage theo id + base, chỉ khóa khi base
-  // của link đang mở khớp base đã chốt (hoặc dữ liệu đã chốt, tức link đã
-  // chốt) — link mới của Nancy (base khác) thì không khóa. Link đã chốt mở
-  // trên máy khác (có ?c=, kể cả {} rỗng) thì initialConfirmed đã true nên hiện
-  // dạng chỉ đọc + ghost text + danh sách sửa tay.
+  // Đã chốt từ trước (mở lại link): dựng lại danh sách sửa tay ở máy khách
+  // để hiện ngay, không cần bấm Chốt lại. Link ?d= (không máy chủ): cờ
+  // đã-chốt lưu ở localStorage theo id + base, chỉ khóa khi base của link
+  // đang mở khớp base đã chốt (hoặc dữ liệu đã chốt, tức link đã chốt) —
+  // link mới của Nancy (base khác) thì không khóa. Link đã chốt mở trên máy
+  // khác (có ?c=, kể cả {} rỗng) thì initialConfirmed đã true nên hiện dạng
+  // chỉ đọc + danh sách sửa tay.
   useEffect(() => {
     const lockedByFlag =
       !serverMode && !initialConfirmedAt && !initialConfirmed && isCustomerConfirmed(invitationId, originalData ?? initialData);
     if (!initialConfirmedAt && !lockedByFlag && !initialConfirmed) return;
     if (lockedByFlag) setConfirmed(true);
-    setGhostText(buildCepTextBlock(initialData));
-    setMetadata(buildCepMetadataJson());
-    setPlainText(buildCepPlainText(initialData));
     if (lockedByFlag || initialConfirmed) {
       setManualList(buildManualList(customTextsRef.current, dataRef.current, initialMessageRef.current));
     }
@@ -494,14 +496,8 @@ export default function CustomerStandardEditor({
           setConfirmBusy(false);
           return;
         }
-        setGhostText(String(j.ghostText ?? ""));
-        setMetadata(String(j.metadata ?? ""));
-        setPlainText(String(j.plainText ?? ""));
         setManualList((j.manualList as ManualListItem[] | undefined) ?? list);
       } else {
-        setGhostText(buildCepTextBlock(nfcData));
-        setMetadata(buildCepMetadataJson());
-        setPlainText(buildCepPlainText(nfcData));
         setManualList(list);
         // Link ?d= (không máy chủ): ghi cờ đã-chốt theo base + dữ liệu đã
         // chốt để mở lại link vẫn chỉ đọc (link mới base khác thì không
@@ -519,11 +515,6 @@ export default function CustomerStandardEditor({
       setErrors(["Không chốt được — kiểm tra mạng rồi thử lại."]);
     }
     setConfirmBusy(false);
-  };
-
-  const copyGhost = async (text: string, okMsg: string) => {
-    const r = await copyText(text);
-    setNotice(r.ok ? okMsg : "Không sao chép tự động được — bôi đen rồi copy thủ công.");
   };
 
   /* ---------- chat ---------- */
@@ -833,82 +824,39 @@ export default function CustomerStandardEditor({
             ))}
           </div>
         )}
-        {confirmed && ghostText && (
-          <div className="mt-4 space-y-4">
-            {/* Khối chữ để in CHỈ hiện với link ?d= cũ (không qua máy chủ):
-                đó là cách duy nhất lấy chữ đã chốt từ link cũ. Link máy chủ
-                (?t=) thì chị lấy chữ từ /quan-ly nên không hiện ở đây. */}
-            {!serverMode && (
-            <details className="rounded-2xl border bg-white p-4 shadow-sm">
-              <summary className="cursor-pointer text-sm font-semibold">Dành cho Thiết kế — chữ để in</summary>
-              <label htmlFor="khach-ghost" className="mt-3 block text-sm font-semibold">
-                Chữ để in (đã chốt — chỉ trường dữ liệu)
-              </label>
-              <textarea
-                id="khach-ghost"
-                readOnly
-                rows={8}
-                value={ghostText}
-                onFocus={(e) => e.target.select()}
-                className={`${inputCls} mt-1 bg-[#fdf8f1] font-mono text-xs`}
-              />
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => copyGhost(ghostText, "Đã sao chép chữ có mã ẩn.")}
-                  className="rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]"
-                >
-                  Sao chép chữ có mã ẩn
-                </button>
-                <button
-                  type="button"
-                  onClick={() => copyGhost(metadata, "Đã sao chép thông tin kèm theo.")}
-                  className="rounded-full border px-5 py-2.5 text-sm font-semibold"
-                >
-                  Sao chép thông tin kèm theo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => copyGhost(plainText, "Đã sao chép bản chữ thường.")}
-                  className="rounded-full border px-5 py-2.5 text-sm font-semibold"
-                >
-                  Sao chép chữ thường
-                </button>
-              </div>
-            </details>
-            )}
-            {manualList.length > 0 && (
-              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm" role="alert">
-                <h2 className="text-base font-bold text-amber-900">Những câu mẫu bạn đã sửa</h2>
-                <p className="mt-1 text-xs text-amber-900">
-                  Thiết kế sẽ chỉnh lại những câu này giúp bạn.
-                </p>
-                <ul className="mt-3 space-y-2 text-sm text-amber-900">
-                  {manualList.map((m) => (
-                    <li key={m.key} className="rounded-xl bg-white px-3 py-2">
-                      <span className="font-semibold">{m.label}:</span>{" "}
-                      <span className="line-through opacity-70">{m.oldValue || "(trống)"}</span>
-                      {" → "}
-                      <span className="font-semibold">{m.newValue || "(trống)"}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+        {confirmed && manualList.length > 0 && (
+          <div className="mt-4">
+            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm" role="alert">
+              <h2 className="text-base font-bold text-amber-900">Những câu mẫu bạn đã sửa</h2>
+              <p className="mt-1 text-xs text-amber-900">
+                Thiết kế sẽ chỉnh lại những câu này giúp bạn.
+              </p>
+              <ul className="mt-3 space-y-2 text-sm text-amber-900">
+                {manualList.map((m) => (
+                  <li key={m.key} className="rounded-xl bg-white px-3 py-2">
+                    <span className="font-semibold">{m.label}:</span>{" "}
+                    <span className="line-through opacity-70">{m.oldValue || "(trống)"}</span>
+                    {" → "}
+                    <span className="font-semibold">{m.newValue || "(trống)"}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         )}
         {notice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{notice}</p>}
       </div>
 
-      {/* Chat với Nancy */}
+      {/* Chat với Thiết kế — chỉ có trên link máy chủ (?t=): link ?d= không
+          lưu được tin nhắn nên không hiện khung chat, để khách khỏi thấy
+          dòng giải thích kỹ thuật khó hiểu. */}
+      {serverMode && (
       <section className="mt-8 rounded-2xl border bg-white p-4 shadow-sm" aria-label="Chat với Thiết kế">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-base font-bold text-[#7a1f2b]">Nhắn cho Thiết kế</h2>
-          {serverMode && (
-            <button type="button" onClick={refreshChat} className="rounded-full border px-3 py-1 text-xs font-semibold">
-              ↻ Tải lại tin nhắn
-            </button>
-          )}
+          <button type="button" onClick={refreshChat} className="rounded-full border px-3 py-1 text-xs font-semibold">
+            ↻ Tải lại tin nhắn
+          </button>
         </div>
         <p className="mt-1 text-xs text-[#7a6a68]">
           Ghi chú / hỏi đáp về thiệp — không dùng để sửa nội dung (sửa bằng cách bấm vào thiệp ở trên).
@@ -955,12 +903,8 @@ export default function CustomerStandardEditor({
           </button>
         </div>
         {chatNotice && <p className="mt-2 text-xs text-amber-900" role="status">{chatNotice}</p>}
-        {!serverMode && (
-          <p className="mt-2 text-xs text-[#7a6a68]">
-            Link này không qua máy chủ nên tin nhắn không lưu được — nhờ Thiết kế gửi link khách trên máy chủ để chat.
-          </p>
-        )}
       </section>
+      )}
     </div>
   );
 }

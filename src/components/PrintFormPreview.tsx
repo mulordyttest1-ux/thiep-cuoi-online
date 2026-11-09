@@ -142,7 +142,7 @@ export default function PrintFormPreview({
       </div>
     );
   };
-  const customWrap = (key: string, children: React.ReactNode) => {
+  const customWrap = (key: string, children: React.ReactNode, opts?: { block?: boolean }) => {
     if (!editable) return <>{children}</>;
     const edited = editedCustomTexts?.has(key);
     return (
@@ -152,7 +152,7 @@ export default function PrintFormPreview({
         tabIndex={0}
         onClick={(e) => { e.stopPropagation(); onCustomTextTap?.(key, tapRect(e)); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCustomTextTap?.(key, tapRect(e as unknown as React.MouseEvent)); } }}
-        className={`relative inline-block cursor-pointer rounded px-2 py-0.5 outline-dashed outline-1 outline-[#b45309] hover:bg-[#ffe58a66] focus:outline-[#b45309] ${edited ? "bg-[#ffe58a]" : ""}`}
+        className={`relative cursor-pointer rounded px-2 py-0.5 outline-dashed outline-1 outline-[#b45309] hover:bg-[#ffe58a66] focus:outline-[#b45309] ${opts?.block ? "block w-full" : "inline-block"} ${edited ? "bg-[#ffe58a]" : ""}`}
         title="Bấm để sửa lời (Thiết kế sẽ chỉnh lại giúp bạn)"
       >
         {children}
@@ -276,12 +276,17 @@ export default function PrintFormPreview({
           <p className="mt-4 whitespace-pre-line text-sm leading-relaxed">
             {editWrap("message", closingText, { strong: true })}
           </p>
+          {/* Câu kết chuẩn của mẫu in: hàng chấm kéo tới chữ "Kính mời!" —
+              leader bằng chữ chấm (cùng kiểu với hàng chấm tên khách), cắt
+              theo chiều rộng màn hình. Chấm là cách trình bày, không phải
+              nội dung: customTextValue đã bỏ chấm đầu của giá trị đã lưu. */}
           <p className={`mt-8 text-xl font-bold${italicCls}`}>
-            {customWrap("printClosing", plain ? (
-              <span className="border-b border-dotted border-black/70 px-1 pb-0.5">{ct("printClosing")}</span>
-            ) : (
-              ct("printClosing")
-            ))}
+            {customWrap("printClosing", (
+              <span className="flex items-baseline gap-1">
+                <span aria-hidden="true" className="min-w-0 flex-1 overflow-hidden whitespace-nowrap tracking-[0.2em]">........................................</span>
+                <span className="shrink-0">{ct("printClosing")}</span>
+              </span>
+            ), { block: true })}
           </p>
         </section>
       </div>
