@@ -7,7 +7,7 @@ import { defaultInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
 import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm } from "@/lib/physical-forms";
 import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, mergeImportedData, saveInvitation } from "@/lib/store";
-import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostText, parseCepPlainText } from "@/lib/cep";
+import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostTextWithPlainFallback, parseCepPlainText } from "@/lib/cep";
 import InvitationPreview from "@/components/InvitationPreview";
 import PrintFormPreview from "@/components/PrintFormPreview";
 import AdminGate from "@/components/AdminGate";
@@ -50,6 +50,7 @@ function EditorInner() {
   const [savedId, setSavedId] = useState("");
   const [editLink, setEditLink] = useState("");
   const [cepNotice, setCepNotice] = useState("");
+  const [cepWarning, setCepWarning] = useState("");
   // Thông báo riêng cho mục xuất ghost text (khác thông báo nhập ở trên):
   // bấm sao chép ở mục xuất thì báo ngay tại đó, không hiện trùng 2 nơi.
   const [cepCopyNotice, setCepCopyNotice] = useState("");
@@ -417,20 +418,39 @@ function EditorInner() {
     setCepCopyNotice(res.ok ? okMsg : "Không sao chép được. Hãy bôi đen rồi copy thủ công.");
   };
 
+  // Cảnh báo riêng (khung vàng nổi bật) khi đoạn dán vẫn thiếu địa điểm —
+  // phải hiện rõ ngay, không chìm trong dòng thông báo xanh bên dưới.
+  // Giữ nguyên câu chữ cũ "Đoạn dán không có địa điểm/địa chỉ tiệc" để
+  // chị nhận ra ngay trường hợp quen thuộc này.
+  const missingPlaceWarning = (missingVenue: boolean, missingCeremony: boolean): string => {
+    if (missingVenue && missingCeremony) {
+      return "Đoạn dán không có nơi làm lễ và địa điểm/địa chỉ tiệc — gõ vào ô 'Nơi làm lễ', 'Địa điểm' / 'Địa chỉ' trong form bên dưới rồi bấm Lưu thiệp.";
+    }
+    if (missingVenue) {
+      return "Đoạn dán không có địa điểm/địa chỉ tiệc — gõ vào ô 'Địa điểm' / 'Địa chỉ' trong form bên dưới rồi bấm Lưu thiệp.";
+    }
+    if (missingCeremony) {
+      return "Đoạn dán không có nơi làm lễ — gõ vào ô 'Nơi làm lễ' trong form bên dưới rồi bấm Lưu thiệp.";
+    }
+    return "";
+  };
+
   // Nhập từ Illustrator: điền vào form + xem trước, KHÔNG tự lưu (chỉ lưu
   // khi bấm "Lưu thiệp" như mọi khi). Dán ghost text nghĩa là thiệp VẬT
   // LÝ: chọn form vật lý chuẩn #1 (không động tới mẫu online), chuyển sang
   // đường vật lý để chị thấy ngay form in đã đổ dữ liệu.
   const onImportGhost = () => {
-    const res = parseCepGhostText(importText, importMeta);
+    const { result: res, usedPlainFallback } = parseCepGhostTextWithPlainFallback(importText, importMeta);
     if (!res.ok) {
       setCepNotice(res.error);
+      setCepWarning("");
       return;
     }
     // Dán chỉ đổ thêm những gì Illustrator có — chữ rỗng trong đoạn dán
     // không xoá chữ chị đã gõ (vd địa điểm tiệc dạng outline trong .ai).
     const merged = mergeImportedData(data, res.data);
     const missingVenue = !merged.venue?.trim() || !merged.address?.trim();
+    const missingCeremony = !merged.ceremonyVenue?.trim();
     setData({
       ...merged,
       physicalFormId: data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
@@ -438,31 +458,32 @@ function EditorInner() {
     setMode("physical");
     setCepNotice(
       "Đã điền dữ liệu từ Illustrator — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp." +
-        (missingVenue
-          ? " Đoạn dán không có địa điểm/địa chỉ tiệc — gõ vào ô 'Địa điểm' / 'Địa chỉ' trong form bên dưới."
+        (usedPlainFallback
+          ? " Đoạn dán thiếu mã ẩn ở một số chỗ nên đã đọc bù bằng chữ thường — kiểm tra kỹ lại các trường đã bù."
           : "")
     );
+    setCepWarning(missingPlaceWarning(missingVenue, missingCeremony));
   };
 
   const onImportPlain = () => {
     const res = parseCepPlainText(plainImportText);
     if (!res.ok) {
       setCepNotice(res.error);
+      setCepWarning("");
       return;
     }
     const merged = mergeImportedData(data, res.data);
     const missingVenue = !merged.venue?.trim() || !merged.address?.trim();
+    const missingCeremony = !merged.ceremonyVenue?.trim();
     setData({
       ...merged,
       physicalFormId: data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
     });
     setMode("physical");
     setCepNotice(
-      "Đã điền dữ liệu từ khối chữ thường — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp." +
-        (missingVenue
-          ? " Đoạn dán không có địa điểm/địa chỉ tiệc — gõ vào ô 'Địa điểm' / 'Địa chỉ' trong form bên dưới."
-          : "")
+      "Đã điền dữ liệu từ khối chữ thường — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp."
     );
+    setCepWarning(missingPlaceWarning(missingVenue, missingCeremony));
   };
 
   // Chọn mẫu ONLINE — chỉ dùng ở đường online. Đường vật lý KHÔNG chọn
@@ -778,6 +799,7 @@ function EditorInner() {
           <label htmlFor="cep-import-plain" className="mt-5 block text-sm font-semibold">Hoặc dán khối chữ thường (cùng bố cục trên)</label>
           <textarea id="cep-import-plain" rows={6} value={plainImportText} onChange={(e) => setPlainImportText(e.target.value)} placeholder="Dán khối chữ thường vào đây…" className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
           <button type="button" onClick={onImportPlain} className="mt-3 rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]">Điền từ khối chữ thường</button>
+        {cepWarning && <p className="mt-3 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900" role="alert">{cepWarning}</p>}
         {cepNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{cepNotice}</p>}
       </section>
     </div>
