@@ -314,8 +314,14 @@ export default function CustomerStandardEditor({
         const norm = normalizeName(cur);
         if (norm && norm !== cur) setFieldValue(sel.field, norm);
       }
+      // Lưu dạng NFC: dấu gõ rời (do gõ/bộ gõ) về dạng gộp chuẩn.
+      const curNfc = fieldValue(sel.field).normalize("NFC");
+      if (curNfc !== fieldValue(sel.field)) setFieldValue(sel.field, curNfc);
       newValue = fieldValue(sel.field);
     } else {
+      const curCustom = customTextValue(sel.key, customTextsRef.current, dataRef.current);
+      const nfcCustom = curCustom.normalize("NFC");
+      if (nfcCustom !== curCustom) setCustomValue(sel.key, nfcCustom);
       newValue = customTextValue(sel.key, customTextsRef.current, dataRef.current);
     }
     if (newValue !== open.value) {
@@ -449,7 +455,18 @@ export default function CustomerStandardEditor({
 
   /* ---------- chốt ---------- */
   const onConfirm = async () => {
-    const v = validateData(dataRef.current);
+    // Chuẩn hoá NFC toàn bộ dữ liệu + câu mẫu trước khi chốt: dữ liệu cũ
+    // đã lưu dạng dấu rời về dạng gộp chuẩn để ghost text + bản lưu sạch dấu.
+    const nfcData: InvitationData = { ...dataRef.current };
+    for (const k of Object.keys(nfcData)) {
+      const v = (nfcData as unknown as Record<string, unknown>)[k];
+      if (typeof v === "string") (nfcData as unknown as Record<string, unknown>)[k] = v.normalize("NFC");
+    }
+    const nfcCustom: Record<string, string> = {};
+    for (const [k, v] of Object.entries(customTextsRef.current)) nfcCustom[k] = v.normalize("NFC");
+    setData(nfcData);
+    setCustomTexts(nfcCustom);
+    const v = validateData(nfcData);
     if (!v.ok) {
       setErrors(v.errors);
       setNotice("");
@@ -457,7 +474,7 @@ export default function CustomerStandardEditor({
     }
     setErrors([]);
     setConfirmBusy(true);
-    const list = buildManualList(customTextsRef.current, dataRef.current, initialMessageRef.current);
+    const list = buildManualList(nfcCustom, nfcData, initialMessageRef.current);
     try {
       if (serverMode) {
         const res = await fetch(`/api/invitations/${encodeURIComponent(invitationId)}/confirm`, {
@@ -465,8 +482,8 @@ export default function CustomerStandardEditor({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             token: editToken,
-            data: dataRef.current,
-            customTexts: customTextsRef.current,
+            data: nfcData,
+            customTexts: nfcCustom,
             editedFields: Array.from(editedFieldsRef.current),
             manualList: list,
           }),
@@ -482,19 +499,19 @@ export default function CustomerStandardEditor({
         setPlainText(String(j.plainText ?? ""));
         setManualList((j.manualList as ManualListItem[] | undefined) ?? list);
       } else {
-        setGhostText(buildCepTextBlock(dataRef.current));
+        setGhostText(buildCepTextBlock(nfcData));
         setMetadata(buildCepMetadataJson());
-        setPlainText(buildCepPlainText(dataRef.current));
+        setPlainText(buildCepPlainText(nfcData));
         setManualList(list);
         // Link ?d= (không máy chủ): ghi cờ đã-chốt theo base + dữ liệu đã
         // chốt để mở lại link vẫn chỉ đọc (link mới base khác thì không
         // khóa) + lưu bản chốt để tải lại vẫn giữ đúng dữ liệu đã sửa.
-        markCustomerConfirmed(invitationId, originalData ?? dataRef.current, dataRef.current);
+        markCustomerConfirmed(invitationId, originalData ?? nfcData, nfcData);
         saveCustomerSnapshot(
           invitationId,
-          originalData ?? dataRef.current,
-          dataRef.current,
-          customTextsRef.current
+          originalData ?? nfcData,
+          nfcData,
+          nfcCustom
         );
       }
       setConfirmed(true);
@@ -575,6 +592,7 @@ export default function CustomerStandardEditor({
         <PrintFormPreview
           data={data}
           editable={!confirmed}
+          plain
           onFieldTap={openFieldEditor}
           onCustomTextTap={openCustomEditor}
           customTexts={customTexts}
