@@ -63,6 +63,8 @@ export default function ManagePage() {
     customerConfirmedAt: string | null;
     createdAt: string;
     updatedAt: string;
+    // Link khách (?t=) — chỉ dùng trong bảng này (admin) để sao chép.
+    customerEditUrl: string;
   }
   type BoardTab = "all" | "pending" | "reviewed" | "printed" | "draft";
   const BOARD_TABS: { key: BoardTab; label: string }[] = [
@@ -168,6 +170,13 @@ export default function ManagePage() {
       plain: buildCepPlainText(serverRecord.data),
     };
   }, [serverRecord]);
+
+  // Link khách (?t=) của thiệp đang mở — lấy từ bảng duyệt (list đã trả
+  // sẵn customerEditUrl), để nút "Sao chép link khách" trong chi tiết dùng.
+  const detailCustomerEditUrl = useMemo(
+    () => board.find((b) => b.id === invitationId)?.customerEditUrl ?? "",
+    [board, invitationId]
+  );
 
   const loadServerRecord = async (id?: string) => {
     const targetId = id ?? invitationId;
@@ -433,24 +442,41 @@ export default function ManagePage() {
           <ul className="mt-4 space-y-2">
             {filteredBoard.map((b) => (
               <li key={b.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    loadServerRecord(b.id);
-                    document.getElementById("chu-illustrator")?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="block w-full rounded-xl border bg-[#fdf8f1] px-4 py-3 text-left hover:border-[#7a1f2b]"
-                >
-                  <span className="block font-semibold text-[#7a1f2b]">
-                    {b.groomName || "(chưa có tên chú rể)"} &amp; {b.brideName || "(chưa có tên cô dâu)"}
-                  </span>
-                  <span className="mt-1 block text-sm text-[#5a4a48]">
-                    Tiệc: {fmtDate(b.date)}{b.time ? ` lúc ${b.time}` : ""}{b.venue ? ` · ${b.venue}` : ""} · {b.statusLabel}
-                  </span>
-                  <span className="mt-1 block text-xs text-[#7a6a68]">
-                    {b.customerConfirmedAt ? `Khách chốt lúc ${fmtTime(b.customerConfirmedAt)}` : "Khách chưa chốt"} · id: {b.id}
-                  </span>
-                </button>
+                <div className="flex items-stretch gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loadServerRecord(b.id);
+                      document.getElementById("chu-illustrator")?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="block flex-1 rounded-xl border bg-[#fdf8f1] px-4 py-3 text-left hover:border-[#7a1f2b]"
+                  >
+                    <span className="block font-semibold text-[#7a1f2b]">
+                      {b.groomName || "(chưa có tên chú rể)"} &amp; {b.brideName || "(chưa có tên cô dâu)"}
+                    </span>
+                    <span className="mt-1 block text-sm text-[#5a4a48]">
+                      Tiệc: {fmtDate(b.date)}{b.time ? ` lúc ${b.time}` : ""}{b.venue ? ` · ${b.venue}` : ""} · {b.statusLabel}
+                    </span>
+                    <span className="mt-1 block text-xs text-[#7a6a68]">
+                      {b.customerConfirmedAt ? `Khách chốt lúc ${fmtTime(b.customerConfirmedAt)}` : "Khách chưa chốt"} · id: {b.id}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!b.customerEditUrl) {
+                        setServerNotice("Chưa có link khách — bấm “↻ Tải lại” rồi thử lại.");
+                        return;
+                      }
+                      const r = await copyText(b.customerEditUrl);
+                      setServerNotice(r.ok ? "Đã sao chép link khách." : "Không sao chép được.");
+                    }}
+                    className="shrink-0 self-center rounded-xl border-2 border-[#7a1f2b] px-3 py-2 text-sm font-semibold text-[#7a1f2b]"
+                    aria-label={`Sao chép link khách của ${b.groomName || b.brideName || b.id}`}
+                  >
+                    Sao chép link khách
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
@@ -604,6 +630,16 @@ export default function ManagePage() {
                   className="rounded-full border px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
                 >
                   Mở lại
+                </button>
+              )}
+              {/* Link khách (?t=) — sao chép gửi khách; chỉ hiện khi bảng duyệt đã trả link. */}
+              {detailCustomerEditUrl && (
+                <button
+                  type="button"
+                  onClick={async () => { const r = await copyText(detailCustomerEditUrl); setServerNotice(r.ok ? "Đã sao chép link khách." : "Không sao chép được."); }}
+                  className="rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]"
+                >
+                  Sao chép link khách
                 </button>
               )}
             </div>
