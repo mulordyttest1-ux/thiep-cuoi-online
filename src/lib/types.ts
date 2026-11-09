@@ -87,10 +87,12 @@ export interface InvitationData {
   accountName: string;
   scheduleText: string; // mỗi dòng "HH:MM - Nội dung"
   // Khối online thêm/bớt (chỉ online, không đụng in/ghost text): id khối
-  // ẩn tay, và id khối hiện tay dù đang trống nội dung. Thiếu cả hai =
-  // hiện đủ như trước (dữ liệu cũ tương thích ngược), trừ khối trống nội
-  // dung thì mặc định ẩn (xem src/lib/blocks.ts). Đi theo link ?d=/?t=
-  // như mọi trường khác (encode toàn bộ object, máy chủ merge object).
+  // ẩn tay. shownBlocks chỉ còn để ĐỌC dữ liệu cũ (không vỡ bản đã lưu
+  // trước đây) — isBlockVisible BỎ QUA trường này, không sinh giá trị mới
+  // vào đó nữa: khối trống nội dung thì ẩn, kể cả khi từng được bật tay
+  // (bật khối trống chỉ gỡ ẩn, khối chỉ hiện khi đã có nội dung thật).
+  // Đi theo link ?d=/?t= như mọi trường khác (encode toàn bộ object, máy
+  // chủ merge object).
   hiddenBlocks?: string[];
   shownBlocks?: string[];
 }
@@ -105,6 +107,12 @@ export interface Guest {
   isDemo?: boolean;
 }
 
+/** Dữ liệu mẫu CHỈ ĐỂ TRƯNG BÀY / DEMO — tên, ngày, địa điểm, màu dress
+ *  code, câu chuyện, lịch trình, ảnh đều là mẫu (cặp Minh Quân & Thu An).
+ *  CHỈ dùng ở: ảnh nhỏ trưng mẫu trong thư viện (TemplateCard, trang chủ),
+ *  hộp xem mẫu đã bỏ, và route demo /thiep/demo. KHÔNG BAO GIỜ dùng làm
+ *  nền cho thiệp thật (xem emptyInvitation bên dưới) — thiệp thật bắt
+ *  đầu từ trống, trường nào khách không đưa thì trống, khối đó tự ẩn. */
 export function defaultInvitation(templateId = "minimal-do-do"): InvitationData {
   return {
     id: "",
@@ -146,6 +154,50 @@ export function defaultInvitation(templateId = "minimal-do-do"): InvitationData 
     accountNumber: "",
     accountName: "",
     scheduleText: "10:30 - Đón khách\n11:00 - Lễ thành hôn\n12:00 - Tiệc mừng\n14:00 - Chụp ảnh lưu niệm",
+  };
+}
+
+/** Thiệp thật bắt đầu từ TRỐNG — nền cho mọi thiệp của khách (API tạo
+ *  thiệp, decodeShare, editor /tao-thiep): trường nào khách không đưa thì
+ *  trống, khối đó tự ẩn; khách bổ sung thì mới thêm/hiện. KHÔNG có tên,
+ *  ngày, địa điểm, màu dress code, câu chuyện, lịch trình hay ảnh mẫu nào
+ *  ở đây. ceremonyType/hostType giữ mặc định chung (Thành Hôn / Nhà Trai)
+ *  như defaultInvitation — đó là lựa chọn mặc định của form, không phải
+ *  nội dung mẫu; dữ liệu dán từ Illustrator đè lại như thường. */
+export function emptyInvitation(templateId = "minimal-do-do"): InvitationData {
+  return {
+    id: "",
+    templateId,
+    physicalFormId: DEFAULT_PHYSICAL_FORM_ID,
+    groomName: "",
+    brideName: "",
+    groomFather: "",
+    groomMother: "",
+    brideFather: "",
+    brideMother: "",
+    groomBirthOrder: "",
+    brideBirthOrder: "",
+    groomParentsAddress: "",
+    brideParentsAddress: "",
+    ceremonyHeader: "",
+    dressCode: "",
+    ceremonyType: "Thành Hôn",
+    hostType: "Nhà Trai",
+    ceremonyDate: "",
+    ceremonyTime: "",
+    ceremonyVenue: "",
+    date: "",
+    time: "",
+    venue: "",
+    address: "",
+    message: "",
+    story: "",
+    photoUrl: "",
+    language: "vi",
+    bankCode: "",
+    accountNumber: "",
+    accountName: "",
+    scheduleText: "",
   };
 }
 

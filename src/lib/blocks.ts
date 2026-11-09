@@ -64,18 +64,22 @@ export function hasBlockContent(data: InvitationData, id: BlockId): boolean {
   }
 }
 
-/** Khối có hiện không: ẩn tay thắng hết; hiện tay thắng mặc định trống;
- *  còn lại theo nội dung. Dữ liệu cũ không có 2 trường này = hiện đủ
- *  như trước (trừ khối trống nội dung thì ẩn). */
+/** Khối có hiện không: phải CÓ NỘI DUNG THẬT và không bị ẩn tay. Khối
+ *  trống nội dung thì ẩn — kể cả khi từng được bật tay (shownBlocks là
+ *  trường cũ chỉ để đọc dữ liệu đã lưu, isBlockVisible bỏ qua nó; bật
+ *  khối trống chỉ gỡ ẩn, khối chỉ hiện khi khách thêm nội dung vào).
+ *  Dữ liệu cũ không có 2 trường này = hiện theo nội dung (trừ khối trống
+ *  thì ẩn). */
 export function isBlockVisible(data: InvitationData, id: BlockId): boolean {
   if (data.hiddenBlocks?.includes(id)) return false;
-  if (data.shownBlocks?.includes(id)) return true;
   return hasBlockContent(data, id);
 }
 
 /** Bật/tắt 1 khối, trả về patch {hiddenBlocks, shownBlocks} để onPatch.
- *  Tắt khi đang hiện -> ghi vào hiddenBlocks; bật khi đang ẩn -> ghi
- *  vào shownBlocks (kể cả khối đang trống nội dung). */
+ *  Tắt khối đang hiện -> ghi vào hiddenBlocks; bật khối đang ẩn -> chỉ gỡ
+ *  khỏi hiddenBlocks (và dọn shownBlocks cũ nếu có) — KHÔNG sinh giá trị
+ *  mới vào shownBlocks: khối trống nội dung vẫn ẩn cho tới khi khách thêm
+ *  nội dung thật vào. */
 export function toggleBlockPatch(data: InvitationData, id: BlockId): {
   hiddenBlocks: string[];
   shownBlocks: string[];
@@ -83,7 +87,6 @@ export function toggleBlockPatch(data: InvitationData, id: BlockId): {
   const hidden = (data.hiddenBlocks ?? []).filter((b) => b !== id);
   const shown = (data.shownBlocks ?? []).filter((b) => b !== id);
   if (isBlockVisible(data, id)) hidden.push(id);
-  else shown.push(id);
   return { hiddenBlocks: hidden, shownBlocks: shown };
 }
 
