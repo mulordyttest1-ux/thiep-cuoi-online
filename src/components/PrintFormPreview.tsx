@@ -16,6 +16,9 @@ import type { InvitationData, StdEditField } from "@/lib/types";
 export interface PrintFormPreviewProps {
   data: InvitationData;
   editable?: boolean;
+  /** Dạng trơn cho trang khách sửa: chữ đen, một font hệ thống, không màu
+      form in — chỉ trang khách dùng; xem trước ở /tao-thiep giữ dạng màu. */
+  plain?: boolean;
   onFieldTap?: (field: StdEditField, rect: { top: number; left: number; bottom: number; width: number }) => void;
   onCustomTextTap?: (key: string, rect: { top: number; left: number; bottom: number; width: number }) => void;
   customTexts?: Record<string, string>;
@@ -44,13 +47,43 @@ interface FamilySide {
 export default function PrintFormPreview({
   data,
   editable,
+  plain,
   onFieldTap,
   onCustomTextTap,
   customTexts,
   editedFields,
   editedCustomTexts,
 }: PrintFormPreviewProps) {
-  const b = buildCepBlockData(data);
+  const rawBlock = buildCepBlockData(data);
+  // Dạng trơn: chuẩn hoá NFC mọi giá trị hiển thị — dữ liệu cũ đã lưu dạng
+  // dấu rời sẽ hiện đúng dấu ngay, không cần dán lại.
+  const nfc = (s: string) => (s ?? "").normalize("NFC");
+  const nfcSide = (s: FamilySide): FamilySide => ({
+    ong: nfc(s.ong),
+    ba: nfc(s.ba),
+    diachi: nfc(s.diachi),
+    con_full: nfc(s.con_full),
+    vithu: nfc(s.vithu),
+  });
+  const nfcParts = (p: CepDateParts): CepDateParts => ({ ...p, thu: nfc(p.thu) });
+  const b = plain
+    ? {
+        ...rawBlock,
+        ten_le: nfc(rawBlock.ten_le),
+        pos1: nfcSide(rawBlock.pos1),
+        pos2: nfcSide(rawBlock.pos2),
+        ceremonyTen: nfc(rawBlock.ceremonyTen),
+        le: nfcParts(rawBlock.le),
+        tiec: nfcParts(rawBlock.tiec),
+        venueTen: nfc(rawBlock.venueTen),
+        venueDiachi: nfc(rawBlock.venueDiachi),
+      }
+    : rawBlock;
+  // Câu mẫu cũng về NFC ở dạng trơn (cùng lý do như trên).
+  const ct = (key: string) => {
+    const v = customTextValue(key, customTexts, data);
+    return plain ? v.normalize("NFC") : v;
+  };
   const brideHost = isBrideHost(data);
   // pos1 = bên chủ tiệc, pos2 = bên còn lại (theo luật CEP).
   const hostF: SideFields = brideHost
@@ -141,7 +174,7 @@ export default function PrintFormPreview({
   // Một bên gia đình trong cột lễ: nhãn "Ông bà:", cha, mẹ, địa chỉ.
   const fam = (side: FamilySide, f: SideFields) => (
     <div className="flex-1 text-center">
-      <p className="text-xs font-bold tracking-wide text-[#710001]">Ông bà:</p>
+      <p className={`text-xs font-bold tracking-wide ${plain ? "text-black" : "text-[#710001]"}`}>Ông bà:</p>
       <p className="mt-1">{editWrap(f.father, side.ong || "—")}</p>
       <p>{editWrap(f.mother, side.ba || "—")}</p>
       <p className="mt-1 whitespace-pre-line text-sm leading-snug">{editWrap(f.addr, side.diachi || "—")}</p>
@@ -150,9 +183,9 @@ export default function PrintFormPreview({
 
   // Dòng tên khách dưới "Trân trọng kính mời": chưa có chữ thì 1 hàng
   // chấm, có chữ thì hiện chữ đó trên gạch chấm dưới.
-  const guestName = customTextValue("printGuestLine", customTexts, data).trim();
+  const guestName = ct("printGuestLine").trim();
   const guestLine = guestName ? (
-    <span className="border-b border-dotted border-[#710001]/70 px-1 pb-0.5 text-lg font-bold">{guestName}</span>
+    <span className={`border-b border-dotted px-1 pb-0.5 text-lg font-bold ${plain ? "border-black/70" : "border-[#710001]/70"}`}>{guestName}</span>
   ) : (
     <span aria-hidden="true" className="tracking-[0.2em]">........................................</span>
   );
@@ -162,25 +195,35 @@ export default function PrintFormPreview({
   const closing = data.message?.trim()
     ? data.message
     : "Sự hiện diện của quý khách là niềm vinh hạnh cho gia đình chúng tôi.";
+  const closingText = plain ? closing.normalize("NFC") : closing;
+
+  // Dạng trơn: toàn bộ nội dung thiệp màu đen, một font hệ thống chuẩn của
+  // trình duyệt (không serif, không đỏ, không nền kem, không viền đỏ,
+  // không chữ nghiêng) để dấu tiếng Việt không vỡ trên điện thoại/máy tính.
+  const sectionCls = plain ? "text-center text-black" : "text-center font-serif text-[#ea1d25]";
+  const labelCls = plain ? "text-black" : "text-[#710001]";
+  const italicCls = plain ? "" : " italic";
 
   return (
     <div
-      className="rounded-2xl border-2 border-[#710001] bg-[#f9ede3] p-4 shadow-sm sm:p-6"
+      className={plain ? "rounded-2xl border border-black/20 bg-white p-4 shadow-none sm:p-6" : "rounded-2xl border-2 border-[#710001] bg-[#f9ede3] p-4 shadow-sm sm:p-6"}
+      style={plain ? { fontFamily: '-apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' } : undefined}
       data-testid="print-form"
+      data-plain={plain ? "true" : undefined}
     >
       <div className="grid gap-8 md:grid-cols-2">
         {/* Cột LỄ */}
-        <section aria-label="Lễ" className="text-center font-serif text-[#ea1d25]">
+        <section aria-label="Lễ" className={sectionCls}>
           <div className="flex gap-4">
             {fam(b.pos1, hostF)}
             {fam(b.pos2, guestF)}
           </div>
 
-          <p className="mt-6 text-sm font-bold tracking-wide text-[#710001]">
+          <p className={`mt-6 text-sm font-bold tracking-wide ${labelCls}`}>
             Trân trọng báo tin lễ {editWrap("ceremonyType", b.ten_le)} của con chúng tôi
           </p>
 
-          <p className="mt-4 text-2xl italic leading-snug md:text-3xl">
+          <p className={`mt-4 text-2xl leading-snug md:text-3xl${italicCls}`}>
             {editWrap(hostF.name, b.pos1.con_full || "—")}
           </p>
           <p className="mt-2 text-sm">
@@ -188,12 +231,12 @@ export default function PrintFormPreview({
             <span aria-hidden="true">💍</span>{" "}
             {editWrap(guestF.vithu, b.pos2.vithu || "—")}
           </p>
-          <p className="mt-2 text-2xl italic leading-snug md:text-3xl">
+          <p className={`mt-2 text-2xl leading-snug md:text-3xl${italicCls}`}>
             {editWrap(guestF.name, b.pos2.con_full || "—")}
           </p>
 
-          <p className="mt-6 text-sm font-bold tracking-wide text-[#710001]">
-            {customWrap("printCeremonyTitle", customTextValue("printCeremonyTitle", customTexts, data))}
+          <p className={`mt-6 text-sm font-bold tracking-wide ${labelCls}`}>
+            {customWrap("printCeremonyTitle", ct("printCeremonyTitle"))}
           </p>
           <p className="mt-1 text-xl font-bold leading-snug">
             {editWrap("ceremonyVenue", b.ceremonyTen || "—")}
@@ -209,13 +252,13 @@ export default function PrintFormPreview({
         </section>
 
         {/* Cột TIỆC */}
-        <section aria-label="Tiệc" className="text-center font-serif text-[#ea1d25]">
-          <p className="text-sm font-bold tracking-wide text-[#710001]">Trân trọng kính mời</p>
+        <section aria-label="Tiệc" className={sectionCls}>
+          <p className={`text-sm font-bold tracking-wide ${labelCls}`}>Trân trọng kính mời</p>
           <p className="mt-5">
             {customWrap("printGuestLine", guestLine)}
           </p>
           <p className="mt-4 text-sm font-bold leading-relaxed">
-            {customWrap("printPartyIntro", customTextValue("printPartyIntro", customTexts, data))}
+            {customWrap("printPartyIntro", ct("printPartyIntro"))}
           </p>
           <p className="mt-2 text-xl font-bold leading-snug">{editWrap("venue", b.venueTen || "—")}</p>
           <p className="mt-1 whitespace-pre-line text-sm leading-snug">
@@ -231,10 +274,14 @@ export default function PrintFormPreview({
           )}
 
           <p className="mt-4 whitespace-pre-line text-sm leading-relaxed">
-            {editWrap("message", closing, { strong: true })}
+            {editWrap("message", closingText, { strong: true })}
           </p>
-          <p className="mt-8 text-xl font-bold italic">
-            {customWrap("printClosing", customTextValue("printClosing", customTexts, data))}
+          <p className={`mt-8 text-xl font-bold${italicCls}`}>
+            {customWrap("printClosing", plain ? (
+              <span className="border-b border-dotted border-black/70 px-1 pb-0.5">{ct("printClosing")}</span>
+            ) : (
+              ct("printClosing")
+            ))}
           </p>
         </section>
       </div>

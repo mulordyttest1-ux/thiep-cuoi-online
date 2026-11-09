@@ -438,11 +438,22 @@ function parseFamilyBlock(lines: string[]): CepFamilySide | null {
 /** Nhập khối chữ thường (cùng bố cục với khối xuất) — tách nghiêm ngặt theo
     từng dòng/nhãn; đọc không được chỗ nào thì báo rõ chỗ đó. */
 export function parseCepPlainText(pasted: string): CepImportResult {
-  // Chuẩn hoá NFC toàn bộ text đầu vào (dấu rời → dạng gộp) trước khi tách.
-  const text = (pasted ?? "").replace(/\r\n?/g, "\n").normalize("NFC").trim();
+  // Chuẩn hoá NFC toàn bộ text đầu vào (dấu rời → dạng gộp) trước khi tách,
+  // rồi gỡ các ký tự vô hình (marker U+200B của ghost text và các ký tự
+  // định dạng zero-width khác: U+200C/U+200D/U+FEFF). Đoạn dán có marker
+  // bọc từng giá trị thì regex ngày/giờ mới khớp — marker nằm giữa số và
+  // dấu (' / .) làm hỏng \d{1,2}'\d{2} hay \d{1,2}\.\d{1,2}\.\d{4}.
+  // Mỗi dòng cũng trim trước khi xử lý (dòng "con:… (Út Nam) " có dấu cách
+  // cuối làm regex vị thứ không tách được → tên dính cả "(Út Nam)").
+  const text = (pasted ?? "")
+    .replace(/\r\n?/g, "\n")
+    .normalize("NFC")
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+    .trim();
   if (!text) return { ok: false, error: "Chưa dán khối chữ nào." };
   const blocks: string[][] = [[]];
-  for (const line of text.split("\n")) {
+  for (const rawLine of text.split("\n")) {
+    const line = rawLine.trim();
     if (DASH_LINE.test(line)) {
       blocks.push([]);
     } else {
@@ -488,4 +499,59 @@ export function parseCepPlainText(pasted: string): CepImportResult {
     "date.tiec.ngay": party[6] ?? "", "date.tiec.thang": party[7] ?? "", "date.tiec.nam": party[8] ?? "",
   };
   return { ok: true, data: cepValuesToData(map) };
+}
+
+/** Các trường địa điểm dễ mất khi dán từ Illustrator: nơi làm lễ / nơi
+    tổ chức tiệc / địa chỉ tiệc trong file .ai hay là chữ outline (không
+    phải chữ sống) nên ghost text không có marker cho chúng — đọc ghost
+    thì ra rỗng, đọc chữ thường thì có. */
+const GHOST_PLAIN_FILLABLE = ["ceremonyVenue", "venue", "address"] as const;
+
+export interface CepGhostImport {
+  result: CepImportResult;
+  /** true khi đã dùng chữ thường để bù (một phần hoặc toàn bộ). */
+  usedPlainFallback: boolean;
+  /** Các trường đã bù từ chữ thường. */
+  filledFields: string[];
+}
+
+/** Đọc đoạn dán từ Illustrator: ưu tiên ghost text (có marker U+200B).
+    Chỗ nào ghost thiếu thì bù bằng khối chữ thường đọc được trong cùng
+    đoạn dán — kể cả khi ghost hỏng hẳn vì sai số lượng marker (địa điểm
+    .ai outline hiện chữ nhưng không có marker nên ghost đếm thiếu).
+    Chỉ bù trường trống, không đè giá trị ghost đã có. */
+export function parseCepGhostTextWithPlainFallback(
+  pasted: string,
+  metadataJson?: string
+): CepGhostImport {
+  const ghost = parseCepGhostText(pasted, metadataJson);
+  if (ghost.ok) {
+    const filled: string[] = [];
+    const hasEmpty = Object.values(ghost.data).some(
+      (v) => typeof v === "string" && !v.trim()
+    );
+    if (hasEmpty) {
+      const plain = parseCepPlainText(pasted);
+      if (plain.ok) {
+        for (const [k, v] of Object.entries(plain.data)) {
+          if (typeof v !== "string" || !v.trim()) continue;
+          const cur = (ghost.data as Record<string, unknown>)[k];
+          if (typeof cur !== "string" || !cur.trim()) {
+            (ghost.data as Record<string, unknown>)[k] = v;
+            filled.push(k);
+          }
+        }
+      }
+    }
+    return { result: ghost, usedPlainFallback: filled.length > 0, filledFields: filled };
+  }
+  // Ghost không đọc được (sai số lượng marker): đọc thẳng bằng chữ thường.
+  const plain = parseCepPlainText(pasted);
+  if (plain.ok) {
+    const filled = GHOST_PLAIN_FILLABLE.filter((f) =>
+      (plain.data[f] as string | undefined)?.trim()
+    );
+    return { result: plain, usedPlainFallback: true, filledFields: filled };
+  }
+  return { result: ghost, usedPlainFallback: false, filledFields: [] };
 }

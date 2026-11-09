@@ -179,12 +179,25 @@ check("câu kết mặc định 'Kính mời!' nằm ở custom-texts (khóa pri
 for (const s of ["Album", "Đếm ngược", "Xem bản đồ", "Lịch trình", "Dress code", "VietQR", "mừng cưới", "Câu chuyện"]) {
   check(`PrintFormPreview KHÔNG có: ${s}`, !pf.includes(s));
 }
+// Dạng trơn cho trang khách (chị 09/11): chữ đen, một font hệ thống,
+// không serif/đỏ/kem; câu kết có hàng chấm; hiển thị chuẩn hoá NFC.
+check("PrintFormPreview có chế độ plain cho trang khách",
+  pf.includes("plain") && pf.includes("data-plain"));
+check("plain: chữ đen + font hệ thống (không serif/đỏ/kem)",
+  pf.includes("text-black") && pf.includes("-apple-system") && pf.includes('"Segoe UI"'));
+check("plain: câu kết có hàng chấm",
+  pf.includes("border-b border-dotted border-black/70"));
+check("plain: chuẩn hoá NFC khi hiển thị",
+  pf.includes('.normalize("NFC")'));
 
 // ---- 8. Editor dùng PrintFormPreview, không còn InvitationPreview ----
 const ed = readSrc("src/components/CustomerStandardEditor.tsx");
 check("editor import PrintFormPreview", ed.includes('from "./PrintFormPreview"'));
 check("editor không còn import InvitationPreview", !ed.includes('from "./InvitationPreview"'));
 check("editor render PrintFormPreview", ed.includes("<PrintFormPreview"));
+check("editor mở PrintFormPreview ở dạng trơn",
+  /<PrintFormPreview[^>]*\bplain\b/.test(ed));
+check("editor lưu sửa dạng NFC", ed.includes('.normalize("NFC")'));
 check("editor nói rõ mẫu form in", ed.includes("Duyệt mẫu in") && ed.includes("mẫu form sẽ in"));
 check("editor khóa sau chốt ở link ?d= theo base", ed.includes("markCustomerConfirmed(invitationId,") && ed.includes("isCustomerConfirmed(invitationId,"));
 
@@ -385,6 +398,10 @@ check("merge: trường undefined cũng không đè",
   store.mergeImportedData(prevVenue, { venue: undefined }).venue === "Tư Gia Nhà Gái");
 check("tao-thiep dùng mergeImportedData khi dán", tt.includes("mergeImportedData(data, res.data)"));
 check("tao-thiep báo khi đoạn dán thiếu địa điểm tiệc", tt.includes("Đoạn dán không có địa điểm/địa chỉ tiệc"));
+check("tao-thiep dùng fallback ghost→chữ thường khi thiếu địa điểm",
+  tt.includes("parseCepGhostTextWithPlainFallback"));
+check("tao-thiep cảnh báo riêng khi thiếu nơi làm lễ",
+  tt.includes("Đoạn dán không có nơi làm lễ") && tt.includes("cepWarning") && tt.includes("border-amber-500"));
 check("PrintFormPreview có dòng tên khách + câu kết sửa được",
   pf.includes('customWrap("printGuestLine"') && pf.includes('customWrap("printClosing"'));
 check("editor có chips chọn tên khách (Bỏ trống / Quý Gia Đình / Quý Khách)",

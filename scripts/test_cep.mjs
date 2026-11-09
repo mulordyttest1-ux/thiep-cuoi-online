@@ -286,5 +286,127 @@ check("ngày tiệc: thứ đã là tên riêng đúng dấu ('Chủ Nhật')",
   cep.buildCepBlockData(example).tiec.thu === "Chủ Nhật",
   cep.buildCepBlockData(example).tiec.thu);
 
+// ---- 10. Ví dụ thật của chị (11:32 09/11): Lễ Tân Hôn, tiệc ở Nhà Hàng
+// Anh Vũ. Chị báo dán vào vẫn không nhận địa chỉ tiệc + nơi tổ chức tiệc;
+// ảnh chụp cho thấy lễ nhận đúng (28.11.2026, Tư Gia Nhà Trai) còn tiệc
+// vẫn dữ liệu cũ (Sen Hồng, 20.12.2026) — địa điểm tiệc trong .ai là outline.
+const nancyPlain = `Lễ Tân Hôn
+gia đình:
+Nguyễn Văn Kiệm
+Lê Thị Vân
+địa chỉ:Thôn 9, Xã Ea Ktur
+Tỉnh Đắk Lắk
+con:Nguyễn Văn Cường (Út Nam)
+------------------------------------------
+gia đình:
+Hoàng Văn Chấp
+Hoang Thị Liêp
+địa chỉ:Tổ 2, Phường Lê Ích Mộc
+TP Hải Phòng
+con:Hoàng Thị Phương Thảo (Quý Nữ)
+------------------------------------------
+cử hành tại Tư Gia Nhà Trai vào lúc 09'00 - Thứ Bảy 28.11.2026 (nhằm 20.10 năm Bính Ngọ)
+tiệc tại Nhà Hàng Anh Vũ ĐC: KM 15, QL 27 Thôn 9
+Xã Ea Ktur, Tỉnh Đắk Lắk vào lúc: 11'00 - Thứ Bảy 28.11.2026 (nhằm 20.10 năm Bính Ngọ)
+------------------------------------------
+Quý khách hàng vui lòng kiểm tra kỹ: Nội dung, lỗi chính tả trên bản Thiết kế.
+Xin cảm ơn`;
+const nancyParsed = cep.parseCepPlainText(nancyPlain);
+check("chị Nancy: nhập chữ thường ok", nancyParsed.ok === true,
+  nancyParsed.ok ? "" : nancyParsed.error);
+if (nancyParsed.ok) {
+  const nd = nancyParsed.data;
+  check("chị Nancy: tên chú rể", nd.groomName === "Nguyễn Văn Cường", nd.groomName);
+  check("chị Nancy: tên cô dâu", nd.brideName === "Hoàng Thị Phương Thảo", nd.brideName);
+  check("chị Nancy: vị thứ cô dâu", nd.brideBirthOrder === "Quý Nữ", nd.brideBirthOrder);
+  check("chị Nancy: nơi làm lễ", nd.ceremonyVenue === "Tư Gia Nhà Trai", nd.ceremonyVenue);
+  check("chị Nancy: nơi tổ chức tiệc", nd.venue === "Nhà Hàng Anh Vũ", nd.venue);
+  check("chị Nancy: địa chỉ tiệc 2 dòng",
+    nd.address === "KM 15, QL 27 Thôn 9\nXã Ea Ktur, Tỉnh Đắk Lắk", nd.address);
+  check("chị Nancy: ngày/giờ lễ", nd.ceremonyDate === "2026-11-28" && nd.ceremonyTime === "09:00",
+    `${nd.ceremonyDate} ${nd.ceremonyTime}`);
+  check("chị Nancy: ngày/giờ tiệc", nd.date === "2026-11-28" && nd.time === "11:00",
+    `${nd.date} ${nd.time}`);
+  check("chị Nancy: địa chỉ nhà trai 2 dòng",
+    nd.groomParentsAddress === "Thôn 9, Xã Ea Ktur\nTỉnh Đắk Lắk", nd.groomParentsAddress);
+}
+
+// Dòng con có dấu cách cuối ("con:… (Út Nam) ") làm regex vị thứ cũ
+// không tách được → tên dính cả "(Út Nam)", vị thứ rỗng.
+const nancyTrailing = nancyPlain.replace(
+  "con:Nguyễn Văn Cường (Út Nam)\n",
+  "con:Nguyễn Văn Cường (Út Nam) \n"
+);
+const trailingParsed = cep.parseCepPlainText(nancyTrailing);
+check("dòng con có dấu cách cuối → vị thứ vẫn tách đúng",
+  trailingParsed.ok === true && trailingParsed.data.groomBirthOrder === "Út Nam" && trailingParsed.data.groomName === "Nguyễn Văn Cường",
+  trailingParsed.ok ? `${trailingParsed.data.groomName} / ${trailingParsed.data.groomBirthOrder}` : trailingParsed.error);
+
+// Đoạn chữ thường có marker U+200B bọc từng giá trị (như khi copy từ
+// Illustrator mà marker còn sót): regex ngày/giờ vẫn phải khớp.
+const M = "\u200B";
+const nancyMarked = nancyPlain
+  .replaceAll("Tư Gia Nhà Trai", `${M}Tư Gia Nhà Trai${M}`)
+  .replaceAll("Nhà Hàng Anh Vũ", `${M}Nhà Hàng Anh Vũ${M}`)
+  .replaceAll("KM 15, QL 27 Thôn 9\nXã Ea Ktur, Tỉnh Đắk Lắk", `${M}KM 15, QL 27 Thôn 9\nXã Ea Ktur, Tỉnh Đắk Lắk${M}`)
+  .replaceAll("09'00", `${M}09${M}'${M}00${M}`)
+  .replaceAll("11'00", `${M}11${M}'${M}00${M}`)
+  .replaceAll("28.11.2026", `${M}28${M}.${M}11${M}.${M}2026${M}`);
+const markedParsed = cep.parseCepPlainText(nancyMarked);
+check("chữ thường có marker bọc giá trị ngày/giờ → đọc đủ",
+  markedParsed.ok === true, markedParsed.ok ? "" : markedParsed.error);
+if (markedParsed.ok) {
+  const md = markedParsed.data;
+  check("marker: nơi tổ chức tiệc", md.venue === "Nhà Hàng Anh Vũ", md.venue);
+  check("marker: địa chỉ tiệc", md.address === "KM 15, QL 27 Thôn 9\nXã Ea Ktur, Tỉnh Đắk Lắk", md.address);
+  check("marker: ngày/giờ lễ", md.ceremonyDate === "2026-11-28" && md.ceremonyTime === "09:00", `${md.ceremonyDate} ${md.ceremonyTime}`);
+  check("marker: ngày/giờ tiệc", md.date === "2026-11-28" && md.time === "11:00", `${md.date} ${md.time}`);
+}
+
+// ---- 11. Ghost thiếu địa điểm tiệc (.ai outline) → bù bằng chữ thường.
+// Ghost text thiếu marker ở địa điểm tiệc: chữ hiện ra nhưng không có
+// marker nên ghost đếm thiếu cặp → hỏng hẳn, fallback chữ thường phải
+// cứu được địa điểm + các trường khác.
+const ghostNoVenueMarkers = ghost.replace(
+  `tiệc tại ${M}${example.venue}${M} ĐC: ${M}${example.address}${M}`,
+  `tiệc tại ${example.venue} ĐC: ${example.address}`
+);
+const ghostNoVenue = cep.parseCepGhostText(ghostNoVenueMarkers);
+check("ghost thiếu marker ở địa điểm tiệc → ghost đọc hỏng (sai số lượng)",
+  ghostNoVenue.ok === false);
+const fallbackNoVenue = cep.parseCepGhostTextWithPlainFallback(ghostNoVenueMarkers);
+check("fallback: ghost thiếu marker → đọc bù bằng chữ thường ok",
+  fallbackNoVenue.result.ok === true);
+check("fallback: đã dùng chữ thường", fallbackNoVenue.usedPlainFallback === true);
+if (fallbackNoVenue.result.ok) {
+  const fd = fallbackNoVenue.result.data;
+  check("fallback: địa điểm tiệc bù đúng", fd.venue === example.venue, fd.venue);
+  check("fallback: địa chỉ tiệc bù đúng", fd.address === example.address, fd.address);
+  check("fallback: tên chú rể vẫn đúng", fd.groomName === example.groomName, fd.groomName);
+  check("fallback: ngày tiệc vẫn đúng", fd.date === example.date && fd.time === example.time, `${fd.date} ${fd.time}`);
+}
+
+// Ghost đủ 32 cặp nhưng địa điểm là cặp rỗng → ghost ok, địa điểm rỗng;
+// chữ thường cũng không có gì để bù → không được bịa dữ liệu.
+const ghostEmptyVenue = ghost.replace(
+  `tiệc tại ${M}${example.venue}${M} ĐC: ${M}${example.address}${M}`,
+  `tiệc tại ${M}${M} ĐC: ${M}${M}`
+);
+const ghostEmpty = cep.parseCepGhostText(ghostEmptyVenue);
+check("ghost cặp rỗng ở địa điểm → ghost ok nhưng địa điểm rỗng",
+  ghostEmpty.ok === true && ghostEmpty.data.venue === "" && ghostEmpty.data.address === "");
+const fallbackEmpty = cep.parseCepGhostTextWithPlainFallback(ghostEmptyVenue);
+check("fallback: cặp rỗng → không bịa địa điểm",
+  fallbackEmpty.result.ok === true && fallbackEmpty.result.data.venue === "" && fallbackEmpty.result.data.address === "");
+check("fallback: cặp rỗng → các trường ghost khác giữ nguyên",
+  fallbackEmpty.result.ok === true && fallbackEmpty.result.data.groomName === example.groomName && fallbackEmpty.result.data.brideName === example.brideName);
+
+// Ghost đầy đủ 32 giá trị → không cần fallback, kết quả như cũ.
+const fallbackFull = cep.parseCepGhostTextWithPlainFallback(ghost);
+check("ghost đầy đủ 32 giá trị → không cần fallback",
+  fallbackFull.usedPlainFallback === false && fallbackFull.filledFields.length === 0);
+check("ghost đầy đủ → kết quả như cũ",
+  fallbackFull.result.ok === true && fallbackFull.result.data.groomName === example.groomName && fallbackFull.result.data.venue === example.venue && fallbackFull.result.data.address === example.address);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
