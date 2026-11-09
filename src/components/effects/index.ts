@@ -21,5 +21,8 @@ export { Twinkle } from "./Twinkle";
 export type { TwinkleProps } from "./Twinkle";
 export { PetalFall } from "./PetalFall";
 export type { PetalFallProps } from "./PetalFall";
+export { BokehGlow } from "./BokehGlow";
+export type { BokehGlowProps } from "./BokehGlow";
+export { AmbientLayer } from "./AmbientLayer";
 export { SplitLines } from "./SplitLines";
 export type { SplitLine } from "./SplitLines";

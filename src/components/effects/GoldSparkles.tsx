@@ -9,6 +9,7 @@
 // Sparkles trong một div `absolute inset-0` riêng, còn Sparkles bên trong
 // chỉ cần `h-full w-full`.
 import { Sparkles } from "@/components/ui/sparkles";
+import { useReducedMotion } from "framer-motion";
 
 export interface GoldSparklesProps {
   /** Số tia 4 cánh (mặc định 16). */
@@ -21,6 +22,8 @@ export interface GoldSparklesProps {
 }
 
 export function GoldSparkles({ count = 16, speed = 1, seed = 1, className }: GoldSparklesProps) {
+  const reduce = useReducedMotion();
+  if (reduce) return null;
   return (
     <div className={`pointer-events-none absolute inset-0 ${className ?? ""}`}>
       <Sparkles
