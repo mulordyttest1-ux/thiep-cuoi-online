@@ -148,6 +148,14 @@ check("sửa câu kết → vào danh sách sửa tay, cũ 'Kính mời!' → m�
       list[0].oldValue === "Kính mời!" && list[0].newValue === "Trân trọng kính mời!";
   })(),
   JSON.stringify(ct.buildManualList({ printClosing: "Trân trọng kính mời!" }, example, "")));
+check("câu kết đã lưu kèm hàng chấm '............Kính mời!' → hiển thị 'Kính mời!' (chấm là leader, không phải nội dung)",
+  ct.customTextValue("printClosing", { printClosing: "........................Kính mời!" }, example) === "Kính mời!");
+check("câu kết đã lưu kèm hàng chấm → KHÔNG tính là đã sửa, không vào danh sách sửa tay",
+  ct.isCustomTextEdited("printClosing", "........................Kính mời!", example) === false &&
+    ct.buildManualList({ printClosing: "........................Kính mời!" }, example, "").length === 0);
+check("câu kết lưu đúng chữ mặc định → KHÔNG tính là đã sửa; câu khác hẳn mới tính là sửa",
+  ct.isCustomTextEdited("printClosing", "Kính mời!", example) === false &&
+    ct.isCustomTextEdited("printClosing", "Trân trọng kính mời!", example) === true);
 check("không sửa 2 khóa mới → không vào danh sách sửa tay",
   ct.buildManualList({}, example, "").length === 0);
 

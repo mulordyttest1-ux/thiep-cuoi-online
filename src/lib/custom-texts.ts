@@ -62,14 +62,41 @@ export function customTextDefault(key: string, data?: InvitationData | null): st
   return def.defaultVi;
 }
 
-/** Chữ đang hiển thị của một câu mẫu: đã sửa thì lấy customTexts, chưa thì mặc định. */
+/** Chữ đang hiển thị của một câu mẫu: đã sửa thì lấy customTexts, chưa thì mặc định.
+ *  Riêng câu kết (printClosing): hàng chấm đầu dòng là cách trình bày chuẩn
+ *  của mẫu in (leader ".............Kính mời!"), không phải nội dung khách
+ *  gõ — bỏ khi hiển thị để không nhân đôi chấm với leader trên thiệp. */
 export function customTextValue(
   key: string,
   customTexts: Record<string, string> | undefined,
   data?: InvitationData | null
 ): string {
   const v = customTexts?.[key];
-  return v !== undefined ? v : customTextDefault(key, data);
+  const raw = v !== undefined ? v : customTextDefault(key, data);
+  return key === "printClosing" ? normalizeClosingForCompare(raw) : raw;
+}
+
+/** Hàng chấm đầu câu kết là cách trình bày, không phải nội dung — chuẩn hoá
+ *  để so sánh (một câu kết đã lưu dạng "............Kính mời!" được tính
+ *  là chưa sửa, vì leader trên thiệp đã có sẵn hàng chấm đó). */
+export function normalizeClosingForCompare(v: string): string {
+  return (v ?? "").replace(/^[.\s]+/, "").trim();
+}
+
+/** Một câu mẫu đã lưu có thực sự khác mặc định không (đã chuẩn hoá câu kết).
+ *  Dùng chung cho: đánh dấu đã-sửa trên thiệp + danh sách sửa tay — để hai
+ *  chỗ không lệch nhau (trước đây đánh dấu theo "có khóa trong customTexts"
+ *  nên cả giá trị bằng mặc định cũng bị vàng). */
+export function isCustomTextEdited(
+  key: string,
+  stored: string | undefined,
+  data?: InvitationData | null
+): boolean {
+  if (stored === undefined) return false;
+  const cur = key === "printClosing" ? normalizeClosingForCompare(stored) : stored;
+  const def = customTextDefault(key, data);
+  const base = key === "printClosing" ? normalizeClosingForCompare(def) : def;
+  return cur !== base;
 }
 
 /** Nhãn tiếng Việt cho từng trường sửa được trên trang khách (dùng cho lịch sử sửa). */
@@ -112,8 +139,9 @@ export function buildManualList(
   for (const def of CUSTOM_TEXT_DEFS) {
     const cur = customTexts?.[def.key];
     if (cur === undefined) continue;
+    if (!isCustomTextEdited(def.key, cur, data)) continue;
     const oldValue = customTextDefault(def.key, data);
-    if (cur !== oldValue) out.push({ key: def.key, label: def.label, oldValue, newValue: cur });
+    out.push({ key: def.key, label: def.label, oldValue, newValue: cur });
   }
   if (data && initialMessage !== undefined && data.message !== initialMessage) {
     out.push({ key: "message", label: "Lời mời", oldValue: initialMessage, newValue: data.message });
