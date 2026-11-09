@@ -121,6 +121,15 @@ export async function listInvitations(): Promise<StoredInvitation[]> {
   return backendList();
 }
 
+/**
+ * Link khách sửa trên máy chủ (?t=) — chỉ hiện trong /quan-ly (đã khóa
+ * bằng mã admin), không bao giờ hiện trên trang khách. Token đã có sẵn
+ * trên bản ghi từ lúc tạo (upsert), không tạo token mới ở đây.
+ */
+export function customerEditUrlFor(origin: string, rec: StoredInvitation): string {
+  return `${origin}/khach/${encodeURIComponent(rec.id)}?t=${rec.editToken}`;
+}
+
 export async function upsertInvitation(
   data: InvitationData,
   opts: { status?: StoredInvitation["status"] } = {}
