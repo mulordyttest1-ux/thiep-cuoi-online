@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { getTemplate, type Template } from "@/lib/templates";
+import { getTemplate } from "@/lib/templates";
 import { defaultInvitation } from "@/lib/types";
 import TemplateCard from "@/components/TemplateCard";
 import InvitationPreview from "@/components/InvitationPreview";
@@ -46,10 +46,11 @@ const FAQS = [
 
 export default function Home() {
   const { dict: d } = useLanguage();
-  const [preview, setPreview] = useState<Template | null>(null);
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
 
   const featured = ["song-phung-do", "nhat-binh-do", "minimal-do-do", "song-hy-do", "hoa-moc", "cam-thach-vang"].map((id) => getTemplate(id));
+  // Thiệp mẫu ở hero trang chủ: dữ liệu mẫu chỉ để trưng bày, không phải
+  // thiệp của khách nào.
   const sample = defaultInvitation("minimal-do-do");
 
   return (
@@ -82,7 +83,7 @@ export default function Home() {
         <p className="mt-2 text-[#5a4a48]">{d.featuredSub}</p>
         <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {featured.map((tpl) => (
-            <TemplateCard key={tpl.id} template={tpl} onPreview={setPreview} />
+            <TemplateCard key={tpl.id} template={tpl} />
           ))}
         </div>
         <div className="mt-6 text-center">
@@ -164,18 +165,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Modal xem trước mẫu */}
-      {preview && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" role="dialog" aria-modal="true" aria-label={`Xem trước mẫu ${preview.name}`} onClick={() => setPreview(null)}>
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-3xl bg-[#fdf8f1] p-4" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-display text-xl font-bold text-[#7a1f2b]">{preview.name}</h3>
-              <button type="button" onClick={() => setPreview(null)} className="rounded-full border px-3 py-1 text-sm" aria-label="Đóng xem trước">✕</button>
-            </div>
-            <InvitationPreview data={{ ...defaultInvitation(preview.id), groomName: "Minh Quân", brideName: "Thu An" }} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
