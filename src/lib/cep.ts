@@ -443,12 +443,16 @@ export function parseCepPlainText(pasted: string): CepImportResult {
   // định dạng zero-width khác: U+200C/U+200D/U+FEFF). Đoạn dán có marker
   // bọc từng giá trị thì regex ngày/giờ mới khớp — marker nằm giữa số và
   // dấu (' / .) làm hỏng \d{1,2}'\d{2} hay \d{1,2}\.\d{1,2}\.\d{4}.
-  // Mỗi dòng cũng trim trước khi xử lý (dòng "con:… (Út Nam) " có dấu cách
-  // cuối làm regex vị thứ không tách được → tên dính cả "(Út Nam)").
+  // Dấu ’ cong (U+2019 — Illustrator hay xuất dạng này trong "09’00")
+  // cũng về dấu ' ASCII trước khi regex chạy, nếu không cả khối lễ/tiệc
+  // đều không đọc được. Mỗi dòng cũng trim trước khi xử lý (dòng
+  // "con:… (Út Nam) " có dấu cách cuối làm regex vị thứ không tách được
+  // → tên dính cả "(Út Nam)").
   const text = (pasted ?? "")
     .replace(/\r\n?/g, "\n")
     .normalize("NFC")
     .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+    .replace(/[\u2018\u2019\u2032\u02BC]/g, "'")
     .trim();
   if (!text) return { ok: false, error: "Chưa dán khối chữ nào." };
   const blocks: string[][] = [[]];
