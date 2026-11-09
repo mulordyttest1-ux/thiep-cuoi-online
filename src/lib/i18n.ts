@@ -20,7 +20,7 @@ export const dict = {
     fKeep: "Đổi mẫu giữ nguyên dữ liệu",
     fKeepDesc: "Đổi mẫu bất cứ lúc nào, tên, ngày, địa điểm và lời mời vẫn nguyên vẹn.",
     fLink: "Link riêng từng khách",
-    fLinkDesc: "Mỗi khách một link ghi tên lên phong bì — khách mở thiệp thấy tên mình.",
+    fLinkDesc: "Mỗi khách một link ghi tên riêng — khách mở thiệp thấy tên mình trong phần mở đầu.",
     fLang: "Đa ngôn ngữ",
     fLangDesc: "Thiệp tiếng Việt, tiếng Anh hoặc song ngữ — khách nước ngoài vẫn đọc được.",
     fQr: "QR mừng cưới",
