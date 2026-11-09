@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInvitation, updateInvitation } from "@/lib/server-store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock } from "@/lib/cep";
-import { canEdit } from "@/lib/access";
+import { canEdit, confirmRecord } from "@/lib/access";
 import type { ManualListItem } from "@/lib/access";
 import type { InvitationData } from "@/lib/types";
 
@@ -10,11 +10,13 @@ export const runtime = "nodejs";
 
 /**
  * Khách bấm Chốt trên trang khách: lưu dữ liệu cuối + câu mẫu + danh sách
- * trường đã sửa + danh sách sửa tay, đánh dấu giờ chốt, trả về ghost text
- * + metadata + bản chữ thường + danh sách sửa tay để hiện ngay trên trang
- * khách và trong Quản lý. Chỉ khi còn sửa được và đúng editToken.
- * Ghost text chỉ chứa trường dữ liệu (32 khóa CEP); câu mẫu đã sửa nằm ở
- * manualList — không bao giờ lọt vào ghost text.
+ * trường đã sửa + danh sách sửa tay, ghi status=confirmed + giờ chốt,
+ * trả về ghost text + metadata + bản chữ thường + danh sách sửa tay để hiện
+ * ngay trên trang khách và trong Quản lý. Chỉ khi còn sửa được và đúng
+ * editToken. Từ đây khách không sửa được nữa (bảng duyệt của Nancy hiện
+ * thông báo "Có N thiệp khách vừa chốt"). Ghost text chỉ chứa trường dữ
+ * liệu (32 khóa CEP); câu mẫu đã sửa nằm ở manualList — không bao giờ lọt
+ * vào ghost text.
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
@@ -46,17 +48,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     const manualList = body.manualList ?? rec.manualList ?? [];
     const confirmedAt = new Date().toISOString();
     await updateInvitation(id, (r) => ({
-      ...r,
-      data,
-      customTexts,
-      editedFields,
-      manualList,
-      customerConfirmedAt: confirmedAt,
-      updatedAt: confirmedAt,
+      ...confirmRecord({ ...r, data, customTexts, editedFields, manualList }, new Date(confirmedAt)),
     }));
     return NextResponse.json({
       ok: true,
-      status: rec.status,
+      status: "confirmed",
       confirmedAt,
       ghostText: buildCepTextBlock(data),
       metadata: buildCepMetadataJson(),
