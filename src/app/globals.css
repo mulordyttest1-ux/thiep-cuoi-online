@@ -96,6 +96,17 @@ html.lenis, html.lenis body {
   will-change: transform, opacity;
 }
 
+/* Hào quang bokeh (BokehGlow): đốm sáng mờ trôi chậm, chỉ transform. */
+@keyframes bokeh-drift {
+  0% { transform: translate3d(0, 0, 0); opacity: 0.35; }
+  50% { transform: translate3d(var(--bokeh-dx, 40px), var(--bokeh-dy, -20px), 0); opacity: 0.7; }
+  100% { transform: translate3d(0, 0, 0); opacity: 0.35; }
+}
+.bokeh-drift {
+  animation: bokeh-drift var(--bokeh-duration, 18s) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
 /* Ngôi sao 4 cánh lấp lánh (Twinkle): scale + xoay + chớp sáng. */
 @keyframes twinkle {
   0% { transform: scale(0) rotate(0deg); opacity: 0; }
@@ -253,6 +264,7 @@ html.lenis, html.lenis body {
   .kenburns,
   .petal-fall,
   .twinkle,
+  .bokeh-drift,
   .shimmer-glow,
   .shimmer-glow-strong,
   .envelope-xi-float,
