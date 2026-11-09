@@ -154,6 +154,10 @@ export async function upsertInvitation(
       ...existing,
       data: { ...data, id: existing.id },
       status: opts.status ?? existing.status,
+      // Nháp/xem trước mà còn mốc chốt cũ là dữ liệu hỏng (mở lại trước
+      // đây không xóa mốc — lỗi live 09/11): xóa để trang khách không bị
+      // khóa oan. Bản ghi đã chốt đi nhánh trên nên không tới đây.
+      customerConfirmedAt: null,
       updatedAt: now,
     };
     return backendSave(updated);

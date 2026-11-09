@@ -311,7 +311,11 @@ export function reviewRecord(
     }
     return { ok: true, rec: { ...rec, status: "printed", updatedAt: at } };
   }
-  // reopen: về nháp để sửa lại (giữ nguyên token + giờ chốt cũ như unlockRecord).
+  // reopen: về nháp để sửa lại. PHẢI xóa mốc chốt (customerConfirmedAt):
+  // trang khách khóa theo mốc này (initialConfirmedAt) nên giữ lại thì
+  // khách vẫn thấy câu cảm ơn + chỉ đọc dù trạng thái đã về nháp
+  // (lỗi live 09/11: Mở lại xong khách vẫn không sửa được).
+  // Giữ nguyên token + lịch sử sửa + câu mẫu đã sửa của khách.
   if (
     rec.status !== "confirmed" &&
     rec.status !== "reviewed" &&
@@ -320,12 +324,12 @@ export function reviewRecord(
   ) {
     return { ok: false, reason: `Thiệp này chưa chốt nên không cần mở lại (hiện tại: ${STATUS_LABEL[rec.status]}).` };
   }
-  return { ok: true, rec: { ...rec, status: "draft", lockedAt: null, previewExpiresAt: null, updatedAt: at } };
+  return { ok: true, rec: { ...rec, status: "draft", lockedAt: null, previewExpiresAt: null, customerConfirmedAt: null, updatedAt: at } };
 }
 
-/** Mở khóa (chỉ Nancy/admin): về lại nháp để sửa, giữ nguyên token + lịch sử trả tiền (nếu đã trả thì tiền không hoàn tự động). */
+/** Mở khóa (chỉ Nancy/admin): về lại nháp để sửa, giữ nguyên token + lịch sử trả tiền (nếu đã trả thì tiền không hoàn tự động). PHẢI xóa mốc chốt (customerConfirmedAt) như reviewRecord reopen — trang khách khóa theo mốc này nên giữ lại thì khách vẫn thấy câu cảm ơn + chỉ đọc dù đã mở khóa (lỗi live 09/11). */
 export function unlockRecord(rec: StoredInvitation, now = new Date()): StoredInvitation {
-  return { ...rec, status: "draft", lockedAt: null, previewExpiresAt: null, updatedAt: now.toISOString() };
+  return { ...rec, status: "draft", lockedAt: null, previewExpiresAt: null, customerConfirmedAt: null, updatedAt: now.toISOString() };
 }
 
 /**
