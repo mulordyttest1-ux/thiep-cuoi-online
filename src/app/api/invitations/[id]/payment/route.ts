@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getInvitation } from "@/lib/server-store";
 import { formatVnd, isPaymentConfigured, ONLINE_PRICE_VND, paymentMemoFor, SEPAY_ACCOUNT_NAME, SEPAY_ACCOUNT_NUMBER, SEPAY_BANK_CODE, vietQrPaymentUrlFor } from "@/lib/payment";
-import { premiumLinkFor } from "@/lib/access";
+import { premiumLinkFor, isPrintConfirmed } from "@/lib/access";
 import { originOf } from "@/lib/server-auth";
 
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       premiumLink: premiumLinkFor(origin, rec),
     });
   }
-  if (rec.status !== "locked_for_print") {
+  if (!isPrintConfirmed(rec.status)) {
     return NextResponse.json({
       ok: false,
       error: "Thiệp chưa chốt in nên chưa mở bán online. Chốt in trước, rồi mới hiện QR trả tiền.",
@@ -45,7 +45,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     return NextResponse.json({
       ok: false,
       configured: false,
-      error: "Chưa cấu hình tài khoản nhận tiền SePay (SEPAY_BANK_CODE / SEPAY_ACCOUNT_NUMBER). Nancy cần tạo tài khoản SePay + nối Vietcombank, rồi điền key vào biến môi trường Vercel.",
+      error: "Chưa cấu hình tài khoản nhận tiền SePay (SEPAY_BANK_CODE / SEPAY_ACCOUNT_NUMBER). Thiết kế cần tạo tài khoản SePay + nối Vietcombank, rồi điền key vào biến môi trường Vercel.",
       amount: ONLINE_PRICE_VND,
       amountText: formatVnd(ONLINE_PRICE_VND),
       memo,
@@ -65,6 +65,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     accountNumber: SEPAY_ACCOUNT_NUMBER,
     accountName: SEPAY_ACCOUNT_NAME,
     qrUrl: vietQrPaymentUrlFor(memo, ONLINE_PRICE_VND),
-    note: "Khách quét QR, chuyển đúng số tiền + đúng nội dung (mã). SePay báo về webhook thì thiệp tự mở — không cần Nancy bấm gì.",
+    note: "Khách quét QR, chuyển đúng số tiền + đúng nội dung (mã). SePay báo về webhook thì thiệp tự mở — không cần Thiết kế bấm gì.",
   });
 }
