@@ -87,8 +87,11 @@ check("verify route đặt cookie HttpOnly SameSite=Lax 180 ngày", verify.inclu
 const status = readSrc("src/app/api/admin/status/route.ts");
 check("status route kiểm tra cookie bằng isAdminSession", status.includes("isAdminSession") && status.includes("ADMIN_SESSION_COOKIE"));
 
-check("tao-thiep bọc AdminGate", readSrc("src/app/(app)/tao-thiep/page.tsx").includes("<AdminGate>"));
-check("quan-ly bọc AdminGate", readSrc("src/app/(app)/quan-ly/page.tsx").includes("<AdminGate>"));
+check("tao-thiep bọc AdminGate", readSrc("src/app/(app)/tao-thiep/page.tsx").includes("<AdminGate"));
+check("quan-ly bọc AdminGate", readSrc("src/app/(app)/quan-ly/page.tsx").includes("<AdminGate"));
+// Bảng duyệt phải tải SAU KHI cổng mở (đã có cookie phiên), không tải lúc
+// mount khi chưa có phiên (sẽ 401 rồi bảng trống mãi).
+check("quan-ly tải bảng qua onOpen của AdminGate", readSrc("src/app/(app)/quan-ly/page.tsx").includes("<AdminGate onOpen={loadBoard}>"));
 check("khach KHÔNG bị khóa (không dùng AdminGate)", !readSrc("src/app/(khach)/layout.tsx").includes("AdminGate"));
 
 console.log(`\n${pass} passed, ${fail} failed`);

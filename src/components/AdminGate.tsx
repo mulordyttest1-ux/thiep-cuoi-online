@@ -1,23 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /** Cổng admin (Nancy): /tao-thiep và /quan-ly chỉ mở khi trình duyệt có
  * phiên admin (cookie td_admin_session do máy chủ đặt sau khi nhập đúng mã
  * admin). Mã KHÔNG nằm trong code client — kiểm tra ở /api/admin/verify.
  * Khách gõ thẳng URL admin vẫn gặp màn hình khóa. Các trang khách
- * (/khach/, /thiep/) KHÔNG dùng cổng này. */
-export default function AdminGate({ children }: { children: React.ReactNode }) {
+ * (/khach/, /thiep/) KHÔNG dùng cổng này.
+ * onOpen (tùy chọn): gọi mỗi khi cổng mở — trang con dùng để tải dữ liệu
+ * máy chủ (ví dụ bảng duyệt) SAU KHI đã có phiên, thay vì tải lúc mount
+ * khi chưa có cookie (sẽ 401 rồi bảng trống mãi cho tới khi bấm Tải lại). */
+export default function AdminGate({ children, onOpen }: { children: React.ReactNode; onOpen?: () => void }) {
   const [state, setState] = useState<"checking" | "locked" | "open">("checking");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Giữ onOpen trong ref để checkStatus ổn định (không chạy lại effect
+  // kiểm tra mỗi lần trang con render lại).
+  const onOpenRef = useRef(onOpen);
+  onOpenRef.current = onOpen;
 
   const checkStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/status", { cache: "no-store" });
       const body = (await res.json()) as { ok?: boolean };
-      setState(body.ok ? "open" : "locked");
+      const open = !!body.ok;
+      setState(open ? "open" : "locked");
+      if (open) onOpenRef.current?.();
     } catch {
       setState("locked");
     }

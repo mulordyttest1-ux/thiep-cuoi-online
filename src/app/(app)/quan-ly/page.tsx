@@ -248,7 +248,9 @@ export default function ManagePage() {
     } catch {
       setNotice("Không đọc được dữ liệu đã lưu. Trang hiển thị danh sách trống.");
     }
-    loadBoard();
+    // Bảng duyệt KHÔNG tải ở đây: lúc mount chưa chắc đã có phiên admin
+    // (cổng còn khóa) nên fetch sẽ 401 và bảng trống. Bảng tải qua
+    // onOpen của AdminGate — chạy khi cổng mở (đã có cookie phiên).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -360,7 +362,7 @@ export default function ManagePage() {
   };
 
   return (
-    <AdminGate>
+    <AdminGate onOpen={loadBoard}>
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="font-display text-4xl font-bold text-[#7a1f2b]">Quản lý khách mời</h1>
       <p className="mt-2 text-[#5a4a48]">
