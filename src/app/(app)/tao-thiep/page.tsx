@@ -5,8 +5,8 @@ import { useSearchParams } from "next/navigation";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
-import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm, PHYSICAL_FORMS } from "@/lib/physical-forms";
-import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, saveInvitation } from "@/lib/store";
+import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm } from "@/lib/physical-forms";
+import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, mergeImportedData, saveInvitation } from "@/lib/store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostText, parseCepPlainText } from "@/lib/cep";
 import InvitationPreview from "@/components/InvitationPreview";
 import PrintFormPreview from "@/components/PrintFormPreview";
@@ -15,6 +15,12 @@ import OnlineDemoWizard from "@/components/OnlineDemoWizard";
 import SvgTemplateSection from "@/components/SvgTemplateSection";
 import { decodeSvgShare, type SvgSharePayload } from "@/lib/svg-template";
 import { useLanguage } from "@/components/LanguageProvider";
+import { isPrintConfirmed, STATUS_LABEL, type InvitationStatus } from "@/lib/access";
+
+/** Máy chủ đã cấu hình Supabase (biến public có sẵn ở client): lúc Lưu
+ *  thiệp sẽ tự đồng bộ lên máy chủ để hộp "Link cho khách sửa" hiện link
+ *  máy chủ (?t=). Chưa cấu hình thì giữ link ?d= như cũ. */
+const SUPABASE_CONFIGURED = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL);
 
 function Field({ label, id, children }: { label: string; id: string; children: React.ReactNode }) {
   return (
@@ -70,7 +76,8 @@ function EditorInner() {
   const [reconcileReason, setReconcileReason] = useState("");
   const [reconcileNotice, setReconcileNotice] = useState("");
   // Đã chốt in / đã trả tiền thì editor chỉ đọc (mở khóa mới sửa được).
-  const readOnly = serverStatus === "locked_for_print" || serverStatus === "paid_online";
+  // Chốt in gồm locked_for_print cũ và confirmed/reviewed/printed mới.
+  const readOnly = isPrintConfirmed(serverStatus as InvitationStatus) || serverStatus === "paid_online";
   // Link cho khách sửa theo dữ liệu HIỆN TẠI (đổi ngay khi sửa, không cần
   // đợi bấm sao chép) — hiện nổi bật trong đường vật lý, ngay dưới form.
   const customerLink = useMemo(() => {
@@ -105,8 +112,8 @@ function EditorInner() {
             } else {
               setNotice(
                 j.reason === "locked"
-                  ? "Thiệp đã chốt in — chỉ đọc, không sửa được nữa. Nhờ Nancy mở khóa nếu cần sửa."
-                  : "Link sửa không hợp lệ. Xin Nancy gửi lại link sửa mới."
+                  ? "Thiệp đã chốt in — chỉ đọc, không sửa được nữa. Nhờ Thiết kế mở khóa nếu cần sửa."
+                  : "Link sửa không hợp lệ. Xin Thiết kế gửi lại link sửa mới."
               );
               if (typeof j.status === "string") setServerStatus(j.status);
               setSavedId(editId);
@@ -139,7 +146,7 @@ function EditorInner() {
               setNotice(
                 j.reason === "paid"
                   ? "Thiệp này đã được mua online — mở link khách chính thức, không dùng link xem trước nữa."
-                  : "Link xem trước không hợp lệ. Xin Nancy gửi lại link mới."
+                  : "Link xem trước không hợp lệ. Xin Thiết kế gửi lại link mới."
               );
               setSavedId(demoId);
               setServerId(demoId);
@@ -210,7 +217,7 @@ function EditorInner() {
     reader.readAsDataURL(file);
   };
 
-  const onSave = () => {
+  const onSave = async () => {
     try {
       const res = saveInvitation(data);
       setSavedId(res.id);
@@ -220,6 +227,19 @@ function EditorInner() {
         setShareLink(buildShareUrl(window.location.origin, { ...data, id: res.id }));
       } catch {
         setShareLink("");
+      }
+      // Máy chủ đã cấu hình Supabase: lưu xong tự đồng bộ lên máy chủ để
+      // hộp "Link cho khách sửa" hiện link máy chủ (?t=) thay vì link ?d=.
+      // Chưa cấu hình thì giữ link ?d= như cũ (không thử đồng bộ — file
+      // store local không phải máy chủ thật, link ?t= ở đó chỉ để test).
+      // Đồng bộ lỗi thì vẫn giữ link ?d=, chỉ báo thêm (không chặn lưu).
+      if (SUPABASE_CONFIGURED) {
+        const err = await trySyncToServer();
+        setNotice(
+          err === null
+            ? "Đã lưu + đồng bộ lên máy chủ — hộp “Link cho khách sửa” bên dưới là link máy chủ."
+            : `Đã lưu trên máy này — chưa đồng bộ được lên máy chủ (${err}). Link khách bên dưới vẫn là link ?d=.`
+        );
       }
     } catch {
       setNotice(d.savedFail);
@@ -273,9 +293,11 @@ function EditorInner() {
     ...(adminToken ? { "x-admin-token": adminToken } : {}),
   });
 
-  const syncToServer = async () => {
+  // Đồng bộ dữ liệu hiện tại lên máy chủ (tạo/cập nhật bản ghi): trả null
+  // khi xong, trả thông báo lỗi khi không xong. Dùng chung cho nút "Đồng
+  // bộ" ở panel máy chủ và cho onSave tự đồng bộ khi đã có Supabase.
+  const trySyncToServer = async (): Promise<string | null> => {
     try {
-      setPanelNotice("Đang đồng bộ lên máy chủ…");
       const res = await fetch("/api/invitations", {
         method: "POST",
         headers: adminHeaders(),
@@ -283,8 +305,7 @@ function EditorInner() {
       });
       const j = (await res.json()) as Record<string, unknown>;
       if (!res.ok || !j.ok) {
-        setPanelNotice(typeof j.error === "string" ? j.error : "Không đồng bộ được.");
-        return;
+        return typeof j.error === "string" ? j.error : "Không đồng bộ được.";
       }
       const id = String(j.id ?? "");
       setServerId(id);
@@ -294,7 +315,21 @@ function EditorInner() {
       setPreviewUrl(String(j.previewUrl ?? ""));
       setServerEditUrl(String(j.editUrl ?? ""));
       setCustomerEditUrl(String(j.customerEditUrl ?? ""));
-      setPanelNotice("Đã đồng bộ. Link xem trước bên dưới không có link khách — gửi cho khách duyệt in.");
+      return null;
+    } catch {
+      return "Không kết nối được máy chủ.";
+    }
+  };
+
+  const syncToServer = async () => {
+    try {
+      setPanelNotice("Đang đồng bộ lên máy chủ…");
+      const err = await trySyncToServer();
+      setPanelNotice(
+        err === null
+          ? "Đã đồng bộ. Link xem trước bên dưới không có link khách — gửi cho khách duyệt in."
+          : err
+      );
     } catch {
       setPanelNotice("Không kết nối được máy chủ.");
     }
@@ -392,13 +427,21 @@ function EditorInner() {
       setCepNotice(res.error);
       return;
     }
-    setData((prev) => ({
-      ...prev,
-      ...res.data,
-      physicalFormId: prev.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
-    }));
+    // Dán chỉ đổ thêm những gì Illustrator có — chữ rỗng trong đoạn dán
+    // không xoá chữ chị đã gõ (vd địa điểm tiệc dạng outline trong .ai).
+    const merged = mergeImportedData(data, res.data);
+    const missingVenue = !merged.venue?.trim() || !merged.address?.trim();
+    setData({
+      ...merged,
+      physicalFormId: data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
+    });
     setMode("physical");
-    setCepNotice("Đã điền dữ liệu từ Illustrator — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp.");
+    setCepNotice(
+      "Đã điền dữ liệu từ Illustrator — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp." +
+        (missingVenue
+          ? " Đoạn dán không có địa điểm/địa chỉ tiệc — gõ vào ô 'Địa điểm' / 'Địa chỉ' trong form bên dưới."
+          : "")
+    );
   };
 
   const onImportPlain = () => {
@@ -407,13 +450,19 @@ function EditorInner() {
       setCepNotice(res.error);
       return;
     }
-    setData((prev) => ({
-      ...prev,
-      ...res.data,
-      physicalFormId: prev.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
-    }));
+    const merged = mergeImportedData(data, res.data);
+    const missingVenue = !merged.venue?.trim() || !merged.address?.trim();
+    setData({
+      ...merged,
+      physicalFormId: data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
+    });
     setMode("physical");
-    setCepNotice("Đã điền dữ liệu từ khối chữ thường — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp.");
+    setCepNotice(
+      "Đã điền dữ liệu từ khối chữ thường — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp." +
+        (missingVenue
+          ? " Đoạn dán không có địa điểm/địa chỉ tiệc — gõ vào ô 'Địa điểm' / 'Địa chỉ' trong form bên dưới."
+          : "")
+    );
   };
 
   // Chọn mẫu ONLINE — chỉ dùng ở đường online. Đường vật lý KHÔNG chọn
@@ -597,7 +646,7 @@ function EditorInner() {
       <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Gửi khách duyệt in và thanh toán">
         <h2 className="text-base font-bold text-[#7a1f2b]">Gửi khách duyệt in &amp; bán thiệp online</h2>
         <p className="mt-1 text-sm text-[#5a4a48]">
-          Trạng thái hiện tại: <strong>{serverStatus ? ({ draft: "Nháp", preview_for_print: "Đang gửi khách duyệt in", locked_for_print: "Đã chốt in — chỉ đọc", paid_online: "Đã trả tiền — thiệp online đang mở" } as Record<string, string>)[serverStatus] ?? serverStatus : "chưa đưa lên máy chủ"}</strong>
+          Trạng thái hiện tại: <strong>{serverStatus ? STATUS_LABEL[serverStatus as InvitationStatus] ?? serverStatus : "chưa đưa lên máy chủ"}</strong>
           {readOnly ? " — editor đang chỉ đọc, bấm “Mở khóa để sửa” mới sửa được." : ""}
         </p>
         <div className="mt-3">
@@ -742,25 +791,18 @@ function EditorInner() {
     </>
   );
 
-  // Bước 2 của đường vật lý: chọn form in để đổ dữ liệu vào. Thiệp vật lý
-  // KHÔNG chọn mẫu online. Hiện chỉ có 1 form; thêm form mới chỉ cần thêm
-  // 1 dòng vào PHYSICAL_FORMS (src/lib/physical-forms.ts).
+  // Bước 2 của đường vật lý: CHỈ CÓ 1 form in chuẩn nên không chọn nữa —
+  // hiện dòng tĩnh. Giữ physical-forms.ts + physicalFormId trong data làm
+  // mốc để sau này thêm form (lúc đó mới mở lại bộ chọn).
   const physicalFormSection = (
     <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
-      <section aria-label="Chọn form vật lý">
-        <h2 className="text-base font-bold text-[#7a1f2b]">Bước 2 — Chọn form vật lý</h2>
+      <section aria-label="Form vật lý">
+        <h2 className="text-base font-bold text-[#7a1f2b]">Bước 2 — Form vật lý</h2>
         <p className="mt-1 text-sm text-[#5a4a48]">
-          Thiệp vật lý không chọn mẫu online — chỉ chọn form in để đổ dữ liệu vào, rồi gửi link cho khách sửa đúng form đó.
+          Thiệp vật lý không chọn mẫu online — dữ liệu đổ vào form in chuẩn bên dưới, rồi gửi link cho khách sửa đúng form đó.
         </p>
-        <div className="mt-3">
-          <label htmlFor="physical-form" className="text-sm font-semibold">Form vật lý</label>
-          <select id="physical-form" value={data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID} onChange={(e) => set("physicalFormId", e.target.value)} className={`${inputCls} mt-1`}>
-            {PHYSICAL_FORMS.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-          <p className="mt-1 text-xs text-[#7a6a68]">{getPhysicalForm(data.physicalFormId).description}</p>
-        </div>
+        <p className="mt-3 text-sm font-semibold">Form in: Mẫu in chuẩn #1 — form lễ/tiệc 2 cột</p>
+        <p className="mt-1 text-xs text-[#7a6a68]">{getPhysicalForm(data.physicalFormId).description}</p>
       </section>
     </div>
   );
@@ -779,7 +821,11 @@ function EditorInner() {
         <button type="button" onClick={onCopyEditLink} className="rounded-full border-2 border-[#7a1f2b] px-5 py-3 font-semibold text-[#7a1f2b]">Sao chép link cho khách sửa</button>
       </div>
       <div className="mt-3">
-        <label htmlFor="customer-link" className="text-sm font-semibold">Link cho khách sửa (mở trang khách — mẫu form in, kèm dữ liệu trong ?d=)</label>
+        <label htmlFor="customer-link" className="text-sm font-semibold">
+          {customerEditUrl
+            ? "Link cho khách sửa (qua máy chủ — khách mở ra thấy đúng dữ liệu đã lưu, không lộ dữ liệu trong link)"
+            : "Link cho khách sửa (mở trang khách — mẫu form in, kèm dữ liệu trong ?d=)"}
+        </label>
         <input id="customer-link" readOnly value={customerLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
       </div>
       {notice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{notice}</p>}

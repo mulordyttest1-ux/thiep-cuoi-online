@@ -117,12 +117,12 @@ check("link khách chưa lưu dùng id demo", store.buildCustomerEditUrl(origin,
 // ---- 5. Câu mẫu riêng cho mẫu in ----
 const printTitle = ct.CUSTOM_TEXT_DEFS.find((d) => d.key === "printCeremonyTitle");
 const printIntro = ct.CUSTOM_TEXT_DEFS.find((d) => d.key === "printPartyIntro");
-check("có câu mẫu printCeremonyTitle", printTitle !== undefined && printTitle.defaultVi === "HÔN LỄ ĐƯỢC CỬ HÀNH TẠI", printTitle?.defaultVi ?? "thiếu");
-check("có câu mẫu printPartyIntro", printIntro !== undefined && printIntro.defaultVi === "ĐẾN DỰ BUỔI TIỆC CHUNG VUI CÙNG GIA ĐÌNH CHÚNG TÔI TẠI:", printIntro?.defaultVi ?? "thiếu");
+check("có câu mẫu printCeremonyTitle", printTitle !== undefined && printTitle.defaultVi === "Hôn lễ được cử hành tại", printTitle?.defaultVi ?? "thiếu");
+check("có câu mẫu printPartyIntro", printIntro !== undefined && printIntro.defaultVi === "Đến dự buổi tiệc chung vui cùng gia đình chúng tôi tại:", printIntro?.defaultVi ?? "thiếu");
 const manual = ct.buildManualList({ printCeremonyTitle: "LỄ ĐƯỢC TỔ CHỨC TẠI" }, vuQuy, "");
 check(
   "sửa tiêu đề lễ in vào danh sách sửa tay với chữ cũ đúng",
-  manual.length === 1 && manual[0].key === "printCeremonyTitle" && manual[0].oldValue === "HÔN LỄ ĐƯỢC CỬ HÀNH TẠI" && manual[0].newValue === "LỄ ĐƯỢC TỔ CHỨC TẠI",
+  manual.length === 1 && manual[0].key === "printCeremonyTitle" && manual[0].oldValue === "Hôn lễ được cử hành tại" && manual[0].newValue === "LỄ ĐƯỢC TỔ CHỨC TẠI",
   JSON.stringify(manual)
 );
 check("không sửa câu mẫu in thì danh sách sửa tay rỗng", ct.buildManualList({}, vuQuy, "").length === 0);
@@ -153,22 +153,29 @@ check("giá trị cờ rác cũng không khóa", store.isCustomerConfirmed("thie
 // ---- 7. Nguồn component: đúng nội dung form in, không có mục online ----
 const pf = readSrc("src/components/PrintFormPreview.tsx");
 const ctSrc = readSrc("src/lib/custom-texts.ts");
-check("custom-texts có mặc định tiêu đề lễ in", ctSrc.includes('"HÔN LỄ ĐƯỢC CỬ HÀNH TẠI"'));
+check("custom-texts có mặc định tiêu đề lễ in", ctSrc.includes('"Hôn lễ được cử hành tại"'));
 for (const s of [
-  "TRÂN TRỌNG BÁO TIN LỄ",
-  "TRÂN TRỌNG KÍNH MỜI",
-  "Kính Mời!",
-  "SỰ HIỆN DIỆN CỦA QUÝ KHÁCH",
+  "Trân trọng báo tin lễ",
+  "Trân trọng kính mời",
+  "Sự hiện diện của quý khách",
+  "Vào lúc",
+  "Ông bà:",
   "buildCepBlockData",
   "md:grid-cols-2",
   "printCeremonyTitle",
   "printPartyIntro",
+  "printGuestLine",
+  "printClosing",
   "editWrap",
   "editBlock",
   "customWrap",
 ]) {
   check(`PrintFormPreview có: ${s}`, pf.includes(s));
 }
+for (const s of ["TRÂN TRỌNG", "VÀO LÚC", "SỰ HIỆN DIỆN", "HÔN LỄ ĐƯỢC", "ĐẾN DỰ BUỔI", "Ông Bà:"]) {
+  check(`PrintFormPreview KHÔNG còn chữ HOA: ${s}`, !pf.includes(s));
+}
+check("câu kết mặc định 'Kính mời!' nằm ở custom-texts (khóa printClosing)", ctSrc.includes('"Kính mời!"') && ctSrc.includes('"printClosing"') && ctSrc.includes('"printGuestLine"'));
 for (const s of ["Album", "Đếm ngược", "Xem bản đồ", "Lịch trình", "Dress code", "VietQR", "mừng cưới", "Câu chuyện"]) {
   check(`PrintFormPreview KHÔNG có: ${s}`, !pf.includes(s));
 }
@@ -213,7 +220,7 @@ check("snapshot hỏng (JSON sai) thì trả null", store.loadCustomerSnapshot("
 store.saveCustomerSnapshot("thiep-thieu", vuQuy, { ...vuQuy, groomName: "" }, {});
 check("snapshot thiếu tên thì trả null", store.loadCustomerSnapshot("thiep-thieu") === null);
 check("chưa có snapshot thì trả null", store.loadCustomerSnapshot("thiep-chua-co") === null);
-// Link đã chốt chứa dữ liệu MỚI trong ?d= (khách gửi link này cho Nancy).
+// Link đã chốt chứa dữ liệu MỚI trong ?d= (khách gửi link này cho Thiết kế).
 const confirmedUrl = store.buildCustomerEditUrl(origin, edited);
 const confirmedBack = store.decodeShare(confirmedUrl.split("?d=")[1]);
 check("link đã chốt ?d= chứa tên đã sửa", confirmedBack !== null && confirmedBack.groomName === "Trần Văn Mới", confirmedBack?.groomName ?? "null");
@@ -226,9 +233,12 @@ check("trang khách tính dấu sửa từ diff", khach.includes("diffEditedFiel
 check("trang khách truyền dữ liệu gốc làm base", khach.includes("originalData={original ?? undefined}"));
 check("editor lưu snapshot khi đóng box sửa", ed.includes("saveCustomerSnapshot(") && ed.includes("originalData ?? dataRef.current"));
 check("editor lưu snapshot khi chốt", ed.includes("markCustomerConfirmed(invitationId,") && ed.includes("saveCustomerSnapshot("));
-check("editor có nút Sao chép link đã chốt", ed.includes("Sao chép link đã chốt") && ed.includes("copyConfirmedLink"));
+check("editor KHÔNG còn nút Sao chép link đã chốt (khách chốt xong không copy gì)",
+  !ed.includes("Sao chép link đã chốt") && !ed.includes("copyConfirmedLink"));
 check("editor không còn nói Nancy lấy chữ từ đây", !ed.includes("Nancy sẽ lấy chữ từ đây"));
-check("editor dặn gửi link đã chốt cho Nancy", ed.includes("Gửi link đã chốt bên dưới cho Nancy"));
+check("editor hiện câu cảm ơn sau chốt, không dặn gửi link",
+  ed.includes("Đã chốt xong. Cảm ơn bạn! Thiết kế sẽ xem lại và liên hệ với bạn.") &&
+  !ed.includes("Gửi link đã chốt bên dưới cho Thiết kế"));
 
 // ---- 12. Link đã chốt LUÔN mang ?c= (kể cả {} rỗng khi không sửa câu mẫu) ----
 // ?c= mang payload {customTexts, initialMessage} — initialMessage là message
@@ -298,8 +308,9 @@ check("trang khách coi link có ?c= rỗng là link đã chốt", khach.include
 check("editor nhận prop link đã chốt", ed.includes("initialConfirmed?: boolean"));
 check("editor có prop initialMessageFromLink", ed.includes("initialMessageFromLink?: string"));
 check("editor ưu tiên message trong ?c= rồi message gốc trong ?d=", ed.includes("initialMessageFromLink ?? originalData?.message"));
-check("editor truyền customTexts + initialMessage vào link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current)"));
-check("editor truyền customTexts + initialMessage khi mở lại link đã chốt", ed.includes("buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current, initialMessageRef.current)"));
+check("editor không còn tự tạo link đã chốt cho khách (khách chốt xong không copy gì)",
+  !ed.includes("buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current)") &&
+  !ed.includes("buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current, initialMessageRef.current)"));
 check("trang khách truyền initialMessage từ ?c= vào editor", khach.includes("initialMessageFromLink={confirmedInitialMessage}"));
 
 // ---- 13. Form vật lý: danh sách, mặc định, đi theo link ?d= ----
@@ -338,17 +349,84 @@ check("cùng form vật lý thì cùng base", store.sameCustomerData(physData, {
 check("tao-thiep có chọn đường vật lý / online", tt.includes("Thiệp vật lý (in)") && tt.includes("Thiệp online"));
 check("đường vật lý là mặc định", tt.includes('useState<"physical" | "online">'));
 check("dán ghost text là bước 1 đường vật lý", tt.includes("Bước 1 — Dán dữ liệu từ Illustrator"));
-check("có mục chọn form vật lý", tt.includes("Bước 2 — Chọn form vật lý") && tt.includes('id="physical-form"'));
+check("đường vật lý chỉ còn 1 form: dòng tĩnh, không còn bộ chọn form",
+  tt.includes("Bước 2 — Form vật lý") && tt.includes("Form in: Mẫu in chuẩn #1 — form lễ/tiệc 2 cột") && !tt.includes('id="physical-form"'));
 check("đường vật lý xem trước bằng form in", tt.includes("<PrintFormPreview data={data}"));
 check("mẫu online chỉ hiện ở đường online", tt.includes('mode === "online" && templatePicker'));
 check(
   "dán ghost text chọn form vật lý, không đổi mẫu online",
-  tt.includes("physicalFormId: prev.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID") && !tt.includes("templateId: useStandard")
+  tt.includes("physicalFormId: data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID") && tt.includes("mergeImportedData(data, res.data)") && !tt.includes("templateId: useStandard")
 );
 check("dán ghost text chuyển sang đường vật lý", tt.includes('setMode("physical")'));
 check("link khách nổi bật trong đường vật lý", tt.includes('data-testid="customer-link-box"') && tt.includes('id="customer-link"'));
 check("trường chỉ dùng cho mẫu online (tiêu đề lễ, dress code) ẩn ở đường vật lý", (tt.match(/mode === "online" &&/g) || []).length >= 2 && tt.includes("Dress code — màu trang phục (mẫu Song Phụng Đỏ)"));
 check("đường online vẫn giữ chọn mẫu + demo wizard", tt.includes("const templatePicker") && tt.includes("<OnlineDemoWizard"));
+
+// ---- 15. Dán chỉ đổ thêm: giá trị rỗng trong đoạn dán không xoá chữ đã có ----
+// Nhiều file .ai để địa điểm tiệc dạng outline (không phải chữ sống) nên
+// ghost text không mang địa điểm — dán phải giữ địa điểm chị đã gõ.
+const prevVenue = { ...vuQuy, venue: "Tư Gia Nhà Gái", address: "Thôn Chư Kbô\nXã Krông Búk, Tỉnh Đắk Lắk" };
+const importedEmptyVenue = { venue: "", address: "", groomName: "Trần Văn Mới" };
+const mergedKeep = store.mergeImportedData(prevVenue, importedEmptyVenue);
+check("dán không có địa điểm → giữ địa điểm đã gõ",
+  mergedKeep.venue === "Tư Gia Nhà Gái" && mergedKeep.address === "Thôn Chư Kbô\nXã Krông Búk, Tỉnh Đắk Lắk",
+  JSON.stringify({ venue: mergedKeep.venue, address: mergedKeep.address }));
+check("dán có chữ thì đè như cũ (tên)", mergedKeep.groomName === "Trần Văn Mới", mergedKeep.groomName);
+check("merge giữ id cũ", mergedKeep.id === vuQuy.id, mergedKeep.id);
+const importedVenue = { venue: "Nhà Hàng Sen Hồng", address: "123 Đường Láng" };
+const mergedOver = store.mergeImportedData(prevVenue, importedVenue);
+check("ghost có địa điểm thì đè địa điểm cũ",
+  mergedOver.venue === "Nhà Hàng Sen Hồng" && mergedOver.address === "123 Đường Láng",
+  JSON.stringify({ venue: mergedOver.venue, address: mergedOver.address }));
+check("merge không đổi dữ liệu gốc", prevVenue.venue === "Tư Gia Nhà Gái");
+check("merge: giá trị chỉ có khoảng trắng cũng không đè",
+  store.mergeImportedData(prevVenue, { venue: "   " }).venue === "Tư Gia Nhà Gái");
+check("merge: trường undefined cũng không đè",
+  store.mergeImportedData(prevVenue, { venue: undefined }).venue === "Tư Gia Nhà Gái");
+check("tao-thiep dùng mergeImportedData khi dán", tt.includes("mergeImportedData(data, res.data)"));
+check("tao-thiep báo khi đoạn dán thiếu địa điểm tiệc", tt.includes("Đoạn dán không có địa điểm/địa chỉ tiệc"));
+check("PrintFormPreview có dòng tên khách + câu kết sửa được",
+  pf.includes('customWrap("printGuestLine"') && pf.includes('customWrap("printClosing"'));
+check("editor có chips chọn tên khách (Bỏ trống / Quý Gia Đình / Quý Khách)",
+  ed.includes('selCustomKey === "printGuestLine"') && ed.includes('"Bỏ trống"') && ed.includes('"Quý Gia Đình"') && ed.includes('"Quý Khách"'));
+
+// ---- 16. Phần khách không có chữ chuyên môn (ghost text / metadata /
+// Illustrator / sửa tay / CẦN SỬA TAY) — chỉ tiếng thường ----
+check("editor cảnh báo câu mẫu bằng tiếng thường",
+  ed.includes("Câu này Thiết kế sẽ chỉnh lại giúp bạn sau khi bạn chốt."));
+check("editor không còn câu cảnh báo cũ",
+  !ed.includes("Câu mẫu này không vào ghost text"));
+check("editor hướng dẫn dùng nhãn mới 'Thiết kế chỉnh lại'",
+  ed.includes("nhãn “Thiết kế chỉnh lại”"));
+check("editor không còn nhãn 'cần sửa tay' trong hướng dẫn",
+  !ed.includes("nhãn “cần sửa tay”"));
+check("không còn notice dặn gửi link sau chốt",
+  !ed.includes("Đã chốt xong — gửi link đã chốt cho Thiết kế.") && !ed.includes("(hoặc ghost text)"));
+check("không còn dòng mô tả link đã chốt",
+  !ed.includes("Gửi link này cho Thiết kế là xong."));
+check("khối chữ để in gấp trong <details> đóng mặc định, chỉ với link ?d=",
+  ed.includes("<details") && ed.includes("Dành cho Thiết kế — chữ để in") && ed.includes("{!serverMode && ("));
+check("nút copy chữ dùng tên thường 'Sao chép chữ có mã ẩn'",
+  ed.includes("Sao chép chữ có mã ẩn") && ed.includes("Đã sao chép chữ có mã ẩn."));
+check("nút copy metadata dùng tên thường 'Sao chép thông tin kèm theo'",
+  ed.includes("Sao chép thông tin kèm theo") && ed.includes("Đã sao chép thông tin kèm theo."));
+check("editor không còn nút 'Sao chép ghost text' / 'Sao chép metadata'",
+  !ed.includes('"Sao chép ghost text"') && !ed.includes('"Sao chép metadata"'));
+check("editor không còn nhãn 'Chữ cho Illustrator'",
+  !ed.includes("Chữ cho Illustrator"));
+check("danh sách sau chốt có tiêu đề mới",
+  ed.includes("Những câu mẫu bạn đã sửa") && ed.includes("Thiết kế sẽ chỉnh lại những câu này giúp bạn."));
+check("editor không còn tiêu đề 'CẦN SỬA TAY TRONG ILLUSTRATOR'",
+  !ed.includes(">CẦN SỬA TAY TRONG ILLUSTRATOR<"));
+check("PrintFormPreview badge + title mới",
+  pf.includes("Thiết kế chỉnh lại") && pf.includes("Bấm để sửa lời (Thiết kế sẽ chỉnh lại giúp bạn)"));
+check("PrintFormPreview không còn title cũ nhắc ghost text",
+  !pf.includes("không vào ghost text"));
+const iv = readSrc("src/components/InvitationPreview.tsx");
+check("InvitationPreview badge + title mới",
+  iv.includes("Thiết kế chỉnh lại") && iv.includes("Bấm để sửa lời (Thiết kế sẽ chỉnh lại giúp bạn)"));
+check("InvitationPreview không còn title cũ nhắc ghost text",
+  !iv.includes('title={strong ? "Bấm để sửa lời (không vào ghost text'));
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

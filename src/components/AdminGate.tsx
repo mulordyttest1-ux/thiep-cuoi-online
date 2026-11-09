@@ -66,7 +66,7 @@ export default function AdminGate({ children }: { children: React.ReactNode }) {
       <p className="font-display text-5xl text-[#c9a86a]" aria-hidden="true">
         ♥
       </p>
-      <h1 className="mt-4 font-display text-3xl font-bold text-[#7a1f2b]">Khu vực riêng của Nancy</h1>
+      <h1 className="mt-4 font-display text-3xl font-bold text-[#7a1f2b]">Khu vực riêng của Thiết kế</h1>
       <p className="mt-2 text-[#5a4a48]">Trang này chỉ dành cho chủ thiệp. Nhập mã admin để mở.</p>
       <form onSubmit={submit} className="mt-6 space-y-3">
         <label htmlFor="admin-code" className="sr-only">

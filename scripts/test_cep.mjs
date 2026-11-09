@@ -252,5 +252,39 @@ check("round-trip: sửa 1 ngày tiệc → chỉ đổi các khóa suy ra từ 
   valsDay[cep.CEP_KEYS.indexOf("date.tiec.ngay")] === "02",
   diffDay.join(", "));
 
+// ---- NFC: Illustrator hay xuất dấu RỜI (ký tự gốc + dấu kết hợp) —
+// trình duyệt render vỡ dấu; parse phải chuẩn hoá về dạng gộp.
+const decomposed = {
+  ...example,
+  groomName: "Tra\u0302\u0300n Thanh Long",
+  brideName: "Te\u0302re\u0302sa Nga\u0302n Thi\u0323 Hoa\u0300i Nhi",
+};
+const ghostDecomposed = cep.buildCepTextBlock(decomposed);
+const parsedDecomposed = cep.parseCepGhostText(ghostDecomposed);
+check("dấu rời trong ghost text → về dạng gộp chuẩn sau khi dán (groomName)",
+  parsedDecomposed.ok && parsedDecomposed.data.groomName === "Trần Thanh Long",
+  parsedDecomposed.ok ? parsedDecomposed.data.groomName : parsedDecomposed.error);
+check("dấu rời trong ghost text → về dạng gộp chuẩn sau khi dán (brideName)",
+  parsedDecomposed.ok && parsedDecomposed.data.brideName === "Têrêsa Ngân Thị Hoài Nhi",
+  parsedDecomposed.ok ? parsedDecomposed.data.brideName : parsedDecomposed.error);
+check("extractMatches chuẩn hoá NFC từng giá trị (dấu rời → gộp)",
+  cep.extractValues("\u200BTra\u0302\u0300n\u200B")[0] === "Trần");
+const plainDecomposed = cep.buildCepPlainText(decomposed);
+const parsedPlainDecomposed = cep.parseCepPlainText(plainDecomposed);
+check("dấu rời trong khối chữ thường → về dạng gộp chuẩn sau khi dán",
+  parsedPlainDecomposed.ok && parsedPlainDecomposed.data.groomName === "Trần Thanh Long",
+  parsedPlainDecomposed.ok ? parsedPlainDecomposed.data.groomName : parsedPlainDecomposed.error);
+check("giá trị đã đúng NFC thì không đổi gì khi dán",
+  parsedIn.ok && parsedIn.data.groomName === example.groomName);
+
+// ---- Thứ trong tuần: Intl vi-VN đã ra tên riêng đúng dấu ("Thứ Sáu" /
+// "Chủ Nhật") — mẫu in dùng thẳng, không upper-case nữa (sentence case).
+check("ngày lễ: thứ đã là tên riêng đúng dấu ('Thứ Sáu')",
+  cep.buildCepBlockData(example).le.thu === "Thứ Sáu",
+  cep.buildCepBlockData(example).le.thu);
+check("ngày tiệc: thứ đã là tên riêng đúng dấu ('Chủ Nhật')",
+  cep.buildCepBlockData(example).tiec.thu === "Chủ Nhật",
+  cep.buildCepBlockData(example).tiec.thu);
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

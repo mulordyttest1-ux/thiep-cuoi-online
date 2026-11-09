@@ -6,6 +6,7 @@ import { TEMPLATES, PRESET_PHOTOS } from "@/lib/templates";
 import { buildShareUrl, copyText } from "@/lib/store";
 import InvitationPreview, { type SensitiveField } from "@/components/InvitationPreview";
 import { ONLINE_PRICE_VND, formatVnd } from "@/lib/payment";
+import { isPrintConfirmed, type InvitationStatus } from "@/lib/access";
 
 const inputCls = "w-full rounded-xl border px-3 py-2";
 
@@ -60,7 +61,10 @@ export default function OnlineDemoWizard({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const isPaid = serverStatus === "paid_online";
-  const isLocked = serverStatus === "locked_for_print";
+  // Đã chốt in (locked_for_print cũ hoặc confirmed/reviewed/printed mới):
+  // tên/ngày/giờ/địa điểm vật lý không sửa được nữa — chỉ sửa được trường
+  // online (mẫu, ảnh, câu chuyện, lịch trình...).
+  const isLocked = isPrintConfirmed(serverStatus as InvitationStatus);
   // Đã chốt in / đã trả tiền: tên/ngày/giờ/địa điểm vật lý không sửa được
   // nữa — chỉ sửa được trường online (mẫu, ảnh, câu chuyện, lịch trình...).
   const physicalReadOnly = isLocked || isPaid;
@@ -368,7 +372,7 @@ export default function OnlineDemoWizard({
           </div>
 
           <fieldset>
-            <legend className="text-sm font-semibold">Mừng cưới (VietQR trên thiệp — tiền này về tài khoản cô dâu chú rể, khác tài khoản nhận tiền mua thiệp của Nancy)</legend>
+            <legend className="text-sm font-semibold">Mừng cưới (VietQR trên thiệp — tiền này về tài khoản cô dâu chú rể, khác tài khoản nhận tiền mua thiệp của Thiết kế)</legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
               <div>
                 <label htmlFor="demo-bank" className="text-sm font-semibold">Mã ngân hàng</label>
@@ -448,7 +452,7 @@ export default function OnlineDemoWizard({
                     </>
                   ) : (
                     <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">
-                      {pay.error ?? "Chưa cấu hình tài khoản nhận tiền SePay — Nancy cần tạo tài khoản SePay + nối Vietcombank rồi điền key vào biến môi trường."}
+                      {pay.error ?? "Chưa cấu hình tài khoản nhận tiền SePay — Thiết kế cần tạo tài khoản SePay + nối Vietcombank rồi điền key vào biến môi trường."}
                       {pay.memo ? <> Mã của thiệp này: <strong>{pay.memo}</strong></> : null}
                     </p>
                   )}

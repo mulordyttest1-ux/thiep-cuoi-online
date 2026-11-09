@@ -418,7 +418,7 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
     const link = buildSvgViewerUrl(window.location.origin, payload);
     setReturnLink(link);
     setConfirmed(true);
-    setNotice("Đã chốt xong — sao chép link bên dưới gửi lại cho Nancy.");
+    setNotice("Đã chốt xong — sao chép link bên dưới gửi lại cho Thiết kế.");
   };
   const onCopyReturn = async () => {
     const r = await copyText(returnLink);
@@ -448,7 +448,7 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
     return (
       <div className="mx-auto max-w-2xl px-4 py-10">
         <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800">
-          Không mở được mẫu thiệp này (file SVG lỗi). Nhờ Nancy gửi lại link mới.
+          Không mở được mẫu thiệp này (file SVG lỗi). Nhờ Thiết kế gửi lại link mới.
         </p>
       </div>
     );
@@ -465,7 +465,7 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
       {externalImages && externalImages.length > 0 && (
         <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
           Ảnh nền chưa gắn trong file SVG — xuất lại với Images: Embed (đặt ảnh nhúng trong file) thì ảnh nền mới
-          hiện. Nhờ Nancy gửi lại link mới sau khi xuất lại file.
+          hiện. Nhờ Thiết kế gửi lại link mới sau khi xuất lại file.
         </p>
       )}
 
@@ -698,7 +698,7 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
           onClick={onConfirm}
           className="w-full rounded-full bg-[#7a1f2b] px-5 py-3 font-semibold text-white hover:bg-[#5e1620]"
         >
-          Chốt — gửi lại cho Nancy
+          Chốt — gửi lại cho Thiết kế
         </button>
         {errors.length > 0 && (
           <div className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
@@ -710,7 +710,7 @@ export default function SvgViewer({ templateId, templateName, svgText, initialDa
         {confirmed && returnLink && (
           <div className="mt-4 rounded-2xl border bg-white p-4 shadow-sm">
             <label htmlFor="svg-return-link" className="text-sm font-semibold">
-              Link gửi lại cho Nancy (đã kèm nội dung vừa chốt)
+              Link gửi lại cho Thiết kế (đã kèm nội dung vừa chốt)
             </label>
             <input
               id="svg-return-link"

@@ -123,7 +123,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
     <span aria-label="Đã sửa" title="Đã sửa" className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#c9a86a] text-[10px] font-bold leading-none text-white">•</span>
   );
   const manualTag = (
-    <span className="ml-1 inline-block rounded-full bg-[#b45309] px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase leading-none text-white">cần sửa tay</span>
+    <span className="ml-1 inline-block rounded-full bg-[#b45309] px-1.5 py-0.5 align-middle text-[9px] font-bold leading-none text-white">Thiết kế chỉnh lại</span>
   );
   // Trường dữ liệu: bấm vào mở box sửa. strong=true (vd lời mời): không có
   // khóa CEP nên sửa không vào ghost text — đánh dấu MẠNH như câu mẫu.
@@ -139,7 +139,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         onClick={(e) => { e.stopPropagation(); onFieldTap?.(field, tapRect(e)); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFieldTap?.(field, tapRect(e as unknown as React.MouseEvent)); } }}
         className={`relative inline-block cursor-pointer rounded px-0.5 outline-dashed outline-1 hover:bg-[#7a1f2b14] focus:outline-[#7a1f2b] ${strong ? "outline-[#b45309]" : "outline-[#7a1f2b55]"} ${edited ? (strong ? "bg-[#ffe58a]" : "bg-[#c9a86a26]") : ""}`}
-        title={strong ? "Bấm để sửa lời (không vào ghost text — cần sửa tay trong Illustrator khi in)" : "Bấm để sửa"}
+        title={strong ? "Bấm để sửa lời (Thiết kế sẽ chỉnh lại giúp bạn)" : "Bấm để sửa"}
       >
         {children}
         {edited && !strong && editedDot}
@@ -178,7 +178,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         onClick={(e) => { e.stopPropagation(); onCustomTextTap?.(key, tapRect(e)); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCustomTextTap?.(key, tapRect(e as unknown as React.MouseEvent)); } }}
         className={`relative inline-block cursor-pointer rounded px-0.5 outline-dashed outline-1 outline-[#b45309] hover:bg-[#ffe58a66] focus:outline-[#b45309] ${edited ? "bg-[#ffe58a]" : ""}`}
-        title="Bấm để sửa lời (câu mẫu — sửa tay trong Illustrator khi in)"
+        title="Bấm để sửa lời (Thiết kế sẽ chỉnh lại giúp bạn)"
       >
         {children}
         {edited && manualTag}

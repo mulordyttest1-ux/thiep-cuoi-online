@@ -17,7 +17,7 @@
 //  - partyHeader: tiêu đề mục địa điểm tiệc ("TIỆC CƯỚI SẼ TỔ CHỨC TẠI").
 //  - printCeremonyTitle / printPartyIntro: tiêu đề trên MẪU FORM IN
 //    (PrintFormPreview) - chữ in khác chữ thiệp online nên có khóa riêng:
-//    lễ in là "HÔN LỄ ĐƯỢC CỬ HÀNH TẠI", tiệc in là câu mời dự tiệc trước
+//    lễ in là "Hôn lễ được cử hành tại", tiệc in là câu mời dự tiệc trước
 //    tên địa điểm. Sửa cũng vào danh sách sửa tay như các câu mẫu khác.
 // Lời mời (data.message) không có trong danh sách này vì nó là trường
 // InvitationData — nhưng message CŨNG không có khóa CEP nên sửa lời mời
@@ -37,8 +37,13 @@ export interface CustomTextDef {
 export const CUSTOM_TEXT_DEFS: CustomTextDef[] = [
   { key: "ceremonyHeaderLine1", label: "Tiêu đề lễ", defaultVi: "LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI" },
   { key: "partyHeader", label: "Tiêu đề tiệc", defaultVi: "TIỆC CƯỚI SẼ TỔ CHỨC TẠI" },
-  { key: "printCeremonyTitle", label: "Tiêu đề lễ (mẫu in)", defaultVi: "HÔN LỄ ĐƯỢC CỬ HÀNH TẠI" },
-  { key: "printPartyIntro", label: "Lời mời dự tiệc (mẫu in)", defaultVi: "ĐẾN DỰ BUỔI TIỆC CHUNG VUI CÙNG GIA ĐÌNH CHÚNG TÔI TẠI:" },
+  { key: "printCeremonyTitle", label: "Tiêu đề lễ (mẫu in)", defaultVi: "Hôn lễ được cử hành tại" },
+  { key: "printPartyIntro", label: "Lời mời dự tiệc (mẫu in)", defaultVi: "Đến dự buổi tiệc chung vui cùng gia đình chúng tôi tại:" },
+  // Dòng tên khách dưới "Trân trọng kính mời" trên mẫu in: mặc định trống
+  // (hiện 1 hàng chấm); khách chọn "Quý Gia Đình" / "Quý Khách" / gõ khác.
+  { key: "printGuestLine", label: "Tên khách mời (mẫu in)", defaultVi: "" },
+  // Câu kết cuối cột tiệc trên mẫu in (mặc định "Kính mời!").
+  { key: "printClosing", label: "Câu kết (mẫu in)", defaultVi: "Kính mời!" },
 ];
 
 export function customTextDef(key: string): CustomTextDef | undefined {

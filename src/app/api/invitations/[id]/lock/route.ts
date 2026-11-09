@@ -18,8 +18,8 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (rec.status === "paid_online") {
     return NextResponse.json({ ok: false, error: "Thiệp đã trả tiền — không cần chốt lại." }, { status: 400 });
   }
-  if (rec.status === "locked_for_print") {
-    return NextResponse.json({ ok: false, error: "Thiệp đã chốt in rồi." }, { status: 400 });
+  if (rec.status === "locked_for_print" || rec.status === "confirmed" || rec.status === "reviewed" || rec.status === "printed") {
+    return NextResponse.json({ ok: false, error: "Thiệp đã chốt in rồi — xem trạng thái trong bảng duyệt." }, { status: 400 });
   }
   const updated = await updateInvitation(id, (r) => lockRecord(r));
   const origin = originOf(req);

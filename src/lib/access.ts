@@ -5,7 +5,7 @@
  *   draft              Nancy/khách đang sửa trong editor (link ?d= cũ vẫn là nháp).
  *   preview_for_print  Nancy gửi link xem trước cho khách duyệt in: khách SỬA
  *                      được qua link edit, XEM được bản xem trước. KHÔNG còn
- *                      watermark, KHÔNG còn hết hạn xem trước 3 ngày.
+ *                      dấu chìm, KHÔNG còn hết hạn xem trước 3 ngày.
  *   locked_for_print   Khách chốt in (xong vật lý): chỉ đọc, editor đóng. Từ
  *                      đây mục "Xem demo thiệp online" trong editor mở wizard
  *                      mua thiệp online (chọn mẫu -> thêm ảnh/thông tin ->
@@ -29,7 +29,7 @@
  *
  * Giới hạn nói thẳng: không chặn được chụp màn hình 100% (không ai chặn
  * được). Demo online chỉ blur tên/ngày/giờ/địa điểm — chấp nhận mất mát nhỏ
- * để đổi lấy khách thoải mái, thương hiệu không bị watermark làm xấu.
+ * để đổi lấy khách thoải mái, thương hiệu không bị dấu chìm làm xấu.
  */
 import type { InvitationData } from "./types";
 import { ONLINE_VALID_DAYS_AFTER_WEDDING, paymentMemoFor } from "./payment";
@@ -38,14 +38,52 @@ export type InvitationStatus =
   | "draft"
   | "preview_for_print"
   | "locked_for_print"
-  | "paid_online";
+  | "paid_online"
+  | "confirmed"
+  | "reviewed"
+  | "printed";
 
 export const STATUS_LABEL: Record<InvitationStatus, string> = {
   draft: "Nháp — đang sửa",
   preview_for_print: "Đang gửi khách duyệt in",
   locked_for_print: "Đã chốt in — chỉ đọc",
   paid_online: "Đã trả tiền — thiệp online đang mở",
+  confirmed: "Khách đã chốt — chờ duyệt",
+  reviewed: "Đã duyệt — chờ in",
+  printed: "Đã in",
 };
+
+/** Trạng thái duyệt in trên bảng duyệt (/quan-ly). paid_online không nằm
+ *  trong bảng duyệt in (đó là luồng bán online) nên trả null — chỉ hiện ở
+ *  tab "Tất cả". */
+export type ReviewTab = "pending" | "reviewed" | "printed" | "draft";
+
+export function reviewTabOf(status: InvitationStatus): ReviewTab | null {
+  switch (status) {
+    case "confirmed":
+    case "locked_for_print":
+      return "pending";
+    case "reviewed":
+      return "reviewed";
+    case "printed":
+      return "printed";
+    case "draft":
+    case "preview_for_print":
+      return "draft";
+    case "paid_online":
+      return null;
+  }
+}
+
+/** Số lượng từng tab trên bảng duyệt (đếm từ danh sách bản ghi). */
+export function reviewTabCounts(recs: StoredInvitation[]): Record<"all" | ReviewTab, number> {
+  const out: Record<"all" | ReviewTab, number> = { all: recs.length, pending: 0, reviewed: 0, printed: 0, draft: 0 };
+  for (const r of recs) {
+    const t = reviewTabOf(r.status);
+    if (t) out[t]++;
+  }
+  return out;
+}
 
 /** Một lần đối soát tay (chỉ Nancy bấm): khách đã chuyển tiền thật nhưng sai mã / webhook lỗi. */
 export interface ReconcileEntry {
@@ -151,8 +189,20 @@ export function canEdit(status: InvitationStatus): boolean {
   return status === "draft" || status === "preview_for_print";
 }
 
+/** Đã chốt in (vật lý) — khách không sửa được nữa, chỉ đọc. Bao gồm cả
+ *  locked_for_print cũ (admin chốt) và 3 trạng thái duyệt mới (khách chốt
+ *  -> confirmed, Nancy duyệt -> reviewed, in xong -> printed). */
+export function isPrintConfirmed(status: InvitationStatus): boolean {
+  return (
+    status === "locked_for_print" ||
+    status === "confirmed" ||
+    status === "reviewed" ||
+    status === "printed"
+  );
+}
+
 export function isLocked(status: InvitationStatus): boolean {
-  return status === "locked_for_print" || status === "paid_online";
+  return status === "locked_for_print" || status === "paid_online" || isPrintConfirmed(status);
 }
 
 export type GuestAccess =
@@ -192,7 +242,15 @@ export function previewAccess(
 ): PreviewAccess {
   if (!rec) return { allowed: false, reason: "not_found" };
   if (rec.status === "paid_online") return { allowed: false, reason: "paid" };
-  if (rec.status !== "preview_for_print" && rec.status !== "locked_for_print") {
+  // Xem trước mở được cả sau khi khách chốt in (confirmed/reviewed/
+  // printed) — mục demo online trong editor tải qua link này để bán online.
+  if (
+    rec.status !== "preview_for_print" &&
+    rec.status !== "locked_for_print" &&
+    rec.status !== "confirmed" &&
+    rec.status !== "reviewed" &&
+    rec.status !== "printed"
+  ) {
     return { allowed: false, reason: "invalid_token" };
   }
   if (!previewToken || previewToken !== rec.previewToken) {
@@ -211,6 +269,58 @@ export function lockRecord(rec: StoredInvitation, now = new Date()): StoredInvit
     previewExpiresAt: null,
     updatedAt: at,
   };
+}
+
+/** Khách bấm Chốt trên trang khách: draft/preview_for_print -> confirmed
+ *  (chờ duyệt), ghi giờ chốt (customerConfirmedAt = confirmed_at). Từ đây
+ *  khách không sửa được nữa (canEdit false) và bảng duyệt của Nancy hiện
+ *  thông báo. */
+export function confirmRecord(rec: StoredInvitation, now = new Date()): StoredInvitation {
+  const at = now.toISOString();
+  return {
+    ...rec,
+    status: "confirmed",
+    customerConfirmedAt: at,
+    updatedAt: at,
+  };
+}
+
+export type ReviewAction = "reviewed" | "printed" | "reopen";
+
+/** Nancy đổi trạng thái duyệt trong /quan-ly. Luồng chặt:
+ *   confirmed (hoặc locked_for_print cũ) -> reviewed ("Đã duyệt")
+ *   reviewed -> printed ("Đã in")
+ *   confirmed | reviewed | printed | locked_for_print -> draft ("Mở lại")
+ *  Trả { ok: false } khi chuyển không hợp lệ (vd draft -> reviewed,
+ *  confirmed -> printed, paid_online -> bất cứ gì). */
+export function reviewRecord(
+  rec: StoredInvitation,
+  action: ReviewAction,
+  now = new Date()
+): { ok: true; rec: StoredInvitation } | { ok: false; reason: string } {
+  const at = now.toISOString();
+  if (action === "reviewed") {
+    if (rec.status !== "confirmed" && rec.status !== "locked_for_print") {
+      return { ok: false, reason: `Chỉ duyệt được thiệp đang chờ duyệt (hiện tại: ${STATUS_LABEL[rec.status]}).` };
+    }
+    return { ok: true, rec: { ...rec, status: "reviewed", updatedAt: at } };
+  }
+  if (action === "printed") {
+    if (rec.status !== "reviewed") {
+      return { ok: false, reason: `Chỉ đánh dấu "Đã in" cho thiệp đã duyệt (hiện tại: ${STATUS_LABEL[rec.status]}).` };
+    }
+    return { ok: true, rec: { ...rec, status: "printed", updatedAt: at } };
+  }
+  // reopen: về nháp để sửa lại (giữ nguyên token + giờ chốt cũ như unlockRecord).
+  if (
+    rec.status !== "confirmed" &&
+    rec.status !== "reviewed" &&
+    rec.status !== "printed" &&
+    rec.status !== "locked_for_print"
+  ) {
+    return { ok: false, reason: `Thiệp này chưa chốt nên không cần mở lại (hiện tại: ${STATUS_LABEL[rec.status]}).` };
+  }
+  return { ok: true, rec: { ...rec, status: "draft", lockedAt: null, previewExpiresAt: null, updatedAt: at } };
 }
 
 /** Mở khóa (chỉ Nancy/admin): về lại nháp để sửa, giữ nguyên token + lịch sử trả tiền (nếu đã trả thì tiền không hoàn tự động). */

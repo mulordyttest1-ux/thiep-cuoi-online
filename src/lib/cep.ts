@@ -91,7 +91,10 @@ export interface MarkerMatch {
 
 /** Quét các cặp marker theo thứ tự xuất hiện (y hệt
     StatefulMarkerCodec.extractMatches: cặp kề nhau = giá trị rỗng;
-    marker lẻ cuối chuỗi không có cặp đóng thì dừng). */
+    marker lẻ cuối chuỗi không có cặp đóng thì dừng). Giá trị trích ra được
+    chuẩn hoá NFC: Illustrator hay xuất dấu RỜI (ký tự gốc + dấu kết hợp,
+    vd "Tra\u0300n") mà trình duyệt render vỡ dấu — về dạng gộp chuẩn
+    ("Trần") ngay lúc trích; giá trị đã đúng NFC thì không đổi gì. */
 export function extractMatches(text: string, marker: string = CEP_MARKER): MarkerMatch[] {
   const matches: MarkerMatch[] = [];
   let i = 0;
@@ -104,7 +107,7 @@ export function extractMatches(text: string, marker: string = CEP_MARKER): Marke
     } else {
       const end = text.indexOf(marker, start + 1);
       if (end === -1) break;
-      matches.push({ start, end: end + 1, inner: text.slice(start + 1, end) });
+      matches.push({ start, end: end + 1, inner: text.slice(start + 1, end).normalize("NFC") });
       i = end + 1;
     }
   }
@@ -435,7 +438,8 @@ function parseFamilyBlock(lines: string[]): CepFamilySide | null {
 /** Nhập khối chữ thường (cùng bố cục với khối xuất) — tách nghiêm ngặt theo
     từng dòng/nhãn; đọc không được chỗ nào thì báo rõ chỗ đó. */
 export function parseCepPlainText(pasted: string): CepImportResult {
-  const text = (pasted ?? "").replace(/\r\n?/g, "\n").trim();
+  // Chuẩn hoá NFC toàn bộ text đầu vào (dấu rời → dạng gộp) trước khi tách.
+  const text = (pasted ?? "").replace(/\r\n?/g, "\n").normalize("NFC").trim();
   if (!text) return { ok: false, error: "Chưa dán khối chữ nào." };
   const blocks: string[][] = [[]];
   for (const line of text.split("\n")) {

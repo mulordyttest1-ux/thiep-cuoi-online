@@ -72,7 +72,7 @@ check("mặc định tiêu đề lễ",
 check("mặc định tiêu đề tiệc",
   ct.customTextDefault("partyHeader") === "TIỆC CƯỚI SẼ TỔ CHỨC TẠI",
   ct.customTextDefault("partyHeader"));
-check("tiêu đề lễ: lấy dòng đầu ceremonyHeader khi Nancy đã đặt riêng",
+check("tiêu đề lễ: lấy dòng đầu ceremonyHeader khi Thiết kế đã đặt riêng",
   ct.customTextDefault("ceremonyHeaderLine1", { ceremonyHeader: "LỄ VU QUY\nNHÀ THỜ X" }) === "LỄ VU QUY",
   ct.customTextDefault("ceremonyHeaderLine1", { ceremonyHeader: "LỄ VU QUY\nNHÀ THỜ X" }));
 check("customTextValue: chưa sửa thì mặc định, đã sửa thì lấy chữ mới",
@@ -129,6 +129,27 @@ check("round-trip mở rộng: danh sách sửa tay có đúng 1 mục tiêu đ�
     manual[0].oldValue === "LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI" &&
     manual[0].newValue === "LỄ ĐƯỢC TỔ CHỨC TẠI",
   JSON.stringify(manual));
+
+// ---- 5. Khóa câu mẫu mới: dòng tên khách + câu kết (mẫu in) ----
+check("printGuestLine mặc định trống (hiện hàng chấm), printClosing mặc định 'Kính mời!'",
+  ct.customTextValue("printGuestLine", {}, example) === "" &&
+    ct.customTextValue("printClosing", {}, example) === "Kính mời!");
+check("sửa tên khách → vào danh sách sửa tay, cũ '(trống)' → mới",
+  (() => {
+    const list = ct.buildManualList({ printGuestLine: "Quý Khách" }, example, "");
+    return list.length === 1 && list[0].key === "printGuestLine" && list[0].label === "Tên khách mời (mẫu in)" &&
+      list[0].oldValue === "" && list[0].newValue === "Quý Khách";
+  })(),
+  JSON.stringify(ct.buildManualList({ printGuestLine: "Quý Khách" }, example, "")));
+check("sửa câu kết → vào danh sách sửa tay, cũ 'Kính mời!' → mới",
+  (() => {
+    const list = ct.buildManualList({ printClosing: "Trân trọng kính mời!" }, example, "");
+    return list.length === 1 && list[0].key === "printClosing" && list[0].label === "Câu kết (mẫu in)" &&
+      list[0].oldValue === "Kính mời!" && list[0].newValue === "Trân trọng kính mời!";
+  })(),
+  JSON.stringify(ct.buildManualList({ printClosing: "Trân trọng kính mời!" }, example, "")));
+check("không sửa 2 khóa mới → không vào danh sách sửa tay",
+  ct.buildManualList({}, example, "").length === 0);
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
