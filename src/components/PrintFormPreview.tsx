@@ -69,7 +69,7 @@ export default function PrintFormPreview({
     <span aria-label="Đã sửa" title="Đã sửa" className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#c9a86a] text-[10px] font-bold leading-none text-white">•</span>
   );
   const manualTag = (
-    <span className="ml-1 inline-block rounded-full bg-[#b45309] px-1.5 py-0.5 align-middle text-[9px] font-bold uppercase leading-none text-white">cần sửa tay</span>
+    <span className="ml-1 inline-block rounded-full bg-[#b45309] px-1.5 py-0.5 align-middle text-[9px] font-bold leading-none text-white">Thiết kế chỉnh lại</span>
   );
   const editWrap = (field: StdEditField, children: React.ReactNode, opts?: { strong?: boolean }) => {
     if (!editable) return <>{children}</>;
@@ -83,7 +83,7 @@ export default function PrintFormPreview({
         onClick={(e) => { e.stopPropagation(); onFieldTap?.(field, tapRect(e)); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onFieldTap?.(field, tapRect(e as unknown as React.MouseEvent)); } }}
         className={`relative inline-block cursor-pointer rounded px-2 py-0.5 outline-dashed outline-1 hover:bg-[#7a1f2b14] focus:outline-[#7a1f2b] ${strong ? "outline-[#b45309]" : "outline-[#7a1f2b55]"} ${edited ? (strong ? "bg-[#ffe58a]" : "bg-[#c9a86a26]") : ""}`}
-        title={strong ? "Bấm để sửa lời (không vào ghost text — cần sửa tay trong Illustrator khi in)" : "Bấm để sửa"}
+        title={strong ? "Bấm để sửa lời (Thiết kế sẽ chỉnh lại giúp bạn)" : "Bấm để sửa"}
       >
         {children}
         {edited && !strong && editedDot}
@@ -120,7 +120,7 @@ export default function PrintFormPreview({
         onClick={(e) => { e.stopPropagation(); onCustomTextTap?.(key, tapRect(e)); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCustomTextTap?.(key, tapRect(e as unknown as React.MouseEvent)); } }}
         className={`relative inline-block cursor-pointer rounded px-2 py-0.5 outline-dashed outline-1 outline-[#b45309] hover:bg-[#ffe58a66] focus:outline-[#b45309] ${edited ? "bg-[#ffe58a]" : ""}`}
-        title="Bấm để sửa lời (câu mẫu — sửa tay trong Illustrator khi in)"
+        title="Bấm để sửa lời (Thiết kế sẽ chỉnh lại giúp bạn)"
       >
         {children}
         {edited && manualTag}
@@ -129,28 +129,39 @@ export default function PrintFormPreview({
   };
 
   // --- Dòng ngày/giờ theo đúng form in ---
+  // Sentence case: chỉ "Vào" hoa đầu dòng, "giờ" thường; p.thu đã là
+  // tên riêng đúng dấu ("Thứ Bảy"/"Chủ Nhật", Intl vi-VN) nên giữ nguyên.
   const dateLine = (p: CepDateParts, withColon: boolean) =>
     p.ngay
-      ? `VÀO LÚC${withColon ? ":" : ""} ${p.gio} GIỜ ${p.phut} - ${(p.thu || "").toUpperCase()} ${p.ngay}.${p.thang}.${p.nam}`
+      ? `Vào lúc${withColon ? ":" : ""} ${p.gio} giờ ${p.phut} - ${p.thu || ""} ${p.ngay}.${p.thang}.${p.nam}`
       : "Chưa chọn ngày";
   const lunarText = (p: CepDateParts) =>
     p.ngay_al ? `Nhằm ngày ${p.ngay_al} tháng ${p.thang_al} năm ${p.nam_al}` : "";
 
-  // Một bên gia đình trong cột lễ: nhãn "Ông Bà:", cha, mẹ, địa chỉ.
+  // Một bên gia đình trong cột lễ: nhãn "Ông bà:", cha, mẹ, địa chỉ.
   const fam = (side: FamilySide, f: SideFields) => (
     <div className="flex-1 text-center">
-      <p className="text-xs font-bold tracking-wide text-[#710001]">Ông Bà:</p>
+      <p className="text-xs font-bold tracking-wide text-[#710001]">Ông bà:</p>
       <p className="mt-1">{editWrap(f.father, side.ong || "—")}</p>
       <p>{editWrap(f.mother, side.ba || "—")}</p>
       <p className="mt-1 whitespace-pre-line text-sm leading-snug">{editWrap(f.addr, side.diachi || "—")}</p>
     </div>
   );
 
+  // Dòng tên khách dưới "Trân trọng kính mời": chưa có chữ thì 1 hàng
+  // chấm, có chữ thì hiện chữ đó trên gạch chấm dưới.
+  const guestName = customTextValue("printGuestLine", customTexts, data).trim();
+  const guestLine = guestName ? (
+    <span className="border-b border-dotted border-[#710001]/70 px-1 pb-0.5 text-lg font-bold">{guestName}</span>
+  ) : (
+    <span aria-hidden="true" className="tracking-[0.2em]">........................................</span>
+  );
+
   // Câu kết tiệc: lời mời đã nhập thì hiện lời đó, chưa có thì dùng câu
   // chuẩn của form in (cũng là trường message — sửa thì vào sửa tay).
   const closing = data.message?.trim()
     ? data.message
-    : "SỰ HIỆN DIỆN CỦA QUÝ KHÁCH LÀ NIỀM VINH HẠNH CHO GIA ĐÌNH CHÚNG TÔI.";
+    : "Sự hiện diện của quý khách là niềm vinh hạnh cho gia đình chúng tôi.";
 
   return (
     <div
@@ -166,7 +177,7 @@ export default function PrintFormPreview({
           </div>
 
           <p className="mt-6 text-sm font-bold tracking-wide text-[#710001]">
-            TRÂN TRỌNG BÁO TIN LỄ {editWrap("ceremonyType", b.ten_le)} CỦA CON CHÚNG TÔI
+            Trân trọng báo tin lễ {editWrap("ceremonyType", b.ten_le)} của con chúng tôi
           </p>
 
           <p className="mt-4 text-2xl italic leading-snug md:text-3xl">
@@ -199,8 +210,10 @@ export default function PrintFormPreview({
 
         {/* Cột TIỆC */}
         <section aria-label="Tiệc" className="text-center font-serif text-[#ea1d25]">
-          <p className="text-sm font-bold tracking-wide text-[#710001]">TRÂN TRỌNG KÍNH MỜI</p>
-          <div className="mx-auto mt-3 w-3/4 border-t border-dashed border-[#710001]/60" aria-hidden="true" />
+          <p className="text-sm font-bold tracking-wide text-[#710001]">Trân trọng kính mời</p>
+          <p className="mt-5">
+            {customWrap("printGuestLine", guestLine)}
+          </p>
           <p className="mt-4 text-sm font-bold leading-relaxed">
             {customWrap("printPartyIntro", customTextValue("printPartyIntro", customTexts, data))}
           </p>
@@ -220,8 +233,9 @@ export default function PrintFormPreview({
           <p className="mt-4 whitespace-pre-line text-sm leading-relaxed">
             {editWrap("message", closing, { strong: true })}
           </p>
-          <div className="mx-auto mt-4 w-3/4 border-t border-dashed border-[#710001]/60" aria-hidden="true" />
-          <p className="mt-3 text-xl font-bold italic">Kính Mời!</p>
+          <p className="mt-8 text-xl font-bold italic">
+            {customWrap("printClosing", customTextValue("printClosing", customTexts, data))}
+          </p>
         </section>
       </div>
     </div>

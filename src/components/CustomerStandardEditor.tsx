@@ -18,13 +18,13 @@
 //    (td_customer_data_<id>) nên tải lại trang vẫn giữ đúng dữ liệu đã sửa;
 //    mở lại link đúng thì khôi phục, link mới của Nancy (dữ liệu gốc khác)
 //    thì không bị bản cũ đè.
-//  - Sau chốt có nút "Sao chép link đã chốt": link /khach/<id>?d= chứa dữ
-//    liệu mới nhất + ?c= (payload {customTexts, initialMessage} — câu mẫu đã
-//    sửa, hoặc {} rỗng nếu không sửa câu mẫu nào, kèm message GỐC lúc mở
-//    link lần đầu để máy khác tính đúng diff "Lời mời") để khách gửi cho
-//    Nancy. Link đã chốt (LUÔN có ?c=) mở trên máy khác cũng hiện dạng chỉ
-//    đọc + ghost text + danh sách sửa tay — vì ?c= chỉ xuất hiện trên link
-//    đã chốt.
+//  - Sau chốt khách KHÔNG copy-paste gì: chỉ hiện câu cảm ơn, còn lại là
+//    việc của backend (máy chủ lấy dữ liệu đã chốt từ /quan-ly). Riêng
+//    link ?d= cũ (không máy chủ) còn giữ khối chữ để in gấp trong
+//    <details> "Dành cho Thiết kế — chữ để in" — đó là cách duy nhất lấy
+//    chữ đã chốt từ link cũ. Link đã chốt (LUÔN có ?c=) mở trên máy khác
+//    cũng hiện dạng chỉ đọc + ghost text + danh sách sửa tay — vì ?c= chỉ
+//    xuất hiện trên link đã chốt.
 //  - Chat box cuối trang: khách ghi chú/hỏi, Nancy trả lời trong Quản lý;
 //    khách mở lại link sẽ thấy trả lời (không realtime).
 "use client";
@@ -40,7 +40,7 @@ import {
   stdFieldLabel,
 } from "@/lib/custom-texts";
 import { getDateParts } from "@/lib/lunar";
-import { buildCustomerEditUrl, copyText, isCustomerConfirmed, markCustomerConfirmed, saveCustomerSnapshot } from "@/lib/store";
+import { copyText, isCustomerConfirmed, markCustomerConfirmed, saveCustomerSnapshot } from "@/lib/store";
 import {
   CEREMONY_TYPE_OPTIONS,
   HOST_TYPE_OPTIONS,
@@ -235,7 +235,6 @@ export default function CustomerStandardEditor({
   const [ghostText, setGhostText] = useState("");
   const [metadata, setMetadata] = useState("");
   const [plainText, setPlainText] = useState("");
-  const [confirmedLink, setConfirmedLink] = useState("");
   const [manualList, setManualList] = useState<ManualListItem[]>(initialManualList ?? []);
   const [errors, setErrors] = useState<string[]>([]);
   const [notice, setNotice] = useState("");
@@ -260,7 +259,6 @@ export default function CustomerStandardEditor({
     setGhostText(buildCepTextBlock(initialData));
     setMetadata(buildCepMetadataJson());
     setPlainText(buildCepPlainText(initialData));
-    setConfirmedLink(buildCustomerEditUrl(window.location.origin, initialData, customTextsRef.current, initialMessageRef.current));
     if (lockedByFlag || initialConfirmed) {
       setManualList(buildManualList(customTextsRef.current, dataRef.current, initialMessageRef.current));
     }
@@ -500,8 +498,6 @@ export default function CustomerStandardEditor({
         );
       }
       setConfirmed(true);
-      setConfirmedLink(buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current));
-      setNotice("Đã chốt xong — gửi link đã chốt (hoặc ghost text) cho Nancy.");
     } catch {
       setErrors(["Không chốt được — kiểm tra mạng rồi thử lại."]);
     }
@@ -511,18 +507,6 @@ export default function CustomerStandardEditor({
   const copyGhost = async (text: string, okMsg: string) => {
     const r = await copyText(text);
     setNotice(r.ok ? okMsg : "Không sao chép tự động được — bôi đen rồi copy thủ công.");
-  };
-
-  const copyConfirmedLink = async () => {
-    const url =
-      confirmedLink ||
-      buildCustomerEditUrl(window.location.origin, dataRef.current, customTextsRef.current, initialMessageRef.current);
-    const r = await copyText(url);
-    setNotice(
-      r.ok
-        ? "Đã sao chép link đã chốt — gửi cho Nancy nhé."
-        : "Không sao chép tự động được — bôi đen link rồi copy thủ công."
-    );
   };
 
   /* ---------- chat ---------- */
@@ -584,7 +568,7 @@ export default function CustomerStandardEditor({
       <h1 className="text-center font-display text-3xl font-bold text-[#7a1f2b]">Duyệt mẫu in</h1>
       <p className="mt-1 text-center text-sm text-[#5a4a48]">
         Đây là đúng mẫu form sẽ in, bấm vào tên, ngày, địa điểm… để sửa ngay tại chỗ đó. Chỗ đã sửa có dấu
-        chấm; câu mẫu đã sửa có nền vàng + nhãn “cần sửa tay”.
+        chấm; câu mẫu đã sửa có nền vàng + nhãn “Thiết kế chỉnh lại”.
       </p>
 
       <div className="mt-4">
@@ -620,8 +604,7 @@ export default function CustomerStandardEditor({
 
           {(selCustomKey || selField === "message") && (
             <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              Câu mẫu này không vào ghost text — khi chốt sẽ vào danh sách “CẦN SỬA TAY TRONG ILLUSTRATOR” để
-              Nancy sửa trong Illustrator.
+              Câu này Thiết kế sẽ chỉnh lại giúp bạn sau khi bạn chốt.
             </p>
           )}
 
@@ -729,6 +712,17 @@ export default function CustomerStandardEditor({
             </div>
           )}
 
+          {selCustomKey === "printGuestLine" && (
+            <div className="mt-3">
+              <ChipOptions
+                options={["Bỏ trống", "Quý Gia Đình", "Quý Khách"]}
+                value={selValue === "" ? "Bỏ trống" : selValue}
+                onPick={(v) => setCustomValue("printGuestLine", v === "Bỏ trống" ? "" : v)}
+              />
+              <p className="mt-2 text-xs text-[#7a6a68]">Hoặc gõ tên khác:</p>
+            </div>
+          )}
+
           {(selField === "groomParentsAddress" || selField === "brideParentsAddress" || selField === "address" || selField === "message" || selCustomKey) && (
             <div className="mt-3">
               <textarea
@@ -807,11 +801,11 @@ export default function CustomerStandardEditor({
             disabled={confirmBusy}
             className="w-full rounded-full bg-[#7a1f2b] px-5 py-3 font-semibold text-white hover:bg-[#5e1620] disabled:opacity-60"
           >
-            {confirmBusy ? "Đang chốt…" : "Chốt — gửi lại cho Nancy"}
+            {confirmBusy ? "Đang chốt…" : "Chốt"}
           </button>
         ) : (
           <p className="rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-800" role="status">
-            Đã chốt xong. Gửi link đã chốt bên dưới cho Nancy để chị in thiệp.
+            Đã chốt xong. Cảm ơn bạn! Thiết kế sẽ xem lại và liên hệ với bạn.
           </p>
         )}
         {errors.length > 0 && (
@@ -823,34 +817,14 @@ export default function CustomerStandardEditor({
         )}
         {confirmed && ghostText && (
           <div className="mt-4 space-y-4">
-            <div className="rounded-2xl border bg-white p-4 shadow-sm">
-              <label htmlFor="khach-confirmed-link" className="text-sm font-semibold">
-                Link đã chốt — gửi cho Nancy
-              </label>
-              <p className="mt-1 text-xs text-[#7a6a68]">
-                Link này chứa đúng dữ liệu vừa chốt. Nancy mở ra sẽ thấy thiệp đã sửa và ghost text đúng để in.
-              </p>
-              <input
-                id="khach-confirmed-link"
-                readOnly
-                value={confirmedLink}
-                onFocus={(e) => e.target.select()}
-                className={`${inputCls} mt-2 bg-[#fdf8f1] text-xs`}
-              />
-              <div className="mt-3">
-                <button
-                  type="button"
-                  onClick={copyConfirmedLink}
-                  data-testid="copy-confirmed-link"
-                  className="rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]"
-                >
-                  Sao chép link đã chốt
-                </button>
-              </div>
-            </div>
-            <div className="rounded-2xl border bg-white p-4 shadow-sm">
-              <label htmlFor="khach-ghost" className="text-sm font-semibold">
-                Chữ cho Illustrator (đã chốt — chỉ trường dữ liệu)
+            {/* Khối chữ để in CHỈ hiện với link ?d= cũ (không qua máy chủ):
+                đó là cách duy nhất lấy chữ đã chốt từ link cũ. Link máy chủ
+                (?t=) thì chị lấy chữ từ /quan-ly nên không hiện ở đây. */}
+            {!serverMode && (
+            <details className="rounded-2xl border bg-white p-4 shadow-sm">
+              <summary className="cursor-pointer text-sm font-semibold">Dành cho Thiết kế — chữ để in</summary>
+              <label htmlFor="khach-ghost" className="mt-3 block text-sm font-semibold">
+                Chữ để in (đã chốt — chỉ trường dữ liệu)
               </label>
               <textarea
                 id="khach-ghost"
@@ -863,17 +837,17 @@ export default function CustomerStandardEditor({
               <div className="mt-3 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  onClick={() => copyGhost(ghostText, "Đã sao chép ghost text.")}
+                  onClick={() => copyGhost(ghostText, "Đã sao chép chữ có mã ẩn.")}
                   className="rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]"
                 >
-                  Sao chép ghost text
+                  Sao chép chữ có mã ẩn
                 </button>
                 <button
                   type="button"
-                  onClick={() => copyGhost(metadata, "Đã sao chép metadata.")}
+                  onClick={() => copyGhost(metadata, "Đã sao chép thông tin kèm theo.")}
                   className="rounded-full border px-5 py-2.5 text-sm font-semibold"
                 >
-                  Sao chép metadata
+                  Sao chép thông tin kèm theo
                 </button>
                 <button
                   type="button"
@@ -883,12 +857,13 @@ export default function CustomerStandardEditor({
                   Sao chép chữ thường
                 </button>
               </div>
-            </div>
+            </details>
+            )}
             {manualList.length > 0 && (
               <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm" role="alert">
-                <h2 className="text-base font-bold text-amber-900">CẦN SỬA TAY TRONG ILLUSTRATOR</h2>
+                <h2 className="text-base font-bold text-amber-900">Những câu mẫu bạn đã sửa</h2>
                 <p className="mt-1 text-xs text-amber-900">
-                  Những câu này không vào ghost text được — Nancy sửa tay trong file Illustrator trước khi in.
+                  Thiết kế sẽ chỉnh lại những câu này giúp bạn.
                 </p>
                 <ul className="mt-3 space-y-2 text-sm text-amber-900">
                   {manualList.map((m) => (
@@ -908,9 +883,9 @@ export default function CustomerStandardEditor({
       </div>
 
       {/* Chat với Nancy */}
-      <section className="mt-8 rounded-2xl border bg-white p-4 shadow-sm" aria-label="Chat với Nancy">
+      <section className="mt-8 rounded-2xl border bg-white p-4 shadow-sm" aria-label="Chat với Thiết kế">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-base font-bold text-[#7a1f2b]">Nhắn cho Nancy</h2>
+          <h2 className="text-base font-bold text-[#7a1f2b]">Nhắn cho Thiết kế</h2>
           {serverMode && (
             <button type="button" onClick={refreshChat} className="rounded-full border px-3 py-1 text-xs font-semibold">
               ↻ Tải lại tin nhắn
@@ -933,7 +908,7 @@ export default function CustomerStandardEditor({
               >
                 <p className="whitespace-pre-line">{m.text}</p>
                 <p className={`mt-1 text-[10px] ${m.from === "khach" ? "text-white/70" : "text-[#7a6a68]"}`}>
-                  {m.from === "khach" ? "Bạn" : "Nancy"} · {fmtTime(m.at)}
+                  {m.from === "khach" ? "Bạn" : "Thiết kế"} · {fmtTime(m.at)}
                 </p>
               </div>
             </div>
@@ -946,10 +921,10 @@ export default function CustomerStandardEditor({
             onKeyDown={(e) => {
               if (e.key === "Enter") sendChat();
             }}
-            placeholder="Nhắn cho Nancy…"
+            placeholder="Nhắn cho Thiết kế…"
             maxLength={2000}
             className={inputCls}
-            aria-label="Nhắn cho Nancy"
+            aria-label="Nhắn cho Thiết kế"
           />
           <button
             type="button"
@@ -964,7 +939,7 @@ export default function CustomerStandardEditor({
         {chatNotice && <p className="mt-2 text-xs text-amber-900" role="status">{chatNotice}</p>}
         {!serverMode && (
           <p className="mt-2 text-xs text-[#7a6a68]">
-            Link này không qua máy chủ nên tin nhắn không lưu được — nhờ Nancy gửi link khách trên máy chủ để chat.
+            Link này không qua máy chủ nên tin nhắn không lưu được — nhờ Thiết kế gửi link khách trên máy chủ để chat.
           </p>
         )}
       </section>
