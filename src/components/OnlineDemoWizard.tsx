@@ -3,8 +3,8 @@
 import { useRef, useState } from "react";
 import type { InvitationData } from "@/lib/types";
 import { TEMPLATES, PRESET_PHOTOS } from "@/lib/templates";
-import { buildShareUrl, copyText } from "@/lib/store";
-import InvitationPreview, { type SensitiveField } from "@/components/InvitationPreview";
+import { buildShareUrl, copyText, encodeShare } from "@/lib/store";
+import type { SensitiveField } from "@/components/InvitationPreview";
 import BlockToggles from "@/components/BlockToggles";
 import { ONLINE_PRICE_VND, formatVnd } from "@/lib/payment";
 import { isPrintConfirmed, type InvitationStatus } from "@/lib/access";
@@ -82,6 +82,19 @@ export default function OnlineDemoWizard({
       return "";
     }
   };
+
+  /** Link demo mở trang riêng: /thiep/demo mang dữ liệu hiện tại trong ?d=
+   *  (không lưu máy chủ), mờ tên/ngày/giờ/địa điểm, có nút quay lại wizard.
+   *  Dùng id "demo" để không vướng chốt chặn máy chủ của thiệp đã đồng bộ.
+   *  Chưa nhập tên cô dâu chú rể thì chưa mở được (link ?d= cần tên để đọc). */
+  const demoUrl = (): string => {
+    try {
+      return `${window.location.origin}/thiep/demo?d=${encodeShare({ ...data, id: "demo" })}&from=wizard&blur=1`;
+    } catch {
+      return "";
+    }
+  };
+  const hasNames = data.groomName.trim() !== "" && data.brideName.trim() !== "";
 
   const validUntilText = (): string => {
     if (!data.date) return "";
@@ -219,8 +232,9 @@ export default function OnlineDemoWizard({
     <section id="demo-online" className="mt-8 scroll-mt-24 rounded-2xl border bg-white p-5 shadow-sm" aria-label="Xem demo thiệp online">
       <h2 className="font-display text-2xl font-bold text-[#7a1f2b]">Xem demo thiệp online</h2>
       <p className="mt-1 text-sm text-[#5a4a48]">
-        Demo duy nhất, đã đổ sẵn dữ liệu khách từ bản vật lý. Tên + ngày + giờ + địa điểm đang mờ —
-        bấm vào ô mờ để xem rõ khi sửa. Chọn mẫu thoải mái trước khi trả tiền, không tính lượt.
+        Demo duy nhất, đã đổ sẵn dữ liệu khách từ bản vật lý. Bấm “Xem demo” ở bước 1 để mở trang
+        thiệp đầy đủ riêng, đúng như khách sẽ thấy (tên + ngày + giờ + địa điểm vẫn mờ).
+        Chọn mẫu thoải mái trước khi trả tiền, không tính lượt.
         {isPaid
           ? " Thiệp này đã được mua online."
           : isLocked
@@ -263,16 +277,36 @@ export default function OnlineDemoWizard({
             ))}
           </div>
 
-          <p className="mt-4 text-center text-xs font-semibold uppercase tracking-widest text-[#7a6a68]">
-            Demo — tên, ngày, giờ, địa điểm đang mờ (bấm vào ô mờ để xem rõ)
-          </p>
-          <div className="mx-auto mt-2 max-w-3xl">
-            <InvitationPreview
-              data={data}
-              blurred
-              revealedField={revealed}
-              onSensitiveClick={(f) => setRevealed(f)}
-            />
+          {/* Xem demo — mở trang thiệp đầy đủ riêng (cùng component trang
+              khách GuestInvitationView: phong bì + mở thiệp + hiệu ứng),
+              KHÔNG còn hộp demo tĩnh inline trong wizard. */}
+          <div className="mx-auto mt-4 max-w-3xl rounded-2xl border bg-[#fdf8f1] p-4 text-center">
+            <p className="text-sm font-semibold text-[#7a1f2b]">Xem demo đúng như khách sẽ thấy</p>
+            <p className="mt-1 text-sm text-[#5a4a48]">
+              Bấm “Xem demo” để mở trang thiệp đầy đủ riêng: phong bì, nút “Mở thiệp”, hiệu ứng đúng
+              biến thể của mẫu đang chọn. Tên + ngày + giờ + địa điểm vẫn mờ. Xem xong bấm
+              “← Quay lại sửa thiệp” để về đây sửa tiếp / trả tiền.
+            </p>
+            {hasNames ? (
+              <a href={demoUrl()} className="mt-3 inline-block rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white hover:bg-[#5e1620]">
+                Xem demo →
+              </a>
+            ) : (
+              <p className="mt-3 text-sm font-semibold text-amber-900">Nhập tên cô dâu chú rể ở dưới (hoặc ở form vật lý) rồi mới xem được demo.</p>
+            )}
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <span className="text-sm text-[#5a4a48]">Sửa nhanh:</span>
+              {(["names", "date", "time", "venue"] as SensitiveField[]).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setRevealed(f)}
+                  className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${revealed === f ? "bg-[#7a1f2b] text-white" : "bg-white"}`}
+                >
+                  {f === "names" ? "Sửa tên" : f === "date" ? "Sửa ngày cưới" : f === "time" ? "Sửa giờ tiệc" : "Sửa địa điểm"}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Chọn mục hiển thị (khối thêm/bớt): bấm là demo trên đổi ngay. */}
@@ -280,14 +314,16 @@ export default function OnlineDemoWizard({
             <BlockToggles data={data} onPatch={onPatch} />
           </div>
 
-          {/* Sửa trực tiếp trên demo: bấm ô mờ thì hiện ô nhập ngay dưới demo, sửa xong mờ lại. */}
+          {/* Sửa trực tiếp: bấm nút "Sửa ..." ở trên thì hiện ô nhập ngay
+              dưới đây (trước đây bấm vào ô mờ trên demo tĩnh để mở form
+              này — demo giờ ở trang riêng nên mở form bằng nút). */}
           {revealed && (
             <div className="mx-auto mt-4 max-w-3xl rounded-2xl border bg-[#fdf8f1] p-4">
               <p className="text-sm font-bold text-[#7a1f2b]">
-                {revealed === "names" && "Sửa tên (đang hiện rõ trên demo)"}
-                {revealed === "date" && "Sửa ngày cưới (đang hiện rõ trên demo)"}
-                {revealed === "time" && "Sửa giờ tiệc (đang hiện rõ trên demo)"}
-                {revealed === "venue" && "Sửa địa điểm (đang hiện rõ trên demo)"}
+                {revealed === "names" && "Sửa tên"}
+                {revealed === "date" && "Sửa ngày cưới"}
+                {revealed === "time" && "Sửa giờ tiệc"}
+                {revealed === "venue" && "Sửa địa điểm"}
               </p>
               {physicalReadOnly && (
                 <p className="mt-1 text-sm text-amber-900">Đã chốt in nên tên/ngày/giờ/địa điểm vật lý không sửa được nữa — muốn sửa thì mở khóa ở mục “Gửi khách duyệt in” rồi sửa lại từ đầu.</p>
@@ -330,7 +366,7 @@ export default function OnlineDemoWizard({
                   </>
                 )}
               </fieldset>
-              <button type="button" onClick={() => setRevealed(null)} className="mt-3 rounded-full border px-4 py-2 text-sm font-semibold">Xong — mờ lại</button>
+              <button type="button" onClick={() => setRevealed(null)} className="mt-3 rounded-full border px-4 py-2 text-sm font-semibold">Xong</button>
             </div>
           )}
 
