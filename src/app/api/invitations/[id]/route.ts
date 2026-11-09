@@ -64,7 +64,19 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       return NextResponse.json({ ok: false, reason: "invalid_token", serverRecord: true }, { status: 403 });
     }
     if (!canEdit(rec.status)) {
-      return NextResponse.json({ ok: false, reason: "locked", serverRecord: true, status: rec.status }, { status: 403 });
+      // Đã chốt (confirmed/reviewed/printed/locked/paid) mà đúng token:
+      // trả dữ liệu CHỈ ĐỌC + locked: true để trang khách mở lại vẫn thấy
+      // thiệp + câu cảm ơn (không báo lỗi "không mở được"), và editor
+      // /tao-thiep?edit= cũng mở được dạng chỉ đọc thay vì báo lỗi.
+      return NextResponse.json({
+        ok: true, serverRecord: true, status: rec.status, data: rec.data, locked: true,
+        customerConfirmedAt: rec.customerConfirmedAt ?? null,
+        customTexts: rec.customTexts ?? {},
+        editedFields: rec.editedFields ?? [],
+        chat: rec.chat ?? [],
+        history: rec.history ?? [],
+        manualList: rec.manualList ?? [],
+      });
     }
     return NextResponse.json({
       ok: true, serverRecord: true, status: rec.status, data: rec.data,
