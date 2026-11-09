@@ -408,5 +408,37 @@ check("ghost đầy đủ 32 giá trị → không cần fallback",
 check("ghost đầy đủ → kết quả như cũ",
   fallbackFull.result.ok === true && fallbackFull.result.data.groomName === example.groomName && fallbackFull.result.data.venue === example.venue && fallbackFull.result.data.address === example.address);
 
+// ---- Hồi quy 09/11/2026: đoạn chữ thật của chị (tin nhắn 11:32, từng byte
+// y nguyên: 65 ký tự U+200B, 2 ký tự ’ U+2019 trong "09’00"/"11’00", không
+// có dấu ' ASCII). Trước bản sửa, parseCepPlainText hỏng cả khối lễ vì
+// CEREMONY_RE/PARTY_RE chỉ nhận dấu ' ASCII → venue trống, địa chỉ "ĐC: ".
+// Sau bản sửa: dấu ’ (và ‘/′/ʼ) về ' ASCII trước khi regex chạy.
+const NANCY_REAL_PASTE = "Lễ ​Tân Hôn​\ngia đình:\n​Nguyễn Văn Kiệm​\n​Lê Thị Vân​\nđịa chỉ:​Thôn 9, Xã Ea Ktur\nTỉnh Đắk Lắk​\ncon:​Nguyễn Văn Cường​ (​Út Nam​) \n---------------------------------------- \ngia đình:\n​Hoàng Văn Chấp​\n​Hoang Thị Liêp​\nđịa chỉ:​Tổ 2, Phường Lê Ích Mộc\nTP Hải Phòng​\ncon:​Hoàng Thị Phương Thảo​ (​Quý Nữ​)\n------------------------------------------ \ncử hành tại ​Tư Gia Nhà Trai​ vào lúc ​09​’​00​ - ​Thứ Bảy​ ​28​.​11​.​2026​ (nhằm ​20​.​10​ năm ​Bính Ngọ​)\ntiệc tại ​​Nhà Hàng Anh Vũ​ ĐC: ​KM 15, QL 27 Thôn 9\nXã Ea Ktur, Tỉnh Đắk Lắk​ vào lúc: ​11​’​00​ - ​Thứ Bảy​ ​28​.​11​.​2026​ (nhằm ​20​.​10​ năm ​Bính Ngọ​)\n------------------------------------------ \nQuý khách hàng vui lòng kiểm tra kỹ: Nội dung, lỗi chính tả trên bản Thiết kế.\nXin cảm ơn";
+const nancyReal = cep.parseCepPlainText(NANCY_REAL_PASTE);
+check("đoạn thật của chị: đọc được (dấu ’ + marker U+200B)", nancyReal.ok === true, nancyReal.error);
+if (nancyReal.ok) {
+  const nd = nancyReal.data;
+  check("đoạn thật: địa điểm tiệc = Nhà Hàng Anh Vũ", nd.venue === "Nhà Hàng Anh Vũ", nd.venue);
+  check("đoạn thật: địa chỉ tiệc đủ 2 dòng", nd.address === "KM 15, QL 27 Thôn 9\nXã Ea Ktur, Tỉnh Đắk Lắk", nd.address);
+  check("đoạn thật: nơi làm lễ = Tư Gia Nhà Trai", nd.ceremonyVenue === "Tư Gia Nhà Trai", nd.ceremonyVenue);
+  check("đoạn thật: lễ 28.11.2026 09:00", nd.ceremonyDate === "2026-11-28" && nd.ceremonyTime === "09:00", nd.ceremonyDate + " " + nd.ceremonyTime);
+  check("đoạn thật: tiệc 28.11.2026 11:00", nd.date === "2026-11-28" && nd.time === "11:00", nd.date + " " + nd.time);
+  check("đoạn thật: vị thứ Út Nam tách đúng", nd.groomBirthOrder === "Út Nam" && nd.groomName === "Nguyễn Văn Cường", nd.groomName + " / " + nd.groomBirthOrder);
+  check("đoạn thật: tên không dính (Út Nam)", !nd.groomName.includes("Út Nam"), nd.groomName);
+}
+// Dán đoạn thật vào ô ghost: ghost đọc được nhưng lệch cặp (đoạn của chị có
+// 1 marker thừa ngay trước "Nhà Hàng Anh Vũ" nên venue = "" và địa chỉ =
+// " ĐC: "); fallback chữ thường bù được venue/ngày/giờ. Riêng địa chỉ vẫn
+// là " ĐC: " vì fallback chỉ bù trường trống — đó là giới hạn của đường
+// ghost, không thuộc bản sửa dấu ’ này.
+const nancyGhostFallback = cep.parseCepGhostTextWithPlainFallback(NANCY_REAL_PASTE);
+check("đoạn thật qua ô ghost: fallback đọc được", nancyGhostFallback.result.ok === true);
+check("đoạn thật qua ô ghost: đã dùng fallback chữ thường", nancyGhostFallback.usedPlainFallback === true);
+if (nancyGhostFallback.result.ok) {
+  const gd = nancyGhostFallback.result.data;
+  check("đoạn thật qua ô ghost: địa điểm tiệc bù đúng", gd.venue === "Nhà Hàng Anh Vũ", gd.venue);
+  check("đoạn thật qua ô ghost: ngày/giờ tiệc bù đúng", gd.date === "2026-11-28" && gd.time === "11:00", gd.date + " " + gd.time);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
