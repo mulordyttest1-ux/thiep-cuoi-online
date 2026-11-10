@@ -70,6 +70,10 @@ function EditorInner() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [serverEditUrl, setServerEditUrl] = useState("");
   const [customerEditUrl, setCustomerEditUrl] = useState("");
+  // Đồng bộ link khách trong hộp "Link cho khách sửa": lỗi hiện rõ trong
+  // hộp, không lặng lẽ quay lại link ?d=.
+  const [linkSyncBusy, setLinkSyncBusy] = useState(false);
+  const [linkSyncError, setLinkSyncError] = useState("");
   const [guestUrl, setGuestUrl] = useState("");
   const [payInfo, setPayInfo] = useState<{ amountText: string; memo: string; qrUrl: string | null; configured: boolean; error?: string } | null>(null);
   const [adminToken, setAdminToken] = useState("");
@@ -178,6 +182,20 @@ function EditorInner() {
           setData(decoded);
           if (decoded.id) setSavedId(decoded.id);
           appliedTemplate.current = true;
+          // Mở từ link ?d= mà chưa có bản ghi máy chủ thì tự đồng bộ ngầm
+          // để hộp "Link cho khách sửa" hiện link máy chủ (?t=) luôn: link
+          // ?d= không có chỗ ghi chú, khách chốt xong chị cũng không nhận
+          // được báo. Đã có bản ghi thì chỉ lấy link có sẵn, không ghi đè
+          // dữ liệu trên máy chủ bằng dữ liệu cũ trong link.
+          if (SUPABASE_CONFIGURED && decoded.id) {
+            void ensureServerCustomerLink(decoded, decoded.id).then((err) => {
+              setNotice(
+                err === null
+                  ? "Đã đồng bộ lên máy chủ — hộp “Link cho khách sửa” bên dưới là link máy chủ."
+                  : `Chưa đồng bộ được lên máy chủ (${err}) — hộp “Link cho khách sửa” bên dưới chưa có link máy chủ.`
+              );
+            });
+          }
           return;
         }
       }
@@ -197,6 +215,9 @@ function EditorInner() {
               if (j.exists) {
                 setServerId(saved.id);
                 if (typeof j.status === "string") setServerStatus(j.status);
+                // Đã có bản ghi máy chủ thì lấy luôn link khách (?t=) để
+                // hộp "Link cho khách sửa" không hiện link ?d= lặng lẽ.
+                if (typeof j.customerEditUrl === "string" && j.customerEditUrl) setCustomerEditUrl(j.customerEditUrl);
               }
             })
             .catch(() => undefined);
@@ -284,11 +305,16 @@ function EditorInner() {
   // Đã có bản ghi máy chủ thì ưu tiên link khách trên máy chủ
   // (customerEditUrl, /khach/<id>?t=...).
   const onCopyEditLink = async () => {
+    // Chưa có link máy chủ thì đừng sao chép link ?d= lặng lẽ — link đó
+    // không có chỗ ghi chú và khách chốt xong chị không nhận được báo.
+    // Đồng bộ một chạm để lấy link máy chủ rồi sao chép lại.
+    if (!customerEditUrl) {
+      await syncCustomerLinkFromBox();
+      return;
+    }
     try {
-      const id = data.id || savedId || "demo";
-      const link = customerEditUrl || buildCustomerEditUrl(window.location.origin, { ...data, id });
-      const res = await copyText(link);
-      setEditLink(link);
+      const res = await copyText(customerEditUrl);
+      setEditLink(customerEditUrl);
       setNotice(res.ok ? "Đã sao chép link cho khách sửa." : "Không sao chép được link. Hãy thử lại.");
     } catch {
       setNotice("Không tạo được link cho khách sửa.");
@@ -304,12 +330,14 @@ function EditorInner() {
   // Đồng bộ dữ liệu hiện tại lên máy chủ (tạo/cập nhật bản ghi): trả null
   // khi xong, trả thông báo lỗi khi không xong. Dùng chung cho nút "Đồng
   // bộ" ở panel máy chủ và cho onSave tự đồng bộ khi đã có Supabase.
-  const trySyncToServer = async (): Promise<string | null> => {
+  // dataOverride/idOverride dùng khi gọi từ useEffect nạp link ?d= (state
+  // data/savedId lúc đó còn chưa cập nhật).
+  const trySyncToServer = async (dataOverride?: InvitationData, idOverride?: string): Promise<string | null> => {
     try {
       const res = await fetch("/api/invitations", {
         method: "POST",
         headers: adminHeaders(),
-        body: JSON.stringify({ data: { ...data, id: savedId || undefined } }),
+        body: JSON.stringify({ data: { ...(dataOverride ?? data), id: (idOverride ?? savedId) || undefined } }),
       });
       const j = (await res.json()) as Record<string, unknown>;
       if (!res.ok || !j.ok) {
@@ -327,6 +355,55 @@ function EditorInner() {
     } catch {
       return "Không kết nối được máy chủ.";
     }
+  };
+
+  // Lấy link khách máy chủ (?t=) cho thiệp đang mở mà không ghi đè dữ
+  // liệu: đã có bản ghi máy chủ thì chỉ lấy link có sẵn (GET — cần phiên
+  // admin, link mang editToken nên API chỉ trả cho admin); chưa có thì
+  // đồng bộ dữ liệu hiện tại lên máy chủ (POST upsert). Trả null khi xong,
+  // trả thông báo lỗi khi không xong.
+  const ensureServerCustomerLink = async (invData?: InvitationData, invId?: string): Promise<string | null> => {
+    const id = invId ?? savedId ?? data.id ?? "";
+    if (!id) return "Chưa có mã thiệp để đồng bộ.";
+    try {
+      const check = await fetch(`/api/invitations?id=${encodeURIComponent(id)}`, { cache: "no-store" });
+      if (!check.ok) return "Không kiểm tra được thiệp trên máy chủ.";
+      const cj = (await check.json()) as Record<string, unknown>;
+      if (!cj.ok) return "Không kiểm tra được thiệp trên máy chủ.";
+      if (cj.exists) {
+        if (typeof cj.customerEditUrl === "string" && cj.customerEditUrl) {
+          setServerId(id);
+          setSavedId(id);
+          if (typeof cj.status === "string") setServerStatus(cj.status);
+          setCustomerEditUrl(cj.customerEditUrl);
+          return null;
+        }
+        // Đã có bản ghi nhưng không lấy được link (vd phiên admin hết
+        // hạn): đừng ghi đè dữ liệu trên máy chủ bằng dữ liệu trong link.
+        return "Đã có thiệp trên máy chủ nhưng không lấy được link — tải lại trang rồi thử lại.";
+      }
+    } catch {
+      return "Không kết nối được máy chủ.";
+    }
+    return trySyncToServer(invData, invId);
+  };
+
+  // Nút một chạm trong hộp "Link cho khách sửa": lấy link máy chủ (?t=)
+  // cho thiệp đang mở. Lỗi hiện rõ trong hộp, không lặng lẽ quay lại ?d=.
+  const syncCustomerLinkFromBox = async () => {
+    setLinkSyncBusy(true);
+    setLinkSyncError("");
+    try {
+      const err = await ensureServerCustomerLink();
+      if (err === null) {
+        setNotice("Đã có link máy chủ — bấm “Sao chép link cho khách sửa” để gửi khách. Khách có chỗ ghi chú, chốt xong chị nhận được thông báo.");
+      } else {
+        setLinkSyncError(`Chưa lấy được link máy chủ: ${err}`);
+      }
+    } catch {
+      setLinkSyncError("Không lấy được link máy chủ — kiểm tra mạng rồi thử lại.");
+    }
+    setLinkSyncBusy(false);
   };
 
   const syncToServer = async () => {
@@ -652,7 +729,7 @@ function EditorInner() {
       )}
       {editLink && (
         <div>
-          <label htmlFor="edit-link" className="text-sm font-semibold">Link cho khách sửa (mở trang khách — mẫu form in, kèm dữ liệu trong ?d=)</label>
+          <label htmlFor="edit-link" className="text-sm font-semibold">Link cho khách sửa (qua máy chủ — đã sao chép)</label>
           <input id="edit-link" readOnly value={editLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-[#fdf8f1]`} />
         </div>
       )}
@@ -850,12 +927,25 @@ function EditorInner() {
         <button type="button" onClick={onCopyEditLink} className="rounded-full border-2 border-[#7a1f2b] px-5 py-3 font-semibold text-[#7a1f2b]">Sao chép link cho khách sửa</button>
       </div>
       <div className="mt-3">
-        <label htmlFor="customer-link" className="text-sm font-semibold">
-          {customerEditUrl
-            ? "Link cho khách sửa (qua máy chủ — khách mở ra thấy đúng dữ liệu đã lưu, không lộ dữ liệu trong link)"
-            : "Link cho khách sửa (mở trang khách — mẫu form in, kèm dữ liệu trong ?d=)"}
-        </label>
-        <input id="customer-link" readOnly value={customerLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+        {customerEditUrl ? (
+          <>
+            <label htmlFor="customer-link" className="text-sm font-semibold">
+              Link cho khách sửa (qua máy chủ — khách mở ra thấy đúng dữ liệu đã lưu, không lộ dữ liệu trong link)
+            </label>
+            <input id="customer-link" readOnly value={customerLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+          </>
+        ) : (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3" role="alert">
+            <p className="text-sm font-semibold text-amber-900">Thiệp này chưa có link máy chủ.</p>
+            <p className="mt-1 text-sm text-amber-900">
+              Đừng gửi link ?d= cho khách: khách sửa được nhưng <strong>không có chỗ ghi chú</strong>, và khách chốt xong chị sẽ <strong>không nhận được thông báo</strong>. Bấm nút bên dưới để lấy link máy chủ — khách có chỗ ghi chú, chốt xong Telegram báo cho chị ngay.
+            </p>
+            <button type="button" onClick={syncCustomerLinkFromBox} disabled={linkSyncBusy} className="mt-3 rounded-full bg-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#5e1620] disabled:opacity-50">
+              {linkSyncBusy ? "Đang đồng bộ…" : "Đồng bộ để lấy link có ghi chú + báo chốt"}
+            </button>
+            {linkSyncError && <p className="mt-2 text-sm font-semibold text-red-800" role="alert">{linkSyncError}</p>}
+          </div>
+        )}
       </div>
       {notice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{notice}</p>}
     </div>
