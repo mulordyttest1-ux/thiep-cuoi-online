@@ -96,14 +96,25 @@ html.lenis, html.lenis body {
   will-change: transform, opacity;
 }
 
-/* Hào quang bokeh (BokehGlow): đốm sáng mờ trôi chậm, chỉ transform. */
+/* Hào quang bokeh (BokehGlow): đốm sáng mờ trôi chậm + breathe, chỉ
+   transform + opacity. NÂNG CẤP 2026-11-10 theo mẫu "Let's Fall In Love":
+   drift chỉ translate (opacity nền nằm ở inline style từng đĩa), breathe
+   riêng scale + opacity như thay đổi tiêu cự. */
 @keyframes bokeh-drift {
-  0% { transform: translate3d(0, 0, 0); opacity: 0.35; }
-  50% { transform: translate3d(var(--bokeh-dx, 40px), var(--bokeh-dy, -20px), 0); opacity: 0.7; }
-  100% { transform: translate3d(0, 0, 0); opacity: 0.35; }
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(var(--bokeh-dx, 40px), var(--bokeh-dy, -20px), 0); }
+  100% { transform: translate3d(0, 0, 0); }
 }
 .bokeh-drift {
   animation: bokeh-drift var(--bokeh-duration, 18s) ease-in-out infinite;
+  will-change: transform, opacity;
+}
+@keyframes bokeh-breathe {
+  0%, 100% { transform: scale(0.94); opacity: 0.75; }
+  50% { transform: scale(1.06); opacity: 1; }
+}
+.bokeh-breathe {
+  animation: bokeh-breathe var(--bokeh-breathe-duration, 8s) ease-in-out infinite;
   will-change: transform, opacity;
 }
 
@@ -183,11 +194,11 @@ html.lenis, html.lenis body {
 }
 
 .sparkles-glint {
-  background-image:radial-gradient(closest-side, var(--sparkles-core) 6%, color-mix(in oklab, var(--sparkles-tint) 85%, transparent) 14%, color-mix(in oklab, var(--sparkles-tint) 30%, transparent) 32%, transparent 58%), radial-gradient(50% 6% at 50% 50%, var(--sparkles-core), color-mix(in oklab, var(--sparkles-tint) 70%, transparent) 40%, transparent), radial-gradient(6% 50% at 50% 50%, var(--sparkles-core), color-mix(in oklab, var(--sparkles-tint) 70%, transparent) 40%, transparent), radial-gradient(closest-side, color-mix(in oklab, var(--sparkles-tint) 24%, transparent), transparent);
+  background-image:radial-gradient(closest-side, var(--sparkles-core) 12%, color-mix(in oklab, var(--sparkles-tint) 85%, transparent) 22%, color-mix(in oklab, var(--sparkles-tint) 30%, transparent) 40%, transparent 65%), radial-gradient(50% 10% at 50% 50%, var(--sparkles-core), color-mix(in oklab, var(--sparkles-tint) 70%, transparent) 40%, transparent), radial-gradient(10% 50% at 50% 50%, var(--sparkles-core), color-mix(in oklab, var(--sparkles-tint) 70%, transparent) 40%, transparent), radial-gradient(closest-side, color-mix(in oklab, var(--sparkles-tint) 24%, transparent), transparent);
 }
 
 .animate-sparkles-glint {
-  animation:sparkles-glint calc(max(var(--sparkles-time,6) * 1s / clamp(.25, var(--sparkles-speed,1), 3), var(--sparkles-count,12) * .34s) * 6) ease-in-out calc(max(var(--sparkles-time,6) * 1s / clamp(.25, var(--sparkles-speed,1), 3), var(--sparkles-count,12) * .34s) * 6 * var(--sparkles-phase,0) * -1) infinite;
+  animation:sparkles-glint calc(max(var(--sparkles-time,6) * 1s / clamp(.25, var(--sparkles-speed,1), 3), var(--sparkles-count,12) * .34s) * 3) ease-in-out calc(max(var(--sparkles-time,6) * 1s / clamp(.25, var(--sparkles-speed,1), 3), var(--sparkles-count,12) * .34s) * 3 * var(--sparkles-phase,0) * -1) infinite;
 }
 
 .animate-sparkles-shimmer {
@@ -265,6 +276,7 @@ html.lenis, html.lenis body {
   .petal-fall,
   .twinkle,
   .bokeh-drift,
+  .bokeh-breathe,
   .shimmer-glow,
   .shimmer-glow-strong,
   .envelope-xi-float,
