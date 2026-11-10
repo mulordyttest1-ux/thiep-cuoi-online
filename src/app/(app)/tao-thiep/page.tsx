@@ -2,19 +2,21 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import type { InvitationData } from "@/lib/types";
+import type { InvitationData, StdEditField } from "@/lib/types";
 import { emptyInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
 import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm } from "@/lib/physical-forms";
-import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, mergeImportedData, saveInvitation } from "@/lib/store";
-import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostTextWithPlainFallback, parseCepPlainText } from "@/lib/cep";
+import { buildCustomerEditUrl, buildShareUrl, copyText, decodeCustomTexts, decodeShare, mergeImportedData, saveInvitation } from "@/lib/store";
+import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, effectiveCeremonyDate, parseCepGhostTextWithPlainFallback, parseCepPlainText } from "@/lib/cep";
+import { getDateParts } from "@/lib/lunar";
+import { customTextDef, customTextValue, isCustomTextEdited, stdFieldLabel } from "@/lib/custom-texts";
 import { compressImage } from "@/lib/image";
 import InvitationPreview from "@/components/InvitationPreview";
 import PrintFormPreview from "@/components/PrintFormPreview";
 import AdminGate from "@/components/AdminGate";
 import OnlineDemoWizard from "@/components/OnlineDemoWizard";
 import SvgTemplateSection from "@/components/SvgTemplateSection";
-import { decodeSvgShare, type SvgSharePayload } from "@/lib/svg-template";
+import { CEREMONY_TYPE_OPTIONS, decodeSvgShare, HOST_TYPE_OPTIONS, VITHU_BRIDE_OPTIONS, VITHU_GROOM_OPTIONS, type SvgSharePayload } from "@/lib/svg-template";
 import { useLanguage } from "@/components/LanguageProvider";
 import { isPrintConfirmed, STATUS_LABEL, type InvitationStatus } from "@/lib/access";
 
@@ -33,6 +35,114 @@ function Field({ label, id, children }: { label: string; id: string; children: R
 }
 
 const inputCls = "w-full rounded-xl border px-3 py-2";
+
+/** Kiểu ô bấm trên form in (trường dữ liệu / câu mẫu) — cùng kiểu với CustomerStandardEditor. */
+type PrintRect = { top: number; left: number; bottom: number; width: number };
+type PrintSelection = { kind: "field"; field: StdEditField } | { kind: "custom"; key: string };
+
+/** Trường thuộc về một bên gia đình — đang sửa trường này thì panel hiện thêm mục chọn nhà chủ tiệc (cùng kiểu CustomerStandardEditor). */
+const FAMILY_FIELDS = new Set<StdEditField>([
+  "groomName",
+  "brideName",
+  "groomFather",
+  "groomMother",
+  "brideFather",
+  "brideMother",
+  "groomBirthOrder",
+  "brideBirthOrder",
+  "groomParentsAddress",
+  "brideParentsAddress",
+]);
+
+/** Câu mẫu sửa trong editor lưu ở localStorage theo mã thiệp (máy này).
+ *  Máy chủ chưa có đường nhận câu mẫu từ editor (POST /api/invitations chỉ
+ *  nhận data; upsert giữ nguyên customTexts cũ của bản ghi) nên câu mẫu sửa
+ *  ở editor chưa lên được máy chủ — mở bằng ?edit= thì lấy câu mẫu từ bản
+ *  ghi máy chủ (khách sửa) khi có, không thì lấy bản editor đã lưu ở đây. */
+const editorCustomTextsKey = (id: string) => `td_editor_custom_texts_${id}`;
+const loadEditorCustomTexts = (id: string): Record<string, string> => {
+  if (!id) return {};
+  try {
+    const raw = window.localStorage.getItem(editorCustomTextsKey(id));
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Chip chọn nhanh + mục "Khác" nhập tay (lấy ý từ SvgViewer / CustomerStandardEditor). */
+function ChipOptions({
+  options,
+  value,
+  onPick,
+}: {
+  options: string[];
+  value: string;
+  onPick: (v: string) => void;
+}) {
+  const [custom, setCustom] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
+  const inList = options.includes(value);
+  return (
+    <div>
+      <div className="flex flex-wrap gap-2">
+        {options.map((o) => (
+          <button
+            key={o}
+            type="button"
+            onClick={() => {
+              setShowCustom(false);
+              onPick(o);
+            }}
+            aria-pressed={value === o}
+            className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+              value === o ? "border-[#7a1f2b] bg-[#7a1f2b] text-white" : "border-[#c9a86a] bg-white text-[#7a1f2b]"
+            }`}
+          >
+            {o}
+          </button>
+        ))}
+        {!inList && value.trim() !== "" && (
+          <span className="rounded-full border border-[#7a1f2b] bg-[#7a1f2b] px-4 py-2 text-sm font-semibold text-white">
+            {value}
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowCustom((s) => !s)}
+          className="rounded-full border border-dashed border-[#7a6a68] px-4 py-2 text-sm font-semibold text-[#5a4a48]"
+        >
+          Khác…
+        </button>
+      </div>
+      {showCustom && (
+        <div className="mt-2 flex gap-2">
+          <input
+            value={custom}
+            onChange={(e) => setCustom(e.target.value)}
+            placeholder="Nhập giá trị khác…"
+            className={inputCls}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              if (custom.trim()) {
+                onPick(custom.trim());
+                setCustom("");
+                setShowCustom(false);
+              }
+            }}
+            className="shrink-0 rounded-full bg-[#7a1f2b] px-4 py-2 text-sm font-semibold text-white"
+          >
+            Chọn
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EditorInner() {
   const params = useSearchParams();
@@ -83,6 +193,58 @@ function EditorInner() {
   const [reconcileRef, setReconcileRef] = useState("");
   const [reconcileReason, setReconcileReason] = useState("");
   const [reconcileNotice, setReconcileNotice] = useState("");
+  // --- Sửa ngay trên form in (đường vật lý): bấm vào nội dung form thì box
+  // sửa nổi ngay tại chỗ bấm, cùng kiểu CustomerStandardEditor. Câu mẫu
+  // (tiêu đề lễ, tên khách, lời mời dự tiệc, câu kết) lưu riêng ở
+  // customTexts — không trộn vào InvitationData hay ghost text.
+  const [customTexts, setCustomTextsState] = useState<Record<string, string>>({});
+  const customTextsRef = useRef(customTexts);
+  const setCustomTexts = (updater: Record<string, string> | ((prev: Record<string, string>) => Record<string, string>)) => {
+    const next =
+      typeof updater === "function"
+        ? (updater as (p: Record<string, string>) => Record<string, string>)(customTextsRef.current)
+        : updater;
+    customTextsRef.current = next;
+    setCustomTextsState(next);
+  };
+  const [printSel, setPrintSel] = useState<PrintSelection | null>(null);
+  const [printAnchor, setPrintAnchor] = useState<PrintRect | null>(null);
+  const [vp, setVp] = useState({ w: 0, h: 0 });
+  const printPanelRef = useRef<HTMLDivElement>(null);
+  const printSelRef = useRef<PrintSelection | null>(null);
+  printSelRef.current = printSel;
+  const printOpenValueRef = useRef<{ label: string; value: string } | null>(null);
+  // Cờ "đã nạp câu mẫu xong" — chặn effect lưu localStorage ghi đè bản đã
+  // lưu bằng {} trước khi nhánh nạp (đặc biệt ?edit= bất đồng bộ) chạy xong.
+  const customTextsReadyRef = useRef(false);
+  const [editedPrintFields, setEditedPrintFields] = useState<Set<string>>(new Set());
+  const editedPrintFieldsRef = useRef(editedPrintFields);
+  const [editedPrintCustomTexts, setEditedPrintCustomTexts] = useState<Set<string>>(new Set());
+  const editedPrintCustomTextsRef = useRef(editedPrintCustomTexts);
+  const setEditedPrintFieldsBoth = (next: Set<string>) => {
+    editedPrintFieldsRef.current = next;
+    setEditedPrintFields(next);
+  };
+  const setEditedPrintCustomTextsBoth = (next: Set<string>) => {
+    editedPrintCustomTextsRef.current = next;
+    setEditedPrintCustomTexts(next);
+  };
+  const dataRef = useRef(data);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+  // Câu mẫu sửa trong editor: lưu theo mã thiệp trên máy này để Lưu thiệp +
+  // tải lại vẫn còn (mở bằng ?d= / ?edit= đều khôi phục được).
+  useEffect(() => {
+    if (!customTextsReadyRef.current) return;
+    const id = data.id || savedId;
+    if (!id) return;
+    try {
+      window.localStorage.setItem(editorCustomTextsKey(id), JSON.stringify(customTextsRef.current));
+    } catch {
+      // bỏ qua — không chặn lưu thiệp
+    }
+  }, [customTexts, data.id, savedId]);
   // Đã chốt in / đã trả tiền thì editor chỉ đọc (mở khóa mới sửa được).
   // Chốt in gồm locked_for_print cũ và confirmed/reviewed/printed mới.
   const readOnly = isPrintConfirmed(serverStatus as InvitationStatus) || serverStatus === "paid_online";
@@ -118,6 +280,16 @@ function EditorInner() {
               if (typeof j.status === "string") setServerStatus(j.status);
               setSavedId(editId);
               setServerId(editId);
+              // Câu mẫu: ưu tiên bản ghi máy chủ (khách sửa) khi có, không thì bản editor đã lưu trên máy này.
+              const serverCt = (j.customTexts as Record<string, string> | undefined) ?? {};
+              setCustomTexts(Object.keys(serverCt).length > 0 ? serverCt : loadEditorCustomTexts(editId));
+              setEditedPrintCustomTextsBoth(
+                new Set(Object.keys(serverCt).filter((k) => isCustomTextEdited(k, serverCt[k], j.data as InvitationData)))
+              );
+              setEditedPrintFieldsBoth(
+                new Set(((j.editedFields as string[] | undefined) ?? []).filter((f): f is string => typeof f === "string"))
+              );
+              customTextsReadyRef.current = true;
             } else {
               setNotice(
                 j.reason === "locked"
@@ -127,10 +299,16 @@ function EditorInner() {
               if (typeof j.status === "string") setServerStatus(j.status);
               setSavedId(editId);
               setServerId(editId);
+              setCustomTexts({});
+              customTextsReadyRef.current = true;
             }
             appliedTemplate.current = true;
           })
-          .catch(() => setNotice("Không tải được thiệp từ máy chủ. Kiểm tra mạng rồi thử lại."));
+          .catch(() => {
+            setNotice("Không tải được thiệp từ máy chủ. Kiểm tra mạng rồi thử lại.");
+            setCustomTexts({});
+            customTextsReadyRef.current = true;
+          });
         return;
       }
       // Link xem trước cũ (/xem-thu) nay chuyển tới mục demo online ở đây
@@ -147,6 +325,9 @@ function EditorInner() {
               if (typeof j.status === "string") setServerStatus(j.status);
               setSavedId(demoId);
               setServerId(demoId);
+              // Link xem trước không trả câu mẫu — lấy bản editor đã lưu trên máy này (nếu có).
+              setCustomTexts(loadEditorCustomTexts(demoId));
+              customTextsReadyRef.current = true;
               setNotice("Link xem trước cũ đã chuyển tới mục demo online bên dưới.");
               window.setTimeout(() => {
                 document.getElementById("demo-online")?.scrollIntoView({ behavior: "smooth" });
@@ -159,10 +340,16 @@ function EditorInner() {
               );
               setSavedId(demoId);
               setServerId(demoId);
+              setCustomTexts({});
+              customTextsReadyRef.current = true;
             }
             appliedTemplate.current = true;
           })
-          .catch(() => setNotice("Không tải được thiệp từ máy chủ. Kiểm tra mạng rồi thử lại."));
+          .catch(() => {
+            setNotice("Không tải được thiệp từ máy chủ. Kiểm tra mạng rồi thử lại.");
+            setCustomTexts({});
+            customTextsReadyRef.current = true;
+          });
         return;
       }
       const dParam = params.get("d");
@@ -175,6 +362,9 @@ function EditorInner() {
           setSvgPayload(svgP);
           setData(svgP.data);
           if (svgP.data.id) setSavedId(svgP.data.id);
+          // Link có ?c= thì lấy câu mẫu trong đó, không thì lấy bản editor đã lưu trên máy này.
+          setCustomTexts(decodeCustomTexts(params.get("c"))?.customTexts ?? loadEditorCustomTexts(svgP.data.id));
+          customTextsReadyRef.current = true;
           appliedTemplate.current = true;
           return;
         }
@@ -182,6 +372,8 @@ function EditorInner() {
         if (decoded) {
           setData(decoded);
           if (decoded.id) setSavedId(decoded.id);
+          setCustomTexts(decodeCustomTexts(params.get("c"))?.customTexts ?? loadEditorCustomTexts(decoded.id));
+          customTextsReadyRef.current = true;
           appliedTemplate.current = true;
           // Mở từ link ?d= mà chưa có bản ghi máy chủ thì tự đồng bộ ngầm
           // để hộp "Link cho khách sửa" hiện link máy chủ (?t=) luôn: link
@@ -208,6 +400,8 @@ function EditorInner() {
       if (tpl) {
         setData(emptyInvitation(tpl));
       }
+      setCustomTexts({});
+      customTextsReadyRef.current = true;
       appliedTemplate.current = true;
     } catch {
       // giữ thiệp mặc định
@@ -217,6 +411,170 @@ function EditorInner() {
 
   const set = <K extends keyof InvitationData>(key: K, value: InvitationData[K]) =>
     setData((prev) => ({ ...prev, [key]: value }));
+
+  /* ---------- sửa ngay trên form in: giá trị + mở/đóng box ---------- */
+  const printFieldValue = (field: StdEditField): string => {
+    const d = dataRef.current;
+    if (field === "ceremonyDate") return effectiveCeremonyDate(d);
+    if (field === "ceremonyTime") return d.ceremonyTime?.trim() ? d.ceremonyTime : d.time;
+    if (field === "hostType") return d.hostType ?? "Nhà Trai";
+    return (d[field] as string | undefined) ?? "";
+  };
+  const setPrintFieldValue = (field: StdEditField, value: string) => {
+    setData((prev) => ({ ...prev, [field]: value }));
+  };
+  const setPrintCustomValue = (key: string, value: string) => {
+    setCustomTexts((prev) => ({ ...prev, [key]: value }));
+  };
+  const markPrintEdited = (kind: "field" | "custom", key: string) => {
+    if (kind === "field") {
+      const next = new Set(editedPrintFieldsRef.current);
+      next.add(key);
+      setEditedPrintFieldsBoth(next);
+    } else {
+      const next = new Set(editedPrintCustomTextsRef.current);
+      next.add(key);
+      setEditedPrintCustomTextsBoth(next);
+    }
+  };
+  const openPrintFieldEditor = (field: StdEditField, rect: PrintRect) => {
+    if (readOnly) return;
+    printOpenValueRef.current = { label: stdFieldLabel(field), value: printFieldValue(field) };
+    setPrintSel({ kind: "field", field });
+    setPrintAnchor(rect);
+  };
+  const openPrintCustomEditor = (key: string, rect: PrintRect) => {
+    if (readOnly) return;
+    printOpenValueRef.current = {
+      label: customTextDef(key)?.label ?? key,
+      value: customTextValue(key, customTextsRef.current, dataRef.current),
+    };
+    setPrintSel({ kind: "custom", key });
+    setPrintAnchor(rect);
+  };
+  const closePrintEditor = () => {
+    const sel = printSelRef.current;
+    const open = printOpenValueRef.current;
+    setPrintSel(null);
+    setPrintAnchor(null);
+    printOpenValueRef.current = null;
+    if (!sel || !open) return;
+    // Chuẩn hoá NFC khi đóng: dấu gõ rời về dạng gộp chuẩn (cùng kiểu
+    // CustomerStandardEditor). Không chuẩn hoá tên kiểu title-case như
+    // trang khách — dữ liệu của Nancy lấy từ Illustrator đã đúng.
+    let newValue: string;
+    if (sel.kind === "field") {
+      const cur = printFieldValue(sel.field);
+      const nfc = cur.normalize("NFC");
+      if (nfc !== cur) setPrintFieldValue(sel.field, nfc);
+      newValue = printFieldValue(sel.field);
+    } else {
+      const cur = customTextValue(sel.key, customTextsRef.current, dataRef.current);
+      const nfc = cur.normalize("NFC");
+      if (nfc !== cur) setPrintCustomValue(sel.key, nfc);
+      newValue = customTextValue(sel.key, customTextsRef.current, dataRef.current);
+    }
+    if (newValue !== open.value) markPrintEdited(sel.kind, sel.kind === "field" ? sel.field : sel.key);
+  };
+
+  // Neo lại box khi cuộn / xoay màn hình / bàn phím mở (viewport đổi).
+  useEffect(() => {
+    if (!printSel) return;
+    const reposition = () => {
+      const vv = window.visualViewport;
+      const w = vv?.width ?? window.innerWidth;
+      const h = vv?.height ?? window.innerHeight;
+      setVp((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    window.visualViewport?.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+      window.visualViewport?.removeEventListener("resize", reposition);
+    };
+  }, [printSel]);
+
+  // Đóng box: bấm ra ngoài box hoặc phím Escape.
+  useEffect(() => {
+    if (!printSel) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Element | null;
+      if (printPanelRef.current?.contains(t)) return;
+      closePrintEditor();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closePrintEditor();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [printSel]);
+
+  /* ---------- vị trí box nổi: kẹp trong viewport ---------- */
+  // Panel phải LUÔN nằm gọn trong viewport để nút Xong với tới được: ngưỡng
+  // 180px cũ (kiểu CustomerStandardEditor) nhỏ hơn panel thật (~300-400px)
+  // nên ô bấm ở nửa dưới màn hình đẩy nút Xong ra khỏi viewport mà panel
+  // lại không có thanh cuộn trong (nội dung vừa maxHeight) — bấm không tới.
+  // Đặt dưới nếu còn đủ chỗ cho panel (~320px), không thì đặt trên, không
+  // thì kẹp từ mép trên và cho cuộn trong; maxHeight luôn kẹp theo chỗ trống
+  // thực tế ở vị trí đặt.
+  const printPanelW = Math.min(340, (vp.w || 375) - 16);
+  let printPanelStyle: React.CSSProperties = { width: printPanelW, maxHeight: "55vh" };
+  if (printAnchor) {
+    const vh = vp.h || 667;
+    const vw = vp.w || 375;
+    const cx = printAnchor.left + printAnchor.width / 2;
+    const left = Math.max(8, Math.min(cx - printPanelW / 2, vw - printPanelW - 8));
+    const belowTop = printAnchor.bottom + 8;
+    if (belowTop + 320 <= vh) {
+      printPanelStyle = { width: printPanelW, left, top: belowTop, maxHeight: Math.min(vh * 0.55, vh - belowTop - 8) };
+    } else if (printAnchor.top - 320 >= 8) {
+      printPanelStyle = { width: printPanelW, left, bottom: vh - printAnchor.top + 8, maxHeight: Math.min(vh * 0.55, printAnchor.top - 16) };
+    } else {
+      printPanelStyle = { width: printPanelW, left, top: 8, maxHeight: vh - 16 };
+    }
+  }
+
+  /* ---------- nội dung box sửa ---------- */
+  const printSelField = printSel?.kind === "field" ? printSel.field : null;
+  const printSelCustomKey = printSel?.kind === "custom" ? printSel.key : null;
+  const printSelCustomDef = printSelCustomKey ? customTextDef(printSelCustomKey) : undefined;
+  const printSelValue = printSelField
+    ? printFieldValue(printSelField)
+    : printSelCustomKey
+      ? customTextValue(printSelCustomKey, customTexts, data)
+      : "";
+  const isPrintFamilyField = printSelField ? FAMILY_FIELDS.has(printSelField) : false;
+  const printLeParts = getDateParts(effectiveCeremonyDate(data));
+  const printTiecParts = getDateParts(data.date);
+  const printSummary = (parts: ReturnType<typeof getDateParts>, time: string) =>
+    parts
+      ? `${parts.weekday}, ${parts.day} ${parts.monthDisplay} ${parts.year}${parts.lunarNote ? ` (${parts.lunarNote})` : ""} · lúc ${time}`
+      : "Chưa chọn ngày.";
+  const printLeSummary = printSummary(printLeParts, data.ceremonyTime?.trim() ? data.ceremonyTime : data.time);
+  const printTiecSummary = printSummary(printTiecParts, data.time);
+  // Trường đã có nhánh nhập riêng (không dùng ô text mặc định).
+  const PRINT_COVERED_FIELDS = [
+    "ceremonyType",
+    "groomBirthOrder",
+    "brideBirthOrder",
+    "ceremonyDate",
+    "ceremonyTime",
+    "date",
+    "time",
+    "groomParentsAddress",
+    "brideParentsAddress",
+    "address",
+    "message",
+  ];
+  const PRINT_TEXTAREA_FIELDS = ["groomParentsAddress", "brideParentsAddress", "address", "message"];
 
   // Tải ảnh lên: tự nén trước khi lưu (xem src/lib/image.ts) — ảnh gốc
   // điện thoại 3–8 MB được thu về tối đa 1600px / JPEG 0.82 để thiệp nhẹ.
@@ -273,6 +631,12 @@ function EditorInner() {
       return;
     }
     setData(blank);
+    setCustomTexts({});
+    setEditedPrintFieldsBoth(new Set());
+    setEditedPrintCustomTextsBoth(new Set());
+    setPrintSel(null);
+    setPrintAnchor(null);
+    customTextsReadyRef.current = true;
     setSavedId("");
     setServerId("");
     setServerStatus("");
@@ -609,6 +973,11 @@ function EditorInner() {
 
   const form = (
     <div className="space-y-5 rounded-2xl border bg-white p-5 shadow-sm">
+      {/* Các ô nhập dữ liệu vật lý CHỈ hiện ở đường online — đường vật lý
+          sửa thẳng trên form in (bấm vào tên, ngày, địa điểm…), không nhập
+          từng ô nữa. Ảnh / ngôn ngữ / VietQR / hàng nút ở dưới vẫn hiện cả
+          hai đường (xem mục "Ảnh + mừng cưới cho thiệp online"). */}
+      {mode === "online" && (
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Tên chú rể *" id="groom"><input id="groom" required value={data.groomName} onChange={(e) => set("groomName", e.target.value)} className={inputCls} /></Field>
         <Field label="Tên cô dâu *" id="bride"><input id="bride" required value={data.brideName} onChange={(e) => set("brideName", e.target.value)} className={inputCls} /></Field>
@@ -617,17 +986,20 @@ function EditorInner() {
         <Field label="Bố cô dâu" id="bf"><input id="bf" value={data.brideFather} onChange={(e) => set("brideFather", e.target.value)} className={inputCls} /></Field>
         <Field label="Mẹ cô dâu" id="bm"><input id="bm" value={data.brideMother} onChange={(e) => set("brideMother", e.target.value)} className={inputCls} /></Field>
       </div>
+      )}
 
       {/* Thứ bậc + địa chỉ gia đình mỗi bên (mẫu Song Phụng Đỏ, vòng 10–11):
           thứ bậc hiện dưới tên lớn ("Út Nam"/"Út Nữ"), địa chỉ hiện dưới tên
           cha mẹ trong khối THÔNG TIN. Để trống thì không hiện (bản gốc cũng
           vậy). Preview cập nhật ngay khi gõ. */}
+      {mode === "online" && (
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Thứ bậc chú rể" id="gbo"><input id="gbo" value={data.groomBirthOrder ?? ""} onChange={(e) => set("groomBirthOrder", e.target.value)} placeholder="Vd: Út Nam" className={inputCls} /></Field>
         <Field label="Thứ bậc cô dâu" id="bbo"><input id="bbo" value={data.brideBirthOrder ?? ""} onChange={(e) => set("brideBirthOrder", e.target.value)} placeholder="Vd: Út Nữ" className={inputCls} /></Field>
         <Field label="Địa chỉ nhà trai" id="gpa"><input id="gpa" value={data.groomParentsAddress ?? ""} onChange={(e) => set("groomParentsAddress", e.target.value)} placeholder="Vd: 12 Ngõ 34 Phố Huế, Hai Bà Trưng, Hà Nội" className={inputCls} /></Field>
         <Field label="Địa chỉ nhà gái" id="bpa"><input id="bpa" value={data.brideParentsAddress ?? ""} onChange={(e) => set("brideParentsAddress", e.target.value)} placeholder="Vd: 56 Đường Xuân Thủy, Cầu Giấy, Hà Nội" className={inputCls} /></Field>
       </div>
+      )}
 
       {/* Tiêu đề lễ + dress code chỉ dùng cho mẫu online (Song Phụng Đỏ) —
           đường vật lý không hiện 2 trường này. */}
@@ -648,17 +1020,20 @@ function EditorInner() {
         </>
       )}
 
+      {mode === "online" && (
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Ngày tiệc *" id="date"><input id="date" type="date" required value={data.date} onChange={(e) => set("date", e.target.value)} className={inputCls} /></Field>
         <Field label="Giờ tiệc *" id="time"><input id="time" type="time" required value={data.time} onChange={(e) => set("time", e.target.value)} className={inputCls} /></Field>
         <Field label="Địa điểm *" id="venue"><input id="venue" required value={data.venue} onChange={(e) => set("venue", e.target.value)} className={inputCls} /></Field>
         <Field label="Địa chỉ *" id="address"><input id="address" required value={data.address} onChange={(e) => set("address", e.target.value)} className={inputCls} /></Field>
       </div>
+      )}
 
       {/* Thông tin lễ (cho nối Illustrator/CEP): lễ có thể khác ngày/giờ
           tiệc; loại lễ + nhà chủ tiệc quyết định bên nào đứng trước trong
           khối chữ xuất sang (pos1 = nhà chủ tiệc). Ngày/giờ lễ mặc định
           bằng ngày/giờ tiệc — sửa khi lễ khác ngày tiệc. */}
+      {mode === "online" && (
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Loại lễ" id="ctype">
           <select id="ctype" value={data.ceremonyType ?? "Thành Hôn"} onChange={(e) => set("ceremonyType", e.target.value as InvitationData["ceremonyType"])} className={inputCls}>
@@ -678,7 +1053,10 @@ function EditorInner() {
         <Field label="Giờ làm lễ" id="ctime"><input id="ctime" type="time" value={data.ceremonyTime ?? data.time} onChange={(e) => set("ceremonyTime", e.target.value || undefined)} className={inputCls} /></Field>
         <Field label="Nơi làm lễ" id="cvenue"><input id="cvenue" value={data.ceremonyVenue ?? ""} onChange={(e) => set("ceremonyVenue", e.target.value)} placeholder="Vd: Nhà Thờ Giáo Xứ Vinh Hà" className={inputCls} /></Field>
       </div>
+      )}
 
+      {mode === "online" && (
+      <>
       <Field label="Lời mời" id="message">
         <textarea id="message" rows={4} value={data.message} onChange={(e) => set("message", e.target.value)} className={inputCls} />
       </Field>
@@ -688,6 +1066,8 @@ function EditorInner() {
       <Field label="Lịch trình (mỗi dòng: HH:MM - Nội dung)" id="schedule">
         <textarea id="schedule" rows={4} value={data.scheduleText} onChange={(e) => set("scheduleText", e.target.value)} className={inputCls} />
       </Field>
+      </>
+      )}
 
       <fieldset>
         <legend className="text-sm font-semibold">Ảnh cưới</legend>
@@ -976,6 +1356,210 @@ function EditorInner() {
     </div>
   );
 
+  // Đường vật lý: form in CHÍNH LÀ form tạo thiệp — bản xem trước dùng đúng
+  // dạng trơn đen + chuẩn hoá NFC như trang khách (một render duy nhất,
+  // không còn lệch đỏ/trơn), bấm vào nội dung thì box sửa nổi ngay tại đó.
+  const physicalPrintEditor = (
+    <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+      <h2 className="text-base font-bold text-[#7a1f2b]">Form in chuẩn #1 — bấm vào để sửa</h2>
+      <p className="mt-1 text-sm text-[#5a4a48]">
+        Đây là đúng mẫu form sẽ in. Bấm vào tên, ngày, địa điểm… để sửa ngay tại chỗ đó — sửa tới đâu form
+        đổi tới đó, chữ xuất sang Illustrator đổi theo.
+      </p>
+      {readOnly && (
+        <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">
+          Thiệp đã {serverStatus === "paid_online" ? "được mua online" : "chốt in"} — editor đang chỉ đọc. Bấm “Mở khóa để sửa” ở mục “Gửi khách duyệt in &amp; bán thiệp online” (cần token admin) mới sửa được.
+        </p>
+      )}
+      <div className="mt-4">
+        <PrintFormPreview
+          data={data}
+          plain
+          editable={!readOnly}
+          onFieldTap={openPrintFieldEditor}
+          onCustomTextTap={openPrintCustomEditor}
+          customTexts={customTexts}
+          editedFields={editedPrintFields}
+          editedCustomTexts={editedPrintCustomTexts}
+        />
+      </div>
+
+      {/* Box sửa nổi ngay tại chỗ bấm */}
+      {printSel && printAnchor && (
+        <div
+          ref={printPanelRef}
+          key={printSel.kind === "field" ? printSel.field : `custom:${printSel.key}`}
+          role="dialog"
+          aria-label={printSelField ? stdFieldLabel(printSelField) : (printSelCustomDef?.label ?? "Sửa câu mẫu")}
+          style={printPanelStyle}
+          className="fixed z-50 overflow-y-auto rounded-2xl border bg-white p-4 shadow-xl"
+          data-testid="edit-panel"
+        >
+          <div className="flex items-start justify-between gap-2">
+            <h2 className="text-base font-bold text-[#7a1f2b]">
+              {printSelField ? stdFieldLabel(printSelField) : (printSelCustomDef?.label ?? "Sửa câu mẫu")}
+            </h2>
+            <button type="button" onClick={closePrintEditor} className="rounded-full border px-3 py-1 text-sm" aria-label="Đóng">
+              ✕
+            </button>
+          </div>
+
+          {(printSelCustomKey || printSelField === "message") && (
+            <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              Câu này không vào ghost text — nhớ sửa tay trong Illustrator khi in.
+            </p>
+          )}
+
+          {printSelField === "ceremonyType" && (
+            <div className="mt-3">
+              <ChipOptions options={CEREMONY_TYPE_OPTIONS} value={printSelValue} onPick={(v) => setPrintFieldValue("ceremonyType", v)} />
+              <p className="mt-2 text-xs text-[#7a6a68]">Đổi loại lễ sẽ đổi bên chủ tiệc theo luật CEP (Vu Quy → nhà gái đứng trước).</p>
+            </div>
+          )}
+
+          {printSelField === "groomBirthOrder" && (
+            <div className="mt-3">
+              <ChipOptions options={VITHU_GROOM_OPTIONS} value={printSelValue} onPick={(v) => setPrintFieldValue("groomBirthOrder", v)} />
+            </div>
+          )}
+          {printSelField === "brideBirthOrder" && (
+            <div className="mt-3">
+              <ChipOptions options={VITHU_BRIDE_OPTIONS} value={printSelValue} onPick={(v) => setPrintFieldValue("brideBirthOrder", v)} />
+            </div>
+          )}
+
+          {(printSelField === "ceremonyDate" || printSelField === "ceremonyTime") && (
+            <div className="mt-3 space-y-3">
+              {printSelField === "ceremonyDate" && (
+                <div>
+                  <label htmlFor="edit-date-le" className="text-sm font-semibold">Chọn ngày làm lễ</label>
+                  <input
+                    id="edit-date-le"
+                    type="date"
+                    value={effectiveCeremonyDate(data)}
+                    onChange={(e) => setPrintFieldValue("ceremonyDate", e.target.value)}
+                    className={`${inputCls} mt-1`}
+                  />
+                </div>
+              )}
+              <div>
+                <label htmlFor="edit-time-le" className="text-sm font-semibold">Giờ làm lễ</label>
+                <input
+                  id="edit-time-le"
+                  type="time"
+                  value={data.ceremonyTime?.trim() ? data.ceremonyTime : data.time}
+                  onChange={(e) => setPrintFieldValue("ceremonyTime", e.target.value)}
+                  className={`${inputCls} mt-1`}
+                />
+              </div>
+              <p className="rounded-xl bg-[#fdf8f1] px-3 py-2 text-sm">{printLeSummary}</p>
+              {printSelField === "ceremonyDate" && (
+                <p className="text-xs text-[#7a6a68]">Chọn ngày lễ chỉ đổi ngày giờ lễ — ngày tiệc không đổi. Ngày âm tự tính từ ngày dương.</p>
+              )}
+            </div>
+          )}
+
+          {(printSelField === "date" || printSelField === "time") && (
+            <div className="mt-3 space-y-3">
+              {printSelField === "date" && (
+                <div>
+                  <label htmlFor="edit-date-tiec" className="text-sm font-semibold">Chọn ngày tiệc</label>
+                  <input
+                    id="edit-date-tiec"
+                    type="date"
+                    value={data.date}
+                    onChange={(e) => setPrintFieldValue("date", e.target.value)}
+                    className={`${inputCls} mt-1`}
+                  />
+                </div>
+              )}
+              <div>
+                <label htmlFor="edit-time-tiec" className="text-sm font-semibold">Giờ tiệc</label>
+                <input
+                  id="edit-time-tiec"
+                  type="time"
+                  value={data.time}
+                  onChange={(e) => setPrintFieldValue("time", e.target.value)}
+                  className={`${inputCls} mt-1`}
+                />
+              </div>
+              <p className="rounded-xl bg-[#fdf8f1] px-3 py-2 text-sm">{printTiecSummary}</p>
+              {printSelField === "date" && (
+                <p className="text-xs text-[#7a6a68]">Chọn ngày tiệc chỉ đổi ngày giờ tiệc — ngày lễ không đổi. Ngày âm tự tính từ ngày dương.</p>
+              )}
+            </div>
+          )}
+
+          {printSelCustomKey === "printGuestLine" && (
+            <div className="mt-3">
+              <ChipOptions
+                options={["Bỏ trống", "Quý Gia Đình", "Quý Khách"]}
+                value={printSelValue === "" ? "Bỏ trống" : printSelValue}
+                onPick={(v) => setPrintCustomValue("printGuestLine", v === "Bỏ trống" ? "" : v)}
+              />
+              <p className="mt-2 text-xs text-[#7a6a68]">Hoặc gõ tên khác:</p>
+            </div>
+          )}
+
+          {(printSelField !== null && PRINT_TEXTAREA_FIELDS.includes(printSelField)) || printSelCustomKey ? (
+            <div className="mt-3">
+              <textarea
+                id="edit-panel-textarea"
+                rows={3}
+                value={printSelValue}
+                onChange={(e) => {
+                  if (printSelCustomKey) setPrintCustomValue(printSelCustomKey, e.target.value);
+                  else if (printSelField) setPrintFieldValue(printSelField, e.target.value);
+                }}
+                className={inputCls}
+              />
+            </div>
+          ) : null}
+
+          {printSelField && !PRINT_COVERED_FIELDS.includes(printSelField) && (
+            <div className="mt-3">
+              <input
+                id="edit-panel-input"
+                value={printSelValue}
+                onChange={(e) => setPrintFieldValue(printSelField, e.target.value)}
+                className={inputCls}
+              />
+            </div>
+          )}
+
+          {/* Đổi bên chủ tiệc: chỉ hiện khi đang sửa một trường gia đình. */}
+          {isPrintFamilyField && (
+            <div className="mt-4 border-t pt-3">
+              <p className="text-sm font-semibold">Nhà chủ tiệc (bên đứng trước)</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {HOST_TYPE_OPTIONS.map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setPrintFieldValue("hostType", h)}
+                    aria-pressed={(data.hostType ?? "Nhà Trai") === h}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${
+                      (data.hostType ?? "Nhà Trai") === h ? "border-[#7a1f2b] bg-[#7a1f2b] text-white" : "border-[#c9a86a] bg-white text-[#7a1f2b]"
+                    }`}
+                  >
+                    {h}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={closePrintEditor}
+            className="mt-4 w-full rounded-full bg-[#7a1f2b] px-5 py-2.5 font-semibold text-white hover:bg-[#5e1620]"
+          >
+            Xong
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <h1 className="font-display text-4xl font-bold text-[#7a1f2b]">{d.editorTitle}</h1>
@@ -994,37 +1578,24 @@ function EditorInner() {
           : "Thiệp online: chọn mẫu online, xem trước, rồi bán qua demo + QR ở mục bên dưới."}
       </p>
 
-      {/* Đường vật lý: bước 1 (dán dữ liệu) + bước 2 (chọn form in) lên đầu. */}
-      {mode === "physical" && (
+      {/* Đường vật lý: form in CHÍNH LÀ form tạo thiệp — một khung nhìn duy
+          nhất, không còn tab Form nhập liệu / Xem trước. Ảnh + mừng cưới +
+          hàng nút (trong `form`, chỉ còn phần online) đặt dưới form in. */}
+      {mode === "physical" ? (
         <>
           {cepImport}
           {physicalFormSection}
-        </>
-      )}
-
-      <div className="mt-6 flex gap-2 lg:hidden" role="tablist" aria-label="Chuyển giữa form và xem trước">
-        <button type="button" role="tab" aria-selected={tab === "form"} onClick={() => setTab("form")} className={`flex-1 rounded-full py-2.5 font-semibold ${tab === "form" ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}>Form nhập liệu</button>
-        <button type="button" role="tab" aria-selected={tab === "preview"} onClick={() => setTab("preview")} className={`flex-1 rounded-full py-2.5 font-semibold ${tab === "preview" ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}>Xem trước</button>
-      </div>
-
-      <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
-        <fieldset disabled={readOnly} className={`m-0 min-w-0 border-0 p-0 ${tab === "form" ? "block" : "hidden lg:block"}`}>
-          {readOnly && (
-            <p className="mb-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">
-              Thiệp đã {serverStatus === "paid_online" ? "được mua online" : "chốt in"} — editor đang chỉ đọc. Bấm “Mở khóa để sửa” ở mục “Gửi khách duyệt in &amp; bán thiệp online” (cần token admin) mới sửa được.
-            </p>
-          )}
-          {mode === "online" && templatePicker}
-          {form}
-        </fieldset>
-        <div className={`${tab === "preview" ? "block" : "hidden"} lg:sticky lg:top-24 lg:block`}>
-          <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#7a6a68]">{mode === "physical" ? "Mẫu form in — xem trước" : "Xem trước trực tiếp"}</p>
-          {mode === "physical" ? <PrintFormPreview data={data} /> : <InvitationPreview data={data} />}
-        </div>
-      </div>
-
-      {mode === "physical" ? (
-        <>
+          {physicalPrintEditor}
+          <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+            <div className="mt-6">
+              <h2 className="text-base font-bold text-[#7a1f2b]">Ảnh + mừng cưới cho thiệp online</h2>
+              <p className="mt-1 text-sm text-[#5a4a48]">
+                Ảnh cưới, ngôn ngữ và VietQR không có trên form in nhưng vẫn cần cho thiệp online — sửa ở đây,
+                không cần sang đường online.
+              </p>
+            </div>
+            <div className="mt-3">{form}</div>
+          </fieldset>
           {customerLinkBox}
           {cepExport}
           {serverPanel}
@@ -1032,6 +1603,27 @@ function EditorInner() {
         </>
       ) : (
         <>
+          <div className="mt-6 flex gap-2 lg:hidden" role="tablist" aria-label="Chuyển giữa form và xem trước">
+            <button type="button" role="tab" aria-selected={tab === "form"} onClick={() => setTab("form")} className={`flex-1 rounded-full py-2.5 font-semibold ${tab === "form" ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}>Form nhập liệu</button>
+            <button type="button" role="tab" aria-selected={tab === "preview"} onClick={() => setTab("preview")} className={`flex-1 rounded-full py-2.5 font-semibold ${tab === "preview" ? "bg-[#7a1f2b] text-white" : "border bg-white"}`}>Xem trước</button>
+          </div>
+
+          <div className="mt-6 grid items-start gap-6 lg:grid-cols-2">
+            <fieldset disabled={readOnly} className={`m-0 min-w-0 border-0 p-0 ${tab === "form" ? "block" : "hidden lg:block"}`}>
+              {readOnly && (
+                <p className="mb-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">
+                  Thiệp đã {serverStatus === "paid_online" ? "được mua online" : "chốt in"} — editor đang chỉ đọc. Bấm “Mở khóa để sửa” ở mục “Gửi khách duyệt in &amp; bán thiệp online” (cần token admin) mới sửa được.
+                </p>
+              )}
+              {templatePicker}
+              {form}
+            </fieldset>
+            <div className={`${tab === "preview" ? "block" : "hidden"} lg:sticky lg:top-24 lg:block`}>
+              <p className="mb-2 text-center text-xs font-semibold uppercase tracking-widest text-[#7a6a68]">Xem trước trực tiếp</p>
+              <InvitationPreview data={data} />
+            </div>
+          </div>
+
           {/* Mục "Xem demo thiệp online" (v3-final): demo duy nhất đã đổ dữ liệu
               khách, blur tên/ngày/giờ/địa điểm, wizard 3 bước mua online. */}
           {serverPanel}
