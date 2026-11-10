@@ -62,7 +62,7 @@ export const OVERLAY_STYLES: OverlayStyle[] = [
     id: "sparkle",
     name: "Tia lấp lánh",
     description:
-      "Tia vàng mảnh + sao 4 cánh lấp lánh khắp trang (không phải hạt tròn vàng).",
+      "Sao 4 cánh vàng + tia mảnh lấp lánh khắp trang (không phải hạt tròn vàng). Tia có tầng cỡ — vài tia hero lớn sáng hẳn + nhiều tia nhỏ, nhấp nháy rải ra không đồng loạt (nâng cấp 2026-11-10 theo mẫu Let's Fall In Love).",
     usedIn:
       "AmbientLayer (src/components/effects/AmbientLayer.tsx) — GoldSparkles (tia vàng, theo ambient.kind sparkle/both) + Twinkle (sao 4 cánh, khi preset có twinkle); dùng ở bìa intro, slideshow và trang khách.",
     variants: ["le-nghi", "anh-vang", "dien-anh", "le-hoi"],
@@ -78,7 +78,8 @@ export const OVERLAY_STYLES: OverlayStyle[] = [
   {
     id: "bokeh",
     name: "Bokeh",
-    description: "Hào quang mờ hình tròn trôi nhẹ, tông vàng ấm, cảm giác xa xỉ.",
+    description:
+      "Đĩa sáng mờ viền tan dần, tông vàng ấm/trắng, trôi chậm + breathe như thay đổi tiêu cự. Có tầng cỡ — vài đĩa hero lớn (200–300px) làm điểm nhấn + đĩa vừa + chấm nhỏ — và 2 lớp sâu–nông (xa mờ tối hơn, gần lõi sáng). Nâng cấp 2026-11-10 theo mẫu Let's Fall In Love.",
     usedIn:
       "AmbientLayer (src/components/effects/AmbientLayer.tsx) — BokehGlow (khi ambient.kind = \"bokeh\"); dùng ở bìa intro, slideshow và trang khách.",
     variants: ["anh-vang"],
