@@ -130,6 +130,15 @@ export function customerEditUrlFor(origin: string, rec: StoredInvitation): strin
   return `${origin}/khach/${encodeURIComponent(rec.id)}?t=${rec.editToken}`;
 }
 
+/**
+ * Link mở thiệp trong editor /tao-thiep (?edit=) — chỉ hiện trong /quan-ly
+ * (đã khóa bằng mã admin), không bao giờ hiện trên trang khách. Dùng token
+ * sửa đã có sẵn trên bản ghi, không tạo token mới ở đây.
+ */
+export function editorUrlFor(origin: string, rec: StoredInvitation): string {
+  return `${origin}/tao-thiep?edit=${encodeURIComponent(rec.id)}&t=${encodeURIComponent(rec.editToken)}`;
+}
+
 export async function upsertInvitation(
   data: InvitationData,
   opts: { status?: StoredInvitation["status"] } = {}
