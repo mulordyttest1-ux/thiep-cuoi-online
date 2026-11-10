@@ -99,13 +99,18 @@ export function Sparkles({
 
   const glints = useMemo<Glint[]>(() => {
     const rand = mulberry32(hashSeed(String(seed)) + 101);
-    return Array.from({ length: count }, () => ({
-      x: +((rand() * 100).toFixed(3)),
-      y: +((rand() * 100).toFixed(3)),
-      size: Math.round(24 + rand() * 20),
-      time: +((5 + rand() * 3).toFixed(3)),
-      phase: +(rand().toFixed(3)),
-    }));
+    return Array.from({ length: count }, () => {
+      // Tầng cỡ (nâng cấp 2026-11-10 theo mẫu "Let's Fall In Love"): 1/4
+      // số tia là HERO 44–60px làm điểm nhấn, còn lại 24–40px như cũ.
+      const hero = rand() < 0.25;
+      return {
+        x: +((rand() * 100).toFixed(3)),
+        y: +((rand() * 100).toFixed(3)),
+        size: hero ? Math.round(44 + rand() * 16) : Math.round(24 + rand() * 16),
+        time: +((5 + rand() * 3).toFixed(3)),
+        phase: +(rand().toFixed(3)),
+      };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, seed]);
 
