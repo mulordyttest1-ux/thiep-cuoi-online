@@ -8,6 +8,7 @@ import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
 import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm } from "@/lib/physical-forms";
 import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, mergeImportedData, saveInvitation } from "@/lib/store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostTextWithPlainFallback, parseCepPlainText } from "@/lib/cep";
+import { compressImage } from "@/lib/image";
 import InvitationPreview from "@/components/InvitationPreview";
 import PrintFormPreview from "@/components/PrintFormPreview";
 import AdminGate from "@/components/AdminGate";
@@ -215,14 +216,13 @@ function EditorInner() {
   const set = <K extends keyof InvitationData>(key: K, value: InvitationData[K]) =>
     setData((prev) => ({ ...prev, [key]: value }));
 
+  // Tải ảnh lên: tự nén trước khi lưu (xem src/lib/image.ts) — ảnh gốc
+  // điện thoại 3–8 MB được thu về tối đa 1600px / JPEG 0.82 để thiệp nhẹ.
   const onUpload = (file: File | undefined) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") set("photoUrl", reader.result);
-    };
-    reader.onerror = () => setNotice("Không đọc được ảnh đã chọn. Hãy thử ảnh khác.");
-    reader.readAsDataURL(file);
+    compressImage(file)
+      .then((url) => set("photoUrl", url))
+      .catch(() => setNotice("Không đọc được ảnh đã chọn. Hãy thử ảnh khác."));
   };
 
   const onSave = async () => {

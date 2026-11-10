@@ -7,6 +7,7 @@ import { buildShareUrl, copyText, encodeShare } from "@/lib/store";
 import type { SensitiveField } from "@/components/InvitationPreview";
 import BlockToggles from "@/components/BlockToggles";
 import { ONLINE_PRICE_VND, formatVnd } from "@/lib/payment";
+import { compressImage } from "@/lib/image";
 import { isPrintConfirmed, type InvitationStatus } from "@/lib/access";
 
 const inputCls = "w-full rounded-xl border px-3 py-2";
@@ -212,14 +213,13 @@ export default function OnlineDemoWizard({
     setCopied(r.ok ? "Đã sao chép link xịn." : "Không sao chép được — bôi đen link rồi copy thủ công.");
   };
 
+  // Tải ảnh lên: tự nén trước khi lưu (xem src/lib/image.ts) — ảnh gốc
+  // điện thoại 3–8 MB được thu về tối đa 1600px / JPEG 0.82 để thiệp nhẹ.
   const onUpload = (file: File | undefined) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") onPatch({ photoUrl: reader.result });
-    };
-    reader.onerror = () => setNotice("Không đọc được ảnh đã chọn. Hãy thử ảnh khác.");
-    reader.readAsDataURL(file);
+    compressImage(file)
+      .then((url) => onPatch({ photoUrl: url }))
+      .catch(() => setNotice("Không đọc được ảnh đã chọn. Hãy thử ảnh khác."));
   };
 
   const steps = [
