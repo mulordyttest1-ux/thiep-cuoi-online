@@ -80,16 +80,27 @@ chậm đã lưu; `?tx=paper` thì về bản giấy dán; giá trị lạ → v
 - **Giấy dán — `paper` (chị chốt 2026-11-10 theo mẫu cộng đồng fake lật
   trang PDF — turn.js / FlipBook.js: tờ giấy lật qua rồi nằm phẳng xuống
   như dán — + kiểu chữ rơi Bounce In Letters)**: từng chữ RƠI từ trên
-  cao xuống, LẬT (flip xuống như lật trang giấy, rotateX ~78° về 0) rồi
-  DÁN — đáp xuống nằm phẳng như tờ giấy dán lên mặt thiệp, bóng đổ nhẹ
-  hiện ra lúc đáp rồi đứng yên; không nảy đàn hồi, không xoay tròn,
-  không gấp 3D kiểu paper-cut, không kiểu chữ cắt báo ransom. TỐC ĐỘ
-  DÙNG HÀM SỐ MŨ: khoảng cách giữa các chữ co lại theo hàm mũ
-  (gap_i = 0,85 × 0,8^i giây) — 2–3 chữ đầu rơi chậm rõ ràng để thấy
-  hiệu ứng, các chữ sau đổ dồn nhanh dần; cả dòng tụ xong trong ~5 giây
-  rồi chữ đứng sắc nét để đọc; mỗi chữ rơi+lật ~0,65 giây với easing
-  tăng tốc (ease-in). Lúc chuyển ảnh, các chữ lật ngược lên và bay lên,
-  mờ dần trong ~1,5–2 giây, tan hết không đè lên ảnh sau.
+  cao xuống, LẬT rồi DÁN — đáp xuống nằm phẳng như tờ giấy dán lên mặt
+  thiệp, bóng đổ nhẹ hiện ra lúc đáp rồi đứng yên; không nảy đàn hồi,
+  không xoay tròn, không gấp 3D kiểu paper-cut, không kiểu chữ cắt báo
+  ransom. V2 (sửa 2026-11-10 theo phản hồi trực tiếp của chị sau khi xem
+  bản live: "không thấy flip, chỉ thấy fall" và nhịp "bị khựt khựt"):
+  chữ bắt đầu ở rotateX −90° (nhìn ngang cạnh tờ giấy, gần như chưa
+  thấy mặt chữ) và KHÔNG fade-in — cú LẬT chính là thứ làm chữ hiện ra;
+  perspective 450 cho nổi 3D rõ hơn. TỐC ĐỘ DÙNG HÀM SỐ MŨ kiểu GIA TỐC
+  TỔNG XUYÊN SUỐT: MỘT đường cong tiến độ chung cho cả dòng
+  (start_i = (T − DUR) × (1 − e^(−2,5·i/(N−1))) / (1 − e^(−2,5)), T ≈ 5
+  giây) — khoảng cách giữa các lần đáp co lại liên tục, mặt trận các
+  chữ đã đáp tiến với vận tốc tăng liên tục, không còn gap rời rạc theo
+  từng chữ; mỗi chữ rơi+lật ~0,9 giây, dài hơn khoảng cách lớn nhất
+  giữa các lần đáp (~0,78 giây) nên các chữ CHỒNG LÊN NHAU — lúc nào
+  cũng có chữ đang chuyển động, không có lúc nào màn hình đứng yên;
+  cả dòng tụ xong trong ~5 giây rồi chữ đứng sắc nét để đọc (số chữ đã
+  đáp ở mốc 1s/2s/3s/4s/5s là 1 → 2 → 4 → 7 → 14). LƯU Ý: công thức
+  t_i = T × (e^(k·i/N) − 1)/(e^k − 1) cho mặt trận đáp CHẬM DẦN (ngược
+  ý chị) nên không dùng — dạng lõm (1 − e^(−k·x))/(1 − e^(−k)) mới cho
+  gia tốc tăng liên tục. Lúc chuyển ảnh, các chữ lật ngược lên và bay
+  lên, mờ dần trong ~1,5–2 giây, tan hết không đè lên ảnh sau.
 - Chữ nhóm theo từ để dòng dài ngắt ở khoảng trắng giữa các từ (không
   vỡ giữa từ); hiệu ứng vẫn chạy từng chữ cái.
 - Dùng framer-motion (đã có sẵn) + Canvas 2D thuần cho cát, không thêm

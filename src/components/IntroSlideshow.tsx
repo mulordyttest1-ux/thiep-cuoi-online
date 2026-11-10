@@ -21,9 +21,11 @@
 // định): hạt cát rơi nhẹ từ trên xuống tụ lại thành chữ, lúc chuyển ảnh
 // thì chữ vỡ thành cát bay lên; "scatter": Scatter & Reform CHẬM đã lưu
 // (PR #28: mỗi chữ bay 6 giây, stagger 0,1s/chữ, exit tan nhanh 0,8s);
-// "paper": giấy dán — từng chữ rơi từ trên xuống, lật (rotateX ~78° về
-// 0) rồi dán phẳng như tờ giấy, tốc độ theo hàm số mũ (chậm đầu để
-// thấy rõ hiệu ứng, nhanh sau để còn đọc). Chọn qua
+// "paper": giấy dán — từng chữ rơi từ trên xuống, lật (rotateX −90°
+// về 0, cú lật làm chữ hiện ra) rồi dán phẳng như tờ giấy; gia tốc
+// tổng xuyên suốt theo hàm số mũ (chậm đầu để thấy rõ hiệu ứng, nhanh
+// sau để còn đọc — V2 sửa theo phản hồi của chị 2026-11-10: bỏ cách
+// chia gap theo từng chữ, dùng một đường cong tiến độ chung). Chọn qua
 // ?tx=sand|scatter|paper trên trang khách. Chữ chỉ dùng dữ liệu thật
 // của thiệp; không có dữ liệu thì bỏ dòng đó (không bịa).
 // MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts):
@@ -516,7 +518,8 @@ export function IntroSlideshow({
       {/* Chữ chạy theo từng ảnh: "sand" thì hạt cát rơi nhẹ từ trên
           xuống tụ lại thành chữ, lúc chuyển ảnh thì cát bay lên;
           "paper" thì từng chữ rơi xuống, lật rồi dán phẳng như tờ
-          giấy (tốc độ hàm số mũ), lúc chuyển thì chữ lật bay lên;
+          giấy (gia tốc tổng xuyên suốt theo hàm số mũ, các chữ chồng
+          lên nhau lúc chuyển động);
           "scatter" thì Scatter & Reform chậm đã lưu (mảnh vụn bay về
           ghép chữ, lúc chuyển thì Shatter vỡ vụn bay đi). */}
       <div className="relative z-10 mx-auto w-full max-w-xl px-6" style={{ minHeight: 190 }}>
