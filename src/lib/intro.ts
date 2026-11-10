@@ -177,3 +177,18 @@ export function getSlideshowSlides(
   }
   return slides;
 }
+
+/** Hiệu ứng chữ trong slideshow intro (chị chủ chốt 2026-11-10):
+ *  "sand" = hạt cát (mặc định): chữ vỡ thành hạt cát bay lên, hạt rơi
+ *  nhẹ từ trên xuống tụ lại thành chữ — theo mẫu cộng đồng Text Particles
+ *  (webdevpuneet.com/ui-snippets/text-particles), nhưng rơi nhẹ từng chữ
+ *  chứ không lò xo nảy / nổ tung như mẫu. "scatter" = Scatter & Reform
+ *  chậm đã lưu (PR #28, giữ nguyên để dành). Chọn qua ?tx=sand|scatter
+ *  trên trang khách; giá trị lạ → về "sand". */
+export type TextEffectId = "sand" | "scatter";
+export function isTextEffectId(v: string | null | undefined): v is TextEffectId {
+  return v === "sand" || v === "scatter";
+}
+export function resolveTextEffect(v: string | null | undefined): TextEffectId {
+  return isTextEffectId(v) ? v : "sand";
+}
