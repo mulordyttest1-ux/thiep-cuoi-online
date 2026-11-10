@@ -3,7 +3,7 @@
 // niệm kiểu scrapbook — ảnh viền trắng đặt nghiêng như Polaroid dán trên
 // nền, ảnh mới xoay/trượt vào chồng lên ảnh trước + zoom chậm nhẹ, nền đổi
 // màu theo cảnh (đỏ đậm → hồng phấn → trắng kem → vàng hoàng hôn), nhịp
-// chậm mỗi ảnh giữ vài giây, thiệp khẩu hiệu lặp lại như điệp khúc.
+// chậm mỗi ảnh giữ 12 giây, thiệp khẩu hiệu lặp lại như điệp khúc.
 //
 // CHIA THÔNG TIN THEO SỐ ẢNH (quy tắc bắt buộc, xem getSlideshowSlides
 // trong src/lib/intro.ts): dòng chính Tên → Ngày → Địa điểm; dòng phụ
@@ -53,7 +53,9 @@ import {
   type SlideshowLine,
 } from "@/lib/intro";
 
-const PHOTO_MS = 4500; // mỗi ảnh hiện ~4.5s rồi sang ảnh sau
+const PHOTO_MS = 12000; // mỗi ảnh hiện ~12s rồi sang ảnh sau — chữ chạy
+// chậm (mỗi chữ bay 6s, stagger 0,1s/chữ) nên dòng dài cần giữ lâu
+// để lắp xong rồi còn đứng yên một lúc cho kịp đọc
 
 /** Giả ngẫu nhiên xác định từ số nguyên — ổn định giữa các lần render
  *  nên mảnh vụn không nhảy lung tung mỗi khi component render lại. */
@@ -64,8 +66,11 @@ function jitter(seed: number, range: number): number {
 
 /** Chữ vỡ vụn / tụ lại — từng chữ cái là một mảnh: lúc hiện các mảnh
  *  bay về ghép lại thành chữ (Scatter & Reform), lúc đi chữ vỡ vụn
- *  từng chữ cái rồi bay đi (Shatter). Nhẹ + chậm: mảnh lệch tối đa
- *  ~14px lúc vào, ~26px lúc ra, xoay tối đa ~10°/~22°. */
+ *  từng chữ cái rồi bay đi (Shatter). Nhẹ + CHẬM: mỗi chữ bay 6 giây
+ *  lúc vào (stagger 0,1s/chữ — dòng 20 chữ lắp xong trong ~8 giây),
+ *  lúc ra tan NHANH riêng 0,8s để chữ cũ không lềnh bềnh đè lên ảnh
+ *  sau. Mảnh lệch tối đa ~14px lúc vào, ~26px lúc ra, xoay tối đa
+ *  ~10°/~22°. */
 function ShatterText({
   text,
   slideKey,
@@ -114,8 +119,12 @@ function ShatterText({
                     y: jitter(i * 5 + slideKey * 7, 26) + 16,
                     rotate: jitter(i * 11 + 2, 22),
                     scale: 0.85,
+                    // Tan NHANH riêng lúc ra (0,8s) — không dùng chung
+                    // transition 6s của lúc vào, kẻo chữ cũ lềnh bềnh
+                    // đè lên ảnh sau.
+                    transition: { duration: 0.8, delay: i * 0.02, ease: "easeOut" },
                   }}
-                  transition={{ duration: 0.6, delay: i * 0.02, ease: "easeOut" }}
+                  transition={{ duration: 6, delay: i * 0.1, ease: "easeOut" }}
                 >
                   {ch}
                 </motion.span>
