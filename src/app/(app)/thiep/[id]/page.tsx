@@ -8,6 +8,7 @@ import type { InvitationData } from "@/lib/types";
 import { defaultInvitation } from "@/lib/types";
 import { getVariantEffects, isEffectVariant } from "@/lib/templates";
 import { resolveTextEffect } from "@/lib/intro";
+import { resolveSlideStyle } from "@/lib/slide-styles";
 import { decodeShare, loadInvitationById } from "@/lib/store";
 import GuestInvitationView from "@/components/GuestInvitationView";
 import { STATUS_LABEL, type InvitationStatus } from "@/lib/access";
@@ -34,6 +35,11 @@ function CardInner() {
   // scatter = Scatter & Reform chậm đã lưu): ghi đè CHỈ khi xem, không
   // đổi dữ liệu thiệp. Giá trị lạ → về "sand".
   const textEffectOverride = resolveTextEffect(search.get("tx"));
+  // Thử nhanh kiểu slide ảnh (?slide=romantic-brochure — kiểu brochure
+  // lãng mạn; không truyền = slideshow Polaroid scrapbook mặc định):
+  // ghi đè CHỈ khi xem, không đổi dữ liệu thiệp. Giá trị lạ → về
+  // "scrapbook".
+  const slideStyleOverride = resolveSlideStyle(search.get("slide"));
 
   useEffect(() => {
     let alive = true;
@@ -189,6 +195,7 @@ function CardInner() {
       serverMode={serverMode}
       effectsOverride={fxOverride}
       textEffectOverride={textEffectOverride}
+      slideStyleOverride={slideStyleOverride}
       blurred={search.get("blur") === "1"}
       fromWizard={search.get("from") === "wizard"}
     />
