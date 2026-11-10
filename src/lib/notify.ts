@@ -12,8 +12,11 @@ import type { InvitationData } from "./types";
  * bình thường, không báo lỗi gì.
  *
  * Nguyên tắc: thông báo KHÔNG BAO GIỜ được làm hỏng lần chốt của khách —
- * sendTelegram tự nuốt mọi lỗi + timeout 5 giây, route chốt gọi
- * notifyOwner fire-and-forget (không await).
+ * sendTelegram tự nuốt mọi lỗi + timeout 5 giây, route chốt await
+ * notifyOwner (vẫn trong timeout 5 giây) rồi mới trả response, để Vercel
+ * serverless không cắt ngang fetch gửi tin trước khi nó xong.
+ * Gửi tin lỗi thì ghi log rõ ràng (status + đoạn body) để chẩn đoán —
+ * trước đây lỗi bị nuốt im lặng nên tin ngừng mà không ai biết vì sao.
  */
 
 const BOARD_URL = "https://chung-doi.vercel.app/quan-ly";
@@ -35,21 +38,33 @@ export function buildConfirmMessage(data: Partial<InvitationData>): string {
   return lines.join("\n");
 }
 
-/** Gửi 1 tin văn bản tới chat Telegram của Nancy. Chưa cấu hình thì no-op. Không bao giờ throw. */
+/** Gửi 1 tin văn bản tới chat Telegram của Nancy. Chưa cấu hình thì no-op.
+ *  Không bao giờ throw. Gửi lỗi thì ghi log (status + đoạn body trả về,
+ *  không in token/chat id) để chẩn đoán — trước đây lỗi bị nuốt im lặng. */
 export async function sendTelegram(text: string): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId || !text) return;
   try {
-    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text }),
       signal: AbortSignal.timeout(5000),
     });
-  } catch {
-    // Gửi tin lỗi (mạng chậm, token sai, Telegram lỗi) thì thôi —
+    if (!res.ok) {
+      let snippet = "";
+      try {
+        snippet = (await res.text()).slice(0, 200);
+      } catch {
+        snippet = "(không đọc được body)";
+      }
+      console.error(`[notify] Telegram sendMessage thất bại: HTTP ${res.status} ${snippet}`);
+    }
+  } catch (e) {
+    // Gửi tin lỗi (mạng chậm, token sai, Telegram lỗi, timeout 5s) thì thôi —
     // lần chốt của khách đã thành công, không được báo lỗi ngược.
+    console.error(`[notify] Telegram sendMessage lỗi: ${e instanceof Error ? e.message : "không rõ nguyên nhân"}`);
   }
 }
 

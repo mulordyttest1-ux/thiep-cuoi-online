@@ -51,10 +51,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await updateInvitation(id, (r) => ({
       ...confirmRecord({ ...r, data, customTexts, editedFields, manualList }, new Date(confirmedAt)),
     }));
-    // Thông báo cho Nancy — fire-and-forget: lỗi/chậm không được làm
-    // hỏng phản hồi chốt của khách. Chỉ link máy chủ (?t=) mới báo được
-    // (link ?d= cũ chốt ở trình duyệt khách, máy chủ không biết).
-    notifyOwner(data).catch(() => {});
+    // Thông báo cho Nancy — ĐỢI gửi xong rồi mới trả response: trước đây
+    // fire-and-forget nên trên Vercel serverless hàm có thể đóng băng ngay
+    // sau khi trả response, cắt ngang fetch gửi tin (tin ngừng 1 lần
+    // 10/11/2026 dù lần chốt đã lưu thành công). notifyOwner không bao giờ
+    // throw (sendTelegram đã nuốt lỗi + ghi log), try/catch ở đây chỉ là
+    // đai an toàn thứ hai — lỗi/chậm không được làm hỏng phản hồi chốt.
+    // Chỉ link máy chủ (?t=) mới báo được (link ?d= cũ chốt ở trình duyệt
+    // khách, máy chủ không biết).
+    try {
+      await notifyOwner(data);
+    } catch {
+      // Đã ghi log trong sendTelegram; lần chốt vẫn thành công.
+    }
     return NextResponse.json({
       ok: true,
       status: "confirmed",
