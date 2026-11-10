@@ -6,7 +6,7 @@ import type { InvitationData } from "@/lib/types";
 import { emptyInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
 import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm } from "@/lib/physical-forms";
-import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, loadInvitation, mergeImportedData, saveInvitation } from "@/lib/store";
+import { buildCustomerEditUrl, buildShareUrl, copyText, decodeShare, mergeImportedData, saveInvitation } from "@/lib/store";
 import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, parseCepGhostTextWithPlainFallback, parseCepPlainText } from "@/lib/cep";
 import { compressImage } from "@/lib/image";
 import InvitationPreview from "@/components/InvitationPreview";
@@ -99,9 +99,10 @@ function EditorInner() {
   const fileRef = useRef<HTMLInputElement>(null);
   const appliedTemplate = useRef(false);
 
-  // Nạp thiệp đã lưu, hoặc áp mẫu từ ?template= (giữ nguyên dữ liệu nếu đã có).
-  // ?d= (link cho khách sửa) thắng bản lưu: mở link là thấy đúng dữ liệu
-  // trong link, kể cả trên máy chưa từng lưu thiệp này.
+  // Nạp thiệp theo tham số rõ ràng (?edit=/?d=/?demo=/?template=).
+  // Mở trần: LUÔN là thiệp mới trống — không tải thiệp đã lưu gần nhất
+  // từ localStorage. Muốn vào thiệp cũ thì mở từ Quản lý
+  // (/tao-thiep?edit=<id>&t=<token>, xem nhánh ?edit= ở trên).
   useEffect(() => {
     try {
       // Link cho khách sửa qua MÁY CHỦ (?edit=<id>&t=<token>): dữ liệu lấy
@@ -199,32 +200,12 @@ function EditorInner() {
           return;
         }
       }
-      const saved = loadInvitation();
+      // Mở trần (không có tham số nào): LUÔN bắt đầu từ thiệp mới trống —
+      // không tải lại thiệp đã lưu gần nhất. Muốn vào thiệp cũ thì mở từ
+      // Quản lý (/tao-thiep?edit=<id>&t=<token>, nhánh ?edit= ở trên).
+      // ?template= một mình thì trống với mẫu đó.
       const tpl = params.get("template");
-      if (saved) {
-        // Gộp dữ liệu đã lưu lên nền trống: thiệp lưu cũ/thiếu trường (ví
-        // dụ không có photoUrl) không được làm editor vỡ (photoUrl.startsWith).
-        const base = emptyInvitation(saved.templateId ?? "minimal-do-do");
-        setData(tpl && !appliedTemplate.current ? { ...base, ...saved, templateId: tpl } : { ...base, ...saved });
-        if (saved.id) {
-          setSavedId(saved.id);
-          // Thiệp này đã từng đưa lên máy chủ chưa? Nếu đã chốt thì editor chỉ đọc.
-          fetch(`/api/invitations?id=${encodeURIComponent(saved.id)}`)
-            .then((r) => r.json())
-            .then((j: Record<string, unknown>) => {
-              if (j.exists) {
-                setServerId(saved.id);
-                if (typeof j.status === "string") setServerStatus(j.status);
-                // Đã có bản ghi máy chủ thì lấy luôn link khách (?t=) để
-                // hộp "Link cho khách sửa" không hiện link ?d= lặng lẽ.
-                if (typeof j.customerEditUrl === "string" && j.customerEditUrl) setCustomerEditUrl(j.customerEditUrl);
-              }
-            })
-            .catch(() => undefined);
-        }
-      } else if (tpl) {
-        // Mở editor bằng ?template= mà chưa có thiệp lưu: bắt đầu từ trống
-        // với mẫu đó (không lọt dữ liệu mẫu vào thiệp mới).
+      if (tpl) {
         setData(emptyInvitation(tpl));
       }
       appliedTemplate.current = true;
