@@ -196,3 +196,59 @@ export function isTextEffectId(v: string | null | undefined): v is TextEffectId 
 export function resolveTextEffect(v: string | null | undefined): TextEffectId {
   return isTextEffectId(v) ? v : "sand";
 }
+
+// ---------------------------------------------------------------------------
+// NHỊP ĐÁP CHUNG cho cả 3 hiệu ứng chữ (chị chốt 2026-11-10 16:24):
+// cát + scatter + paper DÙNG CHUNG 1 nhịp — cùng gia tốc, vận tốc ban
+// đầu gấp đôi paper cũ, gia tốc giữ nguyên.
+//
+// Paper cũ (v2/v3): đường cong tiến độ chung (1 − e^(−K·x))/(1 − e^(−K))
+// với K = 2,5, khoảng trải lần bắt đầu S = T − DUR = 4,1s, mỗi chữ
+// bay/rơi/lật DUR = 0,9s, cả dòng đáp xong T = 5,0s. Vận tốc ban đầu
+// của mặt trận đáp: v0 = (1 − e^(−K))/(K·S) ≈ 0,090 (phần dòng/giây)
+// — khoảng cách giữa 2 lần đáp đầu ≈ 0,78s (dòng 14 chữ); đo live:
+// 25% lúc 2,5s, 52% lúc 3,7s, 90% lúc 4,6s (dòng 14 chữ "Thu An &
+// Minh Quân", đo bằng độ sáng dòng tên).
+// Mới: GIỮ K = 2,5 (cùng hệ số mũ = cùng độ cong/tốc độ tăng của nhịp
+// = gia tốc giữ nguyên), GẤP ĐÔI v0 → S' = S/2 = 2,05s (v0 tỉ lệ
+// nghịch với S khi K không đổi: v0' ≈ 0,179 phần dòng/giây). Mỗi chữ
+// vẫn bay/rơi/lật 0,9s như paper cũ nên 3 hiệu ứng đáp TRÙNG NHAU
+// trên cùng lịch: chữ cuối bắt đầu ở 2,05s, đáp xong ở T' = 2,95s
+// (cũ 5,0s). Tốc độ đáp vẫn tăng dần theo thời gian như cũ (chậm đầu,
+// nhanh cuối — khoảng cách giữa các lần đáp co lại theo e^(K·x)).
+// ---------------------------------------------------------------------------
+
+/** Hệ số mũ của đường cong tiến độ chung (gia tốc — giữ nguyên từ paper v2/v3). */
+export const TEXT_PACE_K = 2.5;
+/** Khoảng trải lần bắt đầu (giây): chữ cuối bắt đầu ở 2,05s (cũ 4,1s — halved để v0 ×2). */
+export const TEXT_PACE_SPAN_S = 2.05;
+/** Mỗi chữ bay/rơi/lật bao lâu (giây) — giống nhau cho cả 3 hiệu ứng để 3 đường cong đáp trùng nhau. */
+export const TEXT_PACE_DUR_S = 0.9;
+/** Cả dòng đáp xong sau ~2,95s (cũ 5,0s). */
+export const TEXT_PACE_TOTAL_S = TEXT_PACE_SPAN_S + TEXT_PACE_DUR_S;
+
+/** Đường cong tiến độ chung (dạng lõm: 0 lúc bắt đầu, 1 lúc cuối, chậm
+ *  đầu nhanh cuối). Đạo hàm tại 0 là K/(1 − e^(−K)) ≈ 2,72 — độ dốc lúc
+ *  bắt đầu; tốc độ mặt trận tăng theo e^(K·x) dọc dòng (gia tốc tổng
+ *  xuyên suốt, giữ nguyên K). */
+export function textPaceCurve(u: number): number {
+  const x = Math.min(1, Math.max(0, u));
+  return (1 - Math.exp(-TEXT_PACE_K * x)) / (1 - Math.exp(-TEXT_PACE_K));
+}
+
+/** Thời điểm bắt đầu của chữ thứ i (i = 0..n−1) trên đường cong chung:
+ *  start_i = SPAN × pace(i/(n−1)). Chữ đầu bắt đầu ở 0s, chữ cuối bắt
+ *  đầu ở SPAN và đáp đúng TOTAL. Khoảng cách giữa các lần đáp co lại
+ *  liên tục theo hàm mũ (gia tốc tổng xuyên suốt) — không chia gap rời
+ *  rạc theo từng chữ. */
+export function textPaceStartAt(i: number, n: number): number {
+  if (n <= 1) return 0;
+  return TEXT_PACE_SPAN_S * textPaceCurve(i / (n - 1));
+}
+
+/** Thời điểm bắt đầu cho một phần tử ở vị trí ngang u ∈ [0,1] của dòng
+ *  (dùng cho hạt cát: hạt càng phải bắt đầu càng muộn, theo cùng đường
+ *  cong — trái→phải, chậm đầu nhanh cuối). */
+export function textPaceDelayAt(u: number): number {
+  return TEXT_PACE_SPAN_S * textPaceCurve(u);
+}

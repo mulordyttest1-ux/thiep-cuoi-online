@@ -10,6 +10,14 @@
 // xong thì chữ đứng sắc nét; lúc chuyển ảnh, chữ vỡ thành hạt cát BAY
 // LÊN rồi mờ dần. Canvas 2D thuần, không thêm thư viện.
 //
+// NHỊP (2026-11-10 16:24, chị chốt): cát dùng CHUNG nhịp đáp với
+// scatter/paper (TEXT_PACE_* trong src/lib/intro.ts) — lịch rơi/tụ
+// của từng chữ theo đường cong chung (K = 2,5, chậm đầu nhanh cuối),
+// hạt bên phải bắt đầu muộn hơn hạt bên trái theo đúng đường cong đó
+// (không còn stagger tuyến tính); mỗi hạt rơi DUR = 0,9s (cũ 3,4s)
+// để 3 hiệu ứng đáp TRÙNG NHAU — chữ cuối tụ xong ~2,95s (cũ ~5,9s).
+// Hạt vẫn rơi nhẹ ease-out (không nảy/không nổ), chỉ nhanh hơn.
+//
 // Cách hiện chữ sắc nét: hạt tụ xong thì chữ DOM thật (cùng font, cùng
 // vị trí) mờ dần vào trong 0,6 giây trong lúc hạt mờ đi — hạt là cát,
 // chữ đọc vẫn là chữ thật. Giảm chuyển động: hiện chữ tĩnh, không chạy
@@ -18,9 +26,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePresence } from "framer-motion";
+import { TEXT_PACE_DUR_S, TEXT_PACE_SPAN_S, textPaceDelayAt } from "@/lib/intro";
 
-const FALL_MS = 3400; // mỗi hạt rơi ~3,4 giây (±15%)
-const STAGGER_MS = 2000; // hạt bên trái bắt đầu trước, hạt bên phải sau
+const FALL_MS = TEXT_PACE_DUR_S * 1000; // mỗi hạt rơi ~0,9 giây — chung nhịp đáp với paper/scatter (cũ 3,4s)
+const STAGGER_MS = TEXT_PACE_SPAN_S * 1000; // khoảng trải lần bắt đầu: hạt phải nhất bắt đầu ở 2,05s (cũ 2s tuyến tính)
 const DISSOLVE_MS = 2000; // chữ vỡ thành cát bay lên lúc chuyển ảnh
 const SETTLE_FADE_MS = 600; // hạt mờ đi trong lúc chữ DOM mờ vào
 const SAMPLE_STRIDE = 3; // bước lấy mẫu điểm ảnh (px)
@@ -262,7 +271,7 @@ export function SandText({
           y: sy,
           sx,
           sy,
-          delay: nx * STAGGER_MS,
+          delay: textPaceDelayAt(nx) * 1000, // lịch bắt đầu theo đường cong chung (trái→phải, chậm đầu nhanh cuối), không còn tuyến tính nx × STAGGER_MS
           dur: FALL_MS * (0.85 + Math.random() * 0.3),
           size: Math.random() < 0.5 ? 1 : 2,
           r: Math.round(br * (0.85 + Math.random() * 0.25)),
