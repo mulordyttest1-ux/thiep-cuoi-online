@@ -19,15 +19,15 @@
 //
 // CHỮ: ba hiệu ứng có tên (chị chủ chốt 2026-11-10) — "sand" (mặc
 // định): hạt cát rơi nhẹ từ trên xuống tụ lại thành chữ, lúc chuyển ảnh
-// thì chữ vỡ thành cát bay lên; "scatter": Scatter & Reform CHẬM đã lưu
-// (PR #28: mỗi chữ bay 6 giây, stagger 0,1s/chữ, exit tan nhanh 0,8s);
-// "paper": giấy dán — từng chữ rơi từ trên xuống, lật (rotateX −90°
-// về 0, cú lật làm chữ hiện ra) rồi dán phẳng như tờ giấy; gia tốc
-// tổng xuyên suốt theo hàm số mũ (chậm đầu để thấy rõ hiệu ứng, nhanh
-// sau để còn đọc — V2 sửa theo phản hồi của chị 2026-11-10: bỏ cách
-// chia gap theo từng chữ, dùng một đường cong tiến độ chung). Chọn qua
-// ?tx=sand|scatter|paper trên trang khách. Chữ chỉ dùng dữ liệu thật
-// của thiệp; không có dữ liệu thì bỏ dòng đó (không bịa).
+// thì chữ vỡ thành cát bay lên; "scatter": Scatter & Reform đã lưu
+// (PR #28, giữ nguyên hình thức); "paper": giấy dán — từng chữ rơi từ
+// trên xuống, lật (rotateX −90° về 0, cú lật làm chữ hiện ra) rồi dán
+// phẳng như tờ giấy. NHỊP CHUNG (chị chốt 2026-11-10 16:24): cả 3
+// dùng 1 nhịp đáp (TEXT_PACE_* trong src/lib/intro.ts) — cùng gia tốc
+// (K = 2,5), vận tốc ban đầu gấp đôi paper cũ, mỗi chữ bay/rơi/lật
+// 0,9s, cả dòng đáp xong ~2,95s. Chọn qua ?tx=sand|scatter|paper
+// trên trang khách. Chữ chỉ dùng dữ liệu thật của thiệp; không có dữ
+// liệu thì bỏ dòng đó (không bịa).
 // MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts):
 //   1) Lớp đáy — nền: prop `background` là DANH SÁCH chồng dưới lên
 //      trên (quy tắc chồng tầng, chị chốt 2026-11-10): "solid" = màu
@@ -41,7 +41,9 @@
 //   3) Lớp phủ — AmbientLayer theo fx, hoặc prop `overlay` truyền vào
 //      thì chỉ hiện các lớp phủ đó. Mặc định: `background` là
 //      ["solid", "blurred-photo"] (nền mờ từ ảnh là mặc định từ
-//      2026-11-10, chị chốt đổi backdrop đáy sang ảnh blur siêu to);
+//      2026-11-10, chị chốt đổi backdrop đáy sang ảnh blur — chỉnh
+//      2026-11-10 16:24: scale 1.2 + blur nhẹ 20px, blur 56px/scale 2.2
+//      cũ mờ quá không nhận ra là nền từ ảnh);
 //      `overlay` không truyền thì giữ hành vi hiện tại.
 "use client";
 
@@ -60,13 +62,15 @@ import {
   getSlideshowSlides,
   resolveIntroVariant,
   SLIDESHOW_SCENES,
+  TEXT_PACE_DUR_S,
+  textPaceStartAt,
   type SlideshowLine,
   type TextEffectId,
 } from "@/lib/intro";
 
 const PHOTO_MS = 12000; // mỗi ảnh hiện ~12s rồi sang ảnh sau — chữ chạy
-// chậm (mỗi chữ bay 6s, stagger 0,1s/chữ) nên dòng dài cần giữ lâu
-// để lắp xong rồi còn đứng yên một lúc cho kịp đọc
+// theo nhịp chung (cả dòng đáp xong ~2,95s) rồi còn đứng yên một lúc
+// cho kịp đọc
 
 /** Giả ngẫu nhiên xác định từ số nguyên — ổn định giữa các lần render
  *  nên mảnh vụn không nhảy lung tung mỗi khi component render lại. */
@@ -77,11 +81,14 @@ function jitter(seed: number, range: number): number {
 
 /** Chữ vỡ vụn / tụ lại — từng chữ cái là một mảnh: lúc hiện các mảnh
  *  bay về ghép lại thành chữ (Scatter & Reform), lúc đi chữ vỡ vụn
- *  từng chữ cái rồi bay đi (Shatter). Nhẹ + CHẬM: mỗi chữ bay 6 giây
- *  lúc vào (stagger 0,1s/chữ — dòng 20 chữ lắp xong trong ~8 giây),
- *  lúc ra tan NHANH riêng 0,8s để chữ cũ không lềnh bềnh đè lên ảnh
- *  sau. Mảnh lệch tối đa ~14px lúc vào, ~26px lúc ra, xoay tối đa
- *  ~10°/~22°. */
+ *  từng chữ cái rồi bay đi (Shatter). NHỊP (2026-11-10 16:24, chị
+ *  chốt): scatter dùng CHUNG nhịp đáp với sand/paper
+ *  (TEXT_PACE_* trong src/lib/intro.ts) — delay theo đường cong chung
+ *  (K = 2,5, chậm đầu nhanh cuối), mỗi chữ bay 0,9s (cũ 6s) để 3 hiệu
+ *  ứng đáp TRÙNG NHAU — cả dòng đáp xong ~2,95s (cũ ~7,7s). Hình thức
+ *  giữ nguyên: mảnh lệch tối đa ~14px lúc vào, ~26px lúc ra, xoay tối
+ *  đa ~10°/~22°; lúc ra tan NHANH riêng 0,8s để chữ cũ không lềnh bềnh
+ *  đè lên ảnh sau. */
 function ShatterText({
   text,
   slideKey,
@@ -97,8 +104,11 @@ function ShatterText({
 }) {
   // Nhóm ký tự theo TỪ để dòng dài ngắt ở khoảng trắng giữa các từ
   // (không vỡ giữa từ như "Đồng Đ / a"); hiệu ứng vẫn chạy từng chữ
-  // cái, độ trễ tính theo chỉ số ký tự toàn dòng.
+  // cái, độ trễ tính theo chỉ số ký tự toàn dòng — theo nhịp đáp chung
+  // (textPaceStartAt, intro.ts): đường cong K = 2,5, chữ cuối bắt đầu
+  // ở 2,05s, mỗi chữ bay 0,9s.
   const words = useMemo(() => text.split(" ").map((w) => Array.from(w)), [text]);
+  const total = useMemo(() => words.reduce((sum, w) => sum + w.length, 0), [words]);
   let charIndex = -1;
   return (
     <span className={className} style={style} aria-label={text}>
@@ -131,11 +141,11 @@ function ShatterText({
                     rotate: jitter(i * 11 + 2, 22),
                     scale: 0.85,
                     // Tan NHANH riêng lúc ra (0,8s) — không dùng chung
-                    // transition 6s của lúc vào, kẻo chữ cũ lềnh bềnh
+                    // transition 0,9s của lúc vào, kẻo chữ cũ lềnh bềnh
                     // đè lên ảnh sau.
                     transition: { duration: 0.8, delay: i * 0.02, ease: "easeOut" },
                   }}
-                  transition={{ duration: 6, delay: i * 0.1, ease: "easeOut" }}
+                  transition={{ duration: TEXT_PACE_DUR_S, delay: textPaceStartAt(i, total), ease: "easeOut" }}
                 >
                   {ch}
                 </motion.span>
@@ -175,15 +185,18 @@ export function IntroSlideshow({
    *  chồng tầng, chị chốt 2026-11-10). Mỗi phần tử là một tầng con:
    *  "solid" = nền màu đặc đổi theo ảnh; "glow" = gradient nắng vàng
    *  loang từ trên xuống (bán trong suốt, lớp dưới vẫn thấy);
-   *  "blurred-photo" = nền mờ từ chính ảnh đang hiện (phóng to SIÊU
-   *  TO scale 2.2 + blur mạnh 56px + tối nhẹ, Ambient mode — nền chỉ
-   *  còn mảng màu mềm loang, không thấy chi tiết ảnh gốc).
+   *  "blurred-photo" = nền mờ từ chính ảnh đang hiện (phóng to 120%
+   *  scale 1.2 + blur nhẹ 20px + tối nhẹ — chị chốt 2026-11-10 16:24:
+   *  blur 56px/scale 2.2 cũ mờ quá, không nhận ra là nền từ ảnh;
+   *  blur 20px vẫn nhận ra hình/đường nét ảnh gốc, chữ trắng vẫn đọc
+   *  rõ nhờ tối nhẹ + bóng chữ). Ambient mode.
    *  "particles"/"motif" không vẽ được ở đáy slideshow (hạt bay
    *  thuộc lớp phủ, họa tiết thuộc bìa) nên bỏ qua khi gặp. Giá trị
    *  đơn cũ vẫn chạy: "solid" | "blurred" hiểu là danh sách 1 phần
    *  tử ("blurred" là tên cũ của "blurred-photo"). Mặc định ["solid",
    *  "blurred-photo"] — MẶC ĐỊNH từ 2026-11-10 (chị chốt đổi backdrop
-   *  đáy sang ảnh blur siêu to): solid nằm dưới làm nền dự phòng khi
+   *  đáy sang ảnh blur, chỉnh 2026-11-10 16:24: scale 1.2 + blur 20px):
+   *  solid nằm dưới làm nền dự phòng khi
    *  không có ảnh, blurred-photo nằm trên khi có ảnh. */
   background: backgroundProp = ["solid", "blurred-photo"],
   /** Lớp phủ tùy chọn — danh sách lớp phủ muốn hiện trong slideshow.
@@ -196,10 +209,11 @@ export function IntroSlideshow({
   overlay,
   /** Hiệu ứng chữ — "sand" (mặc định): hạt cát rơi nhẹ từ trên xuống
    *  tụ lại thành chữ, lúc chuyển ảnh thì cát bay lên; "scatter":
-   *  Scatter & Reform chậm đã lưu (PR #28); "paper": giấy dán — từng
-   *  chữ rơi từ trên xuống, lật rồi dán phẳng, tốc độ theo hàm số mũ
-   *  (chậm đầu, nhanh sau). Chọn qua ?tx= trên trang khách; không
-   *  truyền = cát. */
+   *  Scatter & Reform đã lưu (PR #28, giữ nguyên hình thức); "paper":
+   *  giấy dán — từng chữ rơi từ trên xuống, lật rồi dán phẳng. Cả 3
+   *  dùng CHUNG nhịp đáp (TEXT_PACE_*, intro.ts): cùng gia tốc
+   *  (K = 2,5), vận tốc ban đầu gấp đôi paper cũ, cả dòng đáp xong
+   *  ~2,95s. Chọn qua ?tx= trên trang khách; không truyền = cát. */
   textEffect = "sand",
 }: {
   data: InvitationData;
@@ -384,12 +398,12 @@ export function IntroSlideshow({
           màu cảnh/màu cover (đổi màu mượt 1s như container trước đây);
           "glow" = gradient nắng vàng loang từ trên xuống (bán trong
           suốt nên lớp dưới vẫn thấy); "blurred-photo" = chính ảnh đang
-          hiện, phóng to SIÊU TO (scale 2.2) + blur mạnh (56px) +
-          tối nhẹ, làm nền sau Polaroid — nền chỉ còn mảng màu mềm
-          loang, không thấy chi tiết ảnh gốc; dùng lại ảnh đã tải
-          (không tải thêm); giảm chuyển động thì đổi ảnh tức thì,
-          không chuyển mờ. "particles"/"motif" không vẽ ở đáy
-          slideshow (hạt bay thuộc lớp phủ, họa tiết thuộc bìa) nên
+          hiện, phóng to 120% (scale 1.2) + blur nhẹ (20px) + tối nhẹ,
+          làm nền sau Polaroid — vẫn nhận ra hình/đường nét ảnh gốc
+          (chị chốt 2026-11-10 16:24: blur 56px/scale 2.2 cũ mờ quá);
+          dùng lại ảnh đã tải (không tải thêm); giảm chuyển động thì đổi
+          ảnh tức thì, không chuyển mờ. "particles"/"motif" không vẽ ở
+          đáy slideshow (hạt bay thuộc lớp phủ, họa tiết thuộc bìa) nên
           bỏ qua. Mặc định ["solid", "blurred-photo"] từ 2026-11-10. */}
       {baseLayers.map((layer) => {
         if (layer === "solid") {
@@ -425,7 +439,7 @@ export function IntroSlideshow({
                   src={photos[index]}
                   alt=""
                   className="h-full w-full object-cover"
-                  style={{ filter: "blur(56px) brightness(0.55)", transform: "scale(2.2)" }}
+                  style={{ filter: "blur(20px) brightness(0.55)", transform: "scale(1.2)" }}
                 />
               ) : (
                 <AnimatePresence>
@@ -441,7 +455,7 @@ export function IntroSlideshow({
                       src={photos[index]}
                       alt=""
                       className="h-full w-full object-cover"
-                      style={{ filter: "blur(56px) brightness(0.55)", transform: "scale(2.2)" }}
+                      style={{ filter: "blur(20px) brightness(0.55)", transform: "scale(1.2)" }}
                     />
                   </motion.div>
                 </AnimatePresence>

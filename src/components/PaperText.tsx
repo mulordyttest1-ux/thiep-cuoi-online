@@ -7,37 +7,24 @@
 // bóng đổ nhẹ hiện ra lúc đáp rồi đứng yên. KHÔNG nảy đàn hồi, KHÔNG
 // xoay tròn, KHÔNG gấp 3D kiểu paper-cut, KHÔNG kiểu chữ cắt báo ransom.
 //
-// V3 — SỬA 2026-11-10 theo phản hồi trực tiếp của chị sau khi xem bản
-// live v2 trên điện thoại: "flip từ trái qua phải hoặc từ hư không chứ
-// nó xuất hiện cái dãy này xấu quá". "Cái dãy" = vệt ngang mỏng lúc mới
-// bắt đầu: v2 giữ opacity 1 suốt nên TẤT CẢ các chữ cùng hiện ra dưới
-// dạng vạch ngang mỏng (rotateX −90°) xếp thành một hàng ngang trên
-// slide. V3: mỗi chữ bắt đầu opacity 0 (VÔ HÌNH HOÀN TOÀN) và chỉ mờ
-// vào TRONG LÚC lật — keyframes opacity [0, 0, 1, 1] với times
-// [0, 0.25, 0.5, 1]: vô hình trong 25% đầu lúc còn gần như nhìn ngang
-// cạnh, mờ vào tới 50% lúc đã lật đủ để thấy rõ mặt chữ, rõ hẳn từ đó
-// tới lúc đáp phẳng. Quy tắc: KHÔNG BAO GIỜ có thời điểm nào chữ hiện
-// rõ (opacity ~1) trong khi rotateX còn gần −90° — đó chính là vệt
-// mỏng chị chê. Chữ chưa tới lượt thì vô hình; chữ chỉ xuất hiện khi
-// đang lật — lật từ trái qua phải, hoặc từ hư không lật vào.
-//  (2) Nhịp khựt khựt: v1 chia gap theo từng chữ (gap_i = 0,85 × 0,8^i)
-//      nên mỗi chữ là một đoạn riêng, giữa các chữ có khoảng chết.
-//      V2 dùng MỘT đường cong tiến độ chung cho cả dòng (xem startAt):
-//      khoảng cách giữa các lần đáp CO LẠI LIÊN TỤC — gia tốc tổng
-//      xuyên suốt, chậm lúc đầu để khoe hiệu ứng, nhanh dần về cuối
-//      để kịp đọc — không còn gap rời rạc theo từng chữ. Mỗi chữ
-//      rơi+lật ~0,9s, DÀI HƠN khoảng cách lớn nhất giữa các lần đáp
-//      (~0,78s), nên các chữ CHỒNG LÊN NHAU: lúc nào cũng có chữ đang
-//      chuyển động, không có lúc nào màn hình đứng yên chờ chữ sau.
+// V4 — SỬA 2026-11-10 16:24 theo yêu cầu của chị: 3 hiệu ứng chữ
+// (sand/scatter/paper) DÙNG CHUNG 1 nhịp đáp (xem TEXT_PACE_* trong
+// src/lib/intro.ts): GIỮ K = 2,5 (cùng gia tốc), khoảng trải lần bắt
+// đầu S = 2,05s (cũ 4,1s — halved để vận tốc ban đầu GẤP ĐÔI: v0 ≈
+// 0,179 phần dòng/giây, cũ ≈ 0,090), mỗi chữ vẫn rơi+lật DUR = 0,9s,
+// cả dòng đáp xong T = 2,95s (cũ 5,0s). Chữ vẫn vô hình tới lượt rồi
+// mới lật vào từ trái qua phải (không vệt mỏng), flip −90°→0,
+// opacity keyframes [0, 0, 1, 1] — giữ nguyên như v3.
 //
 // LƯU Ý TOÁN HỌC — ĐỪNG ĐỔI LẠI THÀNH CÔNG THỨC (e^(k·x) − 1)/(e^k − 1):
 // công thức đó NHÌN thì giống hàm mũ nhưng cho mặt trận đáp CHẬM DẦN
 // (khoảng cách giữa các lần đáp TĂNG dần — nhanh đầu, chậm cuối),
 // NGƯỢC ý chị. Công thức đúng cho gia tốc tổng tăng liên tục là dạng
 // lõm (1 − e^(−k·x))/(1 − e^(−k)): khoảng cách giữa các lần đáp GIẢM
-// dần — chậm đầu, nhanh cuối. Kiểm bằng số (dòng 14 chữ, T = 5s):
-// các chữ đáp ở 0,9s — 1,7s — 2,3s — 2,9s — 3,3s — … — 5,0s; số chữ
-// đã đáp ở mốc 1s/2s/3s/4s/5s là 1 → 2 → 4 → 7 → 14 (tăng nhanh dần).
+// dần — chậm đầu, nhanh cuối. Kiểm bằng số (dòng 14 chữ "Thu An &
+// Minh Quân", T = 2,95s): các chữ đáp ở 0,9s — 1,3s — 1,6s — 1,9s —
+// 2,1s — … — 2,95s; số chữ đã đáp ở mốc 1s/1,5s/2s/2,5s/2,95s là
+// 1 → 2 → 4 → 7 → 14 (tăng nhanh dần).
 //
 // Lúc chuyển ảnh: các chữ lật ngược lên và bay lên, mờ dần trong
 // ~1,5–2 giây, tan hết không đè lên ảnh sau (giống nhịp exit của cát).
@@ -48,26 +35,13 @@
 
 import { Fragment, useMemo } from "react";
 import { motion } from "framer-motion";
+import { TEXT_PACE_DUR_S, textPaceStartAt } from "@/lib/intro";
 
-const K = 2.5; // hệ số mũ của đường cong tiến độ chung
-const T = 5.0; // cả dòng tụ xong (chữ cuối đáp) sau ~5 giây
-const DUR = 0.9; // mỗi chữ rơi + lật (giây) — dài hơn khoảng cách lớn nhất giữa các lần đáp (~0,78s) nên các chữ chồng lên nhau, fluent
+const DUR = TEXT_PACE_DUR_S; // mỗi chữ rơi + lật (giây) — dài hơn khoảng cách lớn nhất giữa các lần đáp (~0,39s) nên các chữ chồng lên nhau, fluent
 const FLIP_FROM = -90; // bắt đầu nhìn ngang cạnh tờ giấy — cú lật làm chữ hiện ra
 const Y_FROM = -80; // bắt đầu ở trên cao
 const EXIT_STAGGER = 0.025; // lúc đi: mỗi chữ cách nhau 25ms
 const EXIT_DUR = 0.7; // mỗi chữ lật bay lên (giây)
-
-/** Thời điểm bắt đầu rơi của chữ thứ i (i = 0..N−1, N = số chữ cái
- *  của dòng) trên MỘT đường cong tiến độ chung cho cả dòng:
- *  start_i = S × (1 − e^(−K·i/(N−1))) / (1 − e^(−K)), S = T − DUR.
- *  Chữ đầu bắt đầu ở 0s, chữ cuối bắt đầu ở S và đáp đúng T. Khoảng
- *  cách giữa các lần đáp co lại liên tục theo hàm mũ (gia tốc tổng
- *  xuyên suốt) — không chia gap rời rạc theo từng chữ. */
-function startAt(i: number, n: number): number {
-  if (n <= 1) return 0;
-  const s = T - DUR;
-  return (s * (1 - Math.exp((-K * i) / (n - 1)))) / (1 - Math.exp(-K));
-}
 
 export function PaperText({
   text,
@@ -101,7 +75,7 @@ export function PaperText({
             {chars.map((ch) => {
               charIndex += 1;
               const i = charIndex;
-              const delay = startAt(i, total);
+              const delay = textPaceStartAt(i, total); // nhịp đáp chung (intro.ts): K = 2,5 giữ nguyên, S = 2,05s — v0 gấp đôi paper cũ
               return (
                 <motion.span
                   key={`${slideKey}-${i}`}
