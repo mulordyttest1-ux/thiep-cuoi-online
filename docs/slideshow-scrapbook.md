@@ -58,10 +58,10 @@ Component nhận prop tùy chọn `photos?: string[]` (mặc định
 `[data.photoUrl]`, bỏ trùng) để QA được trường hợp nhiều ảnh và để sẵn
 cho lúc thiệp có nhiều ảnh; production không đổi hành vi.
 
-## Hiệu ứng chữ (2 kiểu, chọn qua `?tx=` trên trang khách)
+## Hiệu ứng chữ (3 kiểu, chọn qua `?tx=` trên trang khách)
 
 Mặc định là **cát** (`sand`); `?tx=scatter` thì về bản Scatter & Reform
-chậm đã lưu; giá trị lạ → về cát.
+chậm đã lưu; `?tx=paper` thì về bản giấy dán; giá trị lạ → về cát.
 
 - **Cát — `sand` (mặc định, chị chốt 2026-11-10 theo mẫu cộng đồng Text
   Particles)**: chữ được vẽ lên canvas ẩn rồi lấy mẫu điểm ảnh làm đích
@@ -77,6 +77,19 @@ chậm đã lưu; giá trị lạ → về cát.
   vào, stagger 0,1 giây/chữ (dòng 20 chữ lắp xong trong ~8 giây); lúc ra
   tan nhanh riêng 0,8 giây để chữ cũ không đè lên ảnh sau. Mảnh lệch tối
   đa ±14px lúc tụ, ±26px lúc vỡ, xoay ±10°/±22°.
+- **Giấy dán — `paper` (chị chốt 2026-11-10 theo mẫu cộng đồng fake lật
+  trang PDF — turn.js / FlipBook.js: tờ giấy lật qua rồi nằm phẳng xuống
+  như dán — + kiểu chữ rơi Bounce In Letters)**: từng chữ RƠI từ trên
+  cao xuống, LẬT (flip xuống như lật trang giấy, rotateX ~78° về 0) rồi
+  DÁN — đáp xuống nằm phẳng như tờ giấy dán lên mặt thiệp, bóng đổ nhẹ
+  hiện ra lúc đáp rồi đứng yên; không nảy đàn hồi, không xoay tròn,
+  không gấp 3D kiểu paper-cut, không kiểu chữ cắt báo ransom. TỐC ĐỘ
+  DÙNG HÀM SỐ MŨ: khoảng cách giữa các chữ co lại theo hàm mũ
+  (gap_i = 0,85 × 0,8^i giây) — 2–3 chữ đầu rơi chậm rõ ràng để thấy
+  hiệu ứng, các chữ sau đổ dồn nhanh dần; cả dòng tụ xong trong ~5 giây
+  rồi chữ đứng sắc nét để đọc; mỗi chữ rơi+lật ~0,65 giây với easing
+  tăng tốc (ease-in). Lúc chuyển ảnh, các chữ lật ngược lên và bay lên,
+  mờ dần trong ~1,5–2 giây, tan hết không đè lên ảnh sau.
 - Chữ nhóm theo từ để dòng dài ngắt ở khoảng trắng giữa các từ (không
   vỡ giữa từ); hiệu ứng vẫn chạy từng chữ cái.
 - Dùng framer-motion (đã có sẵn) + Canvas 2D thuần cho cát, không thêm
@@ -88,8 +101,8 @@ chậm đã lưu; giá trị lạ → về cát.
 
 - Cover chạy 1 lần trước slideshow; nút "Xem thiệp"/"Xem thiệp cưới"
   vào thiệp; nút "← Quay lại sửa thiệp" khi `fromWizard`.
-- `?fx=` đổi được hiệu ứng theo biến thể; `?tx=sand|scatter` đổi được
-  hiệu ứng chữ (mặc định cát).
+- `?fx=` đổi được hiệu ứng theo biến thể; `?tx=sand|scatter|paper` đổi
+  được hiệu ứng chữ (mặc định cát).
 - `prefers-reduced-motion`: hiện tĩnh, bấm để qua.
 - Không nhạc tự phát.
 
@@ -98,7 +111,9 @@ chậm đã lưu; giá trị lạ → về cát.
 - `src/components/IntroSlideshow.tsx` — viết lại thành scrapbook
   (Polaroid + chồng ảnh + `ShatterText` + nền đổi màu theo cảnh).
 - `src/components/SandText.tsx` (mới) — hiệu ứng chữ hạt cát (canvas);
-  `src/lib/intro.ts` — thêm `TextEffectId` / `resolveTextEffect`;
+  `src/components/PaperText.tsx` (mới) — hiệu ứng chữ giấy dán (rơi +
+  lật + dán phẳng, nhịp hàm số mũ); `src/lib/intro.ts` — thêm
+  `TextEffectId` / `resolveTextEffect` (`sand` | `scatter` | `paper`);
   `src/components/GuestInvitationView.tsx` + `src/app/(app)/thiep/[id]/page.tsx`
   — đọc `?tx=` truyền xuống slideshow.
 - `src/lib/intro.ts` — thêm `SLIDESHOW_SCENES`, `SLIDESHOW_PHRASES`,

@@ -183,11 +183,15 @@ export function getSlideshowSlides(
  *  nhẹ từ trên xuống tụ lại thành chữ — theo mẫu cộng đồng Text Particles
  *  (webdevpuneet.com/ui-snippets/text-particles), nhưng rơi nhẹ từng chữ
  *  chứ không lò xo nảy / nổ tung như mẫu. "scatter" = Scatter & Reform
- *  chậm đã lưu (PR #28, giữ nguyên để dành). Chọn qua ?tx=sand|scatter
- *  trên trang khách; giá trị lạ → về "sand". */
-export type TextEffectId = "sand" | "scatter";
+ *  chậm đã lưu (PR #28, giữ nguyên để dành). "paper" = giấy dán: từng
+ *  chữ rơi từ trên xuống, lật (rotateX ~78° về 0) rồi dán phẳng như tờ
+ *  giấy — theo mẫu cộng đồng fake lật trang PDF (turn.js / FlipBook.js)
+ *  + kiểu chữ rơi Bounce In Letters; tốc độ theo hàm số mũ (chậm đầu
+ *  để thấy rõ hiệu ứng, nhanh sau để còn đọc). Chọn qua
+ *  ?tx=sand|scatter|paper trên trang khách; giá trị lạ → về "sand". */
+export type TextEffectId = "sand" | "scatter" | "paper";
 export function isTextEffectId(v: string | null | undefined): v is TextEffectId {
-  return v === "sand" || v === "scatter";
+  return v === "sand" || v === "scatter" || v === "paper";
 }
 export function resolveTextEffect(v: string | null | undefined): TextEffectId {
   return isTextEffectId(v) ? v : "sand";
