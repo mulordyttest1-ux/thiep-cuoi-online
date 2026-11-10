@@ -100,3 +100,80 @@ export function resolveIntroVariant(
 export function getIntroPreset(variant: EffectVariant): IntroPreset {
   return INTRO_PRESETS[variant];
 }
+
+// ---------------------------------------------------------------------------
+// Slideshow scrapbook (kịch bản đã duyệt 2026-11-10, mẫu Pikbest 10077037
+// "Video Tỏ Tình đám Cưới"): album kỷ niệm kiểu scrapbook — ảnh viền trắng
+// đặt nghiêng như Polaroid dán trên nền, ảnh mới xoay/trượt vào chồng lên
+// ảnh trước + zoom chậm nhẹ, nền đổi màu theo cảnh, thiệp khẩu hiệu lặp
+// lại như điệp khúc, nhịp chậm mỗi ảnh giữ vài giây.
+// ---------------------------------------------------------------------------
+
+/** Nền từng cảnh trong slideshow — đổi màu theo ảnh (đỏ đậm → hồng phấn →
+ *  trắng kem → vàng hoàng hôn, lặp lại). `dark` = nền tối (chữ trắng),
+ *  nền sáng thì chữ màu đỏ đô cho đọc rõ. */
+export interface SlideshowScene {
+  bg: string;
+  dark: boolean;
+  /** Màu chữ chính trên nền này. */
+  text: string;
+  /** Màu chữ phụ (dòng mời, ngày, địa điểm). */
+  muted: string;
+  /** Màu nhấn (dấu &, gạch ngăn). */
+  accent: string;
+}
+
+export const SLIDESHOW_SCENES: SlideshowScene[] = [
+  { bg: "#8c1d2f", dark: true, text: "#ffffff", muted: "rgba(255,255,255,0.85)", accent: "#f6d365" },
+  { bg: "#f9e8ec", dark: false, text: "#7a1f2b", muted: "rgba(122,31,43,0.78)", accent: "#c9a86a" },
+  { bg: "#fdf8f1", dark: false, text: "#5a1f2b", muted: "rgba(90,31,43,0.72)", accent: "#c9a86a" },
+  { bg: "#f6d365", dark: false, text: "#6b2d1f", muted: "rgba(107,45,31,0.78)", accent: "#8c1d2f" },
+];
+
+/** Một dòng chữ trong slideshow. */
+export interface SlideshowLine {
+  text: string;
+  kind: "name" | "date" | "venue" | "phrase";
+}
+
+/** Câu cưới phụ — thêm khi còn ảnh sau khi đã đủ 3 dòng chính, theo thứ
+ *  tự này; hết danh sách thì lặp lại từ đầu. */
+export const SLIDESHOW_PHRASES = [
+  "Happy Wedding",
+  "Save the Day",
+  "Just Married",
+  "Hãy yêu đến cùng",
+  "LOVE",
+  "Forever & Always",
+];
+
+/** Chia dòng thông tin theo số ảnh (kịch bản scrapbook đã duyệt):
+ *  dòng chính theo thứ tự Tên → Ngày → Địa điểm; dòng phụ Happy Wedding
+ *  → Save the Day → câu cưới khác khi còn ảnh. 1 ảnh = đủ hết trên 1 ảnh
+ *  (các dòng chính còn lại dồn lên ảnh cuối); 2 ảnh = tên, rồi ngày +
+ *  địa điểm; 3 ảnh = tên, ngày, địa điểm; 4 ảnh = + Happy Wedding;
+ *  5 ảnh = + Save the Day; nhiều hơn thì thêm câu cưới khác. Lúc nào
+ *  cũng đủ thông tin, không thiếu dòng chính. Dòng nào không có dữ liệu
+ *  thật thì bỏ (không bịa). Trả về mảng theo từng ảnh: slides[i] là các
+ *  dòng hiện trên ảnh i; photoCount = 0 thì trả []. */
+export function getSlideshowSlides(
+  photoCount: number,
+  core: { name: string; date: string; venue: string }
+): SlideshowLine[][] {
+  const coreLines: SlideshowLine[] = [];
+  if (core.name.trim()) coreLines.push({ text: core.name, kind: "name" });
+  if (core.date.trim()) coreLines.push({ text: core.date, kind: "date" });
+  if (core.venue.trim()) coreLines.push({ text: core.venue, kind: "venue" });
+  const slides: SlideshowLine[][] = [];
+  for (let i = 0; i < photoCount; i++) {
+    if (i < coreLines.length) {
+      // Ảnh cuối cùng nhận nốt các dòng chính còn lại (1 ảnh = đủ hết).
+      slides.push(i === photoCount - 1 ? coreLines.slice(i) : [coreLines[i]]);
+    } else {
+      const phrase =
+        SLIDESHOW_PHRASES[(i - coreLines.length) % SLIDESHOW_PHRASES.length];
+      slides.push([{ text: phrase, kind: "phrase" }]);
+    }
+  }
+  return slides;
+}
