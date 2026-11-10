@@ -41,6 +41,8 @@ export default function ManagePage() {
     chat: ChatMessage[];
     history: HistoryEntry[];
     manualList: ManualListItem[];
+    // Link mở thiệp này trong editor — chỉ có trong Quản lý (admin).
+    editUrl: string;
   } | null>(null);
   const [serverNotice, setServerNotice] = useState("");
   const [serverLoading, setServerLoading] = useState(false);
@@ -216,6 +218,7 @@ export default function ManagePage() {
         chat: (j.chat as ChatMessage[] | undefined) ?? [],
         history: (j.history as HistoryEntry[] | undefined) ?? [],
         manualList: (j.manualList as ManualListItem[] | undefined) ?? [],
+        editUrl: (j.editUrl as string | undefined) ?? "",
       });
       setServerNotice("");
     } catch {
@@ -641,6 +644,18 @@ export default function ManagePage() {
                 >
                   Sao chép link khách
                 </button>
+              )}
+              {/* Mở thiệp này trong Tạo thiệp — chỉ có trong Quản lý (admin),
+                  mở tab mới; trang khách không bao giờ thấy link này. */}
+              {serverRecord.editUrl && (
+                <a
+                  href={serverRecord.editUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-full border px-5 py-2.5 text-sm font-semibold"
+                >
+                  Mở trong Tạo thiệp
+                </a>
               )}
             </div>
             <div>
