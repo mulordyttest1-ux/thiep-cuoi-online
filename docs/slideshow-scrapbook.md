@@ -68,13 +68,14 @@ chậm đã lưu; `?tx=paper` thì về bản giấy dán; giá trị lạ → v
   cho từng hạt cát (chấm vuông 1–2px màu chữ, lệch sắc nhẹ). Lúc hiện,
   hạt của từng chữ rơi NHẸ TỪ TRÊN XUỐNG (ease-out mềm, không lò xo nảy,
   không nổ tung như mẫu gốc), các chữ tụ theo thứ tự từ trái sang phải —
-  cả dòng tụ xong trong ~6 giây rồi chữ đứng sắc nét ~3 giây (hạt tụ xong
+  cả dòng tụ xong trong ~3 giây rồi chữ đứng sắc nét (hạt tụ xong
   thì chữ DOM thật mờ vào, hạt mờ đi). Lúc chuyển ảnh, chữ vỡ thành hạt
   cát BAY LÊN rồi mờ dần trong ~2 giây, tan hết không đè lên ảnh sau.
   Số hạt giới hạn (bước lấy mẫu ~3–4px, trần ~2600 hạt/dòng).
 - **Scatter chậm — `scatter` (đã lưu, PR #28)**: lúc hiện từng chữ cái
-  (tách thành mảnh nhỏ) bay về ghép lại thành chữ — mỗi chữ 6 giây lúc
-  vào, stagger 0,1 giây/chữ (dòng 20 chữ lắp xong trong ~8 giây); lúc ra
+  (tách thành mảnh nhỏ) bay về ghép lại thành chữ — mỗi chữ 0,9 giây
+  lúc vào, delay theo nhịp đáp chung (đường cong K = 2,5, chữ cuối bắt
+  đầu ở 2,05s, cả dòng đáp xong ~2,95s); lúc ra
   tan nhanh riêng 0,8 giây để chữ cũ không đè lên ảnh sau. Mảnh lệch tối
   đa ±14px lúc tụ, ±26px lúc vỡ, xoay ±10°/±22°.
 - **Giấy dán — `paper` (chị chốt 2026-11-10 theo mẫu cộng đồng fake lật
@@ -100,14 +101,16 @@ chậm đã lưu; `?tx=paper` thì về bản giấy dán; giá trị lạ → v
   rotateX còn gần −90°; chữ chưa tới lượt thì vô hình — lật từ trái
   qua phải, hoặc từ hư không lật vào. TỐC ĐỘ DÙNG HÀM SỐ MŨ kiểu GIA TỐC
   TỔNG XUYÊN SUỐT: MỘT đường cong tiến độ chung cho cả dòng
-  (start_i = (T − DUR) × (1 − e^(−2,5·i/(N−1))) / (1 − e^(−2,5)), T ≈ 5
-  giây) — khoảng cách giữa các lần đáp co lại liên tục, mặt trận các
+  (start_i = SPAN × (1 − e^(−2,5·i/(N−1))) / (1 − e^(−2,5)), SPAN = 2,05
+  giây — nhịp chung TEXT_PACE_* trong src/lib/intro.ts, chị chốt
+  2026-11-10 16:24: giữ K = 2,5, vận tốc ban đầu gấp đôi paper cũ) —
+  khoảng cách giữa các lần đáp co lại liên tục, mặt trận các
   chữ đã đáp tiến với vận tốc tăng liên tục, không còn gap rời rạc theo
   từng chữ; mỗi chữ rơi+lật ~0,9 giây, dài hơn khoảng cách lớn nhất
-  giữa các lần đáp (~0,78 giây) nên các chữ CHỒNG LÊN NHAU — lúc nào
+  giữa các lần đáp (~0,39 giây) nên các chữ CHỒNG LÊN NHAU — lúc nào
   cũng có chữ đang chuyển động, không có lúc nào màn hình đứng yên;
-  cả dòng tụ xong trong ~5 giây rồi chữ đứng sắc nét để đọc (số chữ đã
-  đáp ở mốc 1s/2s/3s/4s/5s là 1 → 2 → 4 → 7 → 14). LƯU Ý: công thức
+  cả dòng tụ xong trong ~2,95 giây rồi chữ đứng sắc nét để đọc (số chữ
+  đã đáp ở mốc 1s/1,5s/2s/2,5s/2,95s là 1 → 2 → 4 → 7 → 14). LƯU Ý: công thức
   t_i = T × (e^(k·i/N) − 1)/(e^k − 1) cho mặt trận đáp CHẬM DẦN (ngược
   ý chị) nên không dùng — dạng lõm (1 − e^(−k·x))/(1 − e^(−k)) mới cho
   gia tốc tăng liên tục. Lúc chuyển ảnh, các chữ lật ngược lên và bay

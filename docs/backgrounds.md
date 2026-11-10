@@ -20,7 +20,7 @@ các tầng con cho mỗi tầng là xong, khỏi nghĩ lại từ đầu. Catal
 |----|-----|-------|-----------------|---------------------------|
 | `solid` | Màu đặc | Nền một màu trơn, đổi màu theo từng ảnh/cảnh. | Slideshow scrapbook — 4 màu trong `SLIDESHOW_SCENES` (`src/lib/intro.ts`): đỏ đậm `#8c1d2f`, hồng phấn `#f9e8ec`, trắng kem `#fdf8f1`, vàng hoàng hôn `#f6d365`. | tất cả 6 biến thể (thường là lớp dưới cùng) |
 | `glow` | Gradient ánh sáng | Vệt nắng vàng loang từ trên xuống (radial/linear gradient). | Bìa intro — `SunFlare` theo biến thể (`src/components/IntroCover.tsx`): warm, petals, bokeh, thin, streak, festive. Slideshow cũng vẽ được tầng này (prop `background` có `"glow"`). | `dien-anh` |
-| `blurred-photo` | Nền mờ từ ảnh | Lấy chính tấm ảnh đang hiện, phóng to SIÊU TO (scale ~2.2) tràn khung, làm mờ thật mạnh (blur ~56px) + tối nhẹ, đặt làm nền sau ảnh nét (Ambient mode của YouTube). Nền chỉ còn mảng màu mềm loang theo từng ảnh, không thấy chi tiết sắc nét của ảnh gốc. | Slideshow — MẶC ĐỊNH từ 2026-11-10 (trước đây chỉ bật khi truyền prop `background="blurred"`/`"blurred-photo"`). | cả 6 biến thể (mặc định slideshow) |
+| `blurred-photo` | Nền mờ từ ảnh | Lấy chính tấm ảnh đang hiện, phóng to 120% (scale ~1.2) tràn khung, làm mờ nhẹ (blur ~20px) + tối nhẹ, đặt làm nền sau ảnh nét (Ambient mode của YouTube). Vẫn nhận ra hình/đường nét của ảnh gốc (chỉnh 2026-11-10 16:24: blur 56px/scale 2.2 cũ mờ quá, không nhận ra là nền từ ảnh). | Slideshow — MẶC ĐỊNH từ 2026-11-10 (trước đây chỉ bật khi truyền prop `background="blurred"`/`"blurred-photo"`). | cả 6 biến thể (mặc định slideshow) |
 | `particles` | Hạt bay | Hạt hiệu ứng bay/lấp lánh phủ trên nền: cánh hoa rơi, tia vàng 4 cánh, bokeh hào quang mờ, hoặc cả hai. | `AmbientLayer` (`src/components/effects/AmbientLayer.tsx`) — kind: petals / sparkle / bokeh / both. | `hoa-bay`, `anh-vang`, `le-hoi` |
 | `motif` | Họa tiết của mẫu | Màu nền + họa tiết riêng của từng mẫu: phượng, chữ Hỷ, hoa văn — dấu ấn nhận diện mẫu. | Bìa intro — `TemplateMotif` + nền cover theo biến thể (`IntroCover.tsx`, `INTRO_PRESETS.coverBg` trong `src/lib/intro.ts`); họa tiết từng mẫu khai báo trong `templates.ts` (motif, pattern, palette). | `le-nghi` |
 
@@ -72,8 +72,8 @@ Hai trường đặt tên cho hành vi hiện tại; riêng `background` — hà
 
 - **Đáy = [màu đặc, nền mờ từ ảnh]** (`background=["solid",
   "blurred-photo"]`, hay tên cũ `"blurred"`): màu cảnh ở dưới cùng,
-  chính ảnh cưới đang hiện phóng to SIÊU TO (scale 2.2) tràn khung,
-  blur 56px + tối đi, chồng lên trên làm nền sau Polaroid.
+  chính ảnh cưới đang hiện phóng to 120% (scale 1.2) tràn khung,
+  blur nhẹ 20px + tối đi, chồng lên trên làm nền sau Polaroid.
 - **Đáy = [màu đặc, gradient ánh sáng]** (`background=["solid",
   "glow"]`): màu cảnh ở dưới, vệt nắng vàng loang từ trên xuống chồng
   lên (bán trong suốt, màu dưới vẫn thấy).
