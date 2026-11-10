@@ -17,11 +17,14 @@
 // là ảnh minh họa Unsplash, KHÔNG dùng ở đây (không để thông tin sẵn).
 // Không có ảnh khách: chỉ chữ trên nền cover theo biến thể.
 //
-// CHỮ: hai hiệu ứng có tên (chị chủ chốt 2026-11-10) — "sand" (mặc
+// CHỮ: ba hiệu ứng có tên (chị chủ chốt 2026-11-10) — "sand" (mặc
 // định): hạt cát rơi nhẹ từ trên xuống tụ lại thành chữ, lúc chuyển ảnh
 // thì chữ vỡ thành cát bay lên; "scatter": Scatter & Reform CHẬM đã lưu
-// (PR #28: mỗi chữ bay 6 giây, stagger 0,1s/chữ, exit tan nhanh 0,8s).
-// Chọn qua ?tx=sand|scatter trên trang khách. Chữ chỉ dùng dữ liệu thật
+// (PR #28: mỗi chữ bay 6 giây, stagger 0,1s/chữ, exit tan nhanh 0,8s);
+// "paper": giấy dán — từng chữ rơi từ trên xuống, lật (rotateX ~78° về
+// 0) rồi dán phẳng như tờ giấy, tốc độ theo hàm số mũ (chậm đầu để
+// thấy rõ hiệu ứng, nhanh sau để còn đọc). Chọn qua
+// ?tx=sand|scatter|paper trên trang khách. Chữ chỉ dùng dữ liệu thật
 // của thiệp; không có dữ liệu thì bỏ dòng đó (không bịa).
 // MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts):
 //   1) Lớp đáy — nền: prop `background` là DANH SÁCH chồng dưới lên
@@ -45,6 +48,7 @@ import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns, type KenBurnsDirection } from "@/components/effects";
 import { SandText } from "@/components/SandText";
+import { PaperText } from "@/components/PaperText";
 import type { OverlayId } from "@/lib/layers";
 import type { BackgroundGroupId } from "@/lib/backgrounds";
 import {
@@ -185,8 +189,10 @@ export function IntroSlideshow({
   overlay,
   /** Hiệu ứng chữ — "sand" (mặc định): hạt cát rơi nhẹ từ trên xuống
    *  tụ lại thành chữ, lúc chuyển ảnh thì cát bay lên; "scatter":
-   *  Scatter & Reform chậm đã lưu (PR #28). Chọn qua ?tx= trên trang
-   *  khách; không truyền = cát. */
+   *  Scatter & Reform chậm đã lưu (PR #28); "paper": giấy dán — từng
+   *  chữ rơi từ trên xuống, lật rồi dán phẳng, tốc độ theo hàm số mũ
+   *  (chậm đầu, nhanh sau). Chọn qua ?tx= trên trang khách; không
+   *  truyền = cát. */
   textEffect = "sand",
 }: {
   data: InvitationData;
@@ -509,6 +515,8 @@ export function IntroSlideshow({
 
       {/* Chữ chạy theo từng ảnh: "sand" thì hạt cát rơi nhẹ từ trên
           xuống tụ lại thành chữ, lúc chuyển ảnh thì cát bay lên;
+          "paper" thì từng chữ rơi xuống, lật rồi dán phẳng như tờ
+          giấy (tốc độ hàm số mũ), lúc chuyển thì chữ lật bay lên;
           "scatter" thì Scatter & Reform chậm đã lưu (mảnh vụn bay về
           ghép chữ, lúc chuyển thì Shatter vỡ vụn bay đi). */}
       <div className="relative z-10 mx-auto w-full max-w-xl px-6" style={{ minHeight: 190 }}>
@@ -520,6 +528,15 @@ export function IntroSlideshow({
             {currentLines.map((line) =>
               textEffect === "sand" ? (
                 <SandText
+                  key={line.text}
+                  text={line.text}
+                  slideKey={photos.length === 0 ? 0 : index}
+                  reduce={!!reduce}
+                  className={`${lineClass(line.kind)} ${blurCls}`}
+                  style={{ color: lineColor(line.kind), textShadow }}
+                />
+              ) : textEffect === "paper" ? (
+                <PaperText
                   key={line.text}
                   text={line.text}
                   slideKey={photos.length === 0 ? 0 : index}
