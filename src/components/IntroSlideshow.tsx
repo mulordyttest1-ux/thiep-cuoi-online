@@ -23,9 +23,15 @@
 // trang trọng; framer-motion, không thêm thư viện. Chữ chỉ dùng dữ liệu
 // thật của thiệp; không có dữ liệu thì bỏ dòng đó (không bịa).
 // MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts):
-//   1) Lớp đáy — nền: prop `background` ("solid" = màu đặc đổi theo
-//      ảnh, mặc định; "blurred" = nền mờ từ chính ảnh đang hiện).
-//   2) Lớp nội dung — slideshow: ảnh Polaroid + chữ chạy (dưới đây).
+//   1) Lớp đáy — nền: prop `background` là DANH SÁCH chồng dưới lên
+//      trên (quy tắc chồng tầng, chị chốt 2026-11-10): "solid" = màu
+//      đặc đổi theo ảnh, "glow" = gradient nắng vàng loang từ trên
+//      xuống, "blurred-photo" = nền mờ từ chính ảnh đang hiện.
+//      Giá trị đơn cũ ("solid" | "blurred") vẫn chạy, hiểu là danh
+//      sách 1 phần tử ("blurred" là tên cũ của "blurred-photo").
+//   2) Lớp nội dung — slideshow: ảnh Polaroid + chữ chạy (dưới đây),
+//      tự chồng theo SLIDESHOW_CONTENT_LAYERS: dòng mời → ảnh →
+//      chữ → chấm trang → nút "Xem thiệp".
 //   3) Lớp phủ — AmbientLayer theo fx, hoặc prop `overlay` truyền vào
 //      thì chỉ hiện các lớp phủ đó. Mặc định cả hai prop đều giữ hành
 //      vi hiện tại, không đổi gì khi không truyền.
@@ -38,6 +44,7 @@ import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns, type KenBurnsDirection } from "@/components/effects";
 import type { OverlayId } from "@/lib/layers";
+import type { BackgroundGroupId } from "@/lib/backgrounds";
 import {
   getIntroPreset,
   getSlideshowSlides,
@@ -122,6 +129,17 @@ function ShatterText({
   );
 }
 
+/** Một tầng con của lớp đáy slideshow: id nhóm nền (xem
+ *  BackgroundGroupId) + "blurred" là tên cũ của "blurred-photo"
+ *  (prop background đơn trước 2026-11-10). */
+export type SlideshowBackgroundLayer = BackgroundGroupId | "blurred";
+
+/** Gradient nắng vàng loang từ trên xuống — vệt nắng "warm" của
+ *  SunFlare ở bìa (IntroCover), dùng lại cho tầng "glow" của đáy
+ *  slideshow. Bán trong suốt nên lớp dưới vẫn thấy. */
+const GLOW_GRADIENT =
+  "radial-gradient(ellipse 90% 55% at 50% 0%, rgba(246,211,101,0.5) 0%, rgba(246,211,101,0.12) 55%, transparent 75%)";
+
 export function IntroSlideshow({
   data,
   fx,
@@ -133,11 +151,18 @@ export function IntroSlideshow({
    *  đó GuestInvitationView truyền album vào); QA cũng dùng nó để kiểm
    *  trường hợp 3/5 ảnh. Không truyền thì chỉ dùng photoUrl. */
   photos: photosProp,
-  /** Lớp đáy của slideshow — "solid" = nền màu đặc đổi theo ảnh
-   *  (mặc định, hành vi đã duyệt); "blurred" = nền mờ từ chính ảnh
-   *  đang hiện (phóng to tràn khung + blur + tối nhẹ, Ambient mode).
-   *  Nền mờ dùng lại ảnh đã tải, không tải thêm ảnh nào. */
-  background = "solid",
+  /** Lớp đáy của slideshow — DANH SÁCH chồng dưới lên trên (quy tắc
+   *  chồng tầng, chị chốt 2026-11-10). Mỗi phần tử là một tầng con:
+   *  "solid" = nền màu đặc đổi theo ảnh; "glow" = gradient nắng vàng
+   *  loang từ trên xuống (bán trong suốt, lớp dưới vẫn thấy);
+   *  "blurred-photo" = nền mờ từ chính ảnh đang hiện (phóng to tràn
+   *  khung + blur + tối nhẹ, Ambient mode). "particles"/"motif"
+   *  không vẽ được ở đáy slideshow (hạt bay thuộc lớp phủ, họa tiết
+   *  thuộc bìa) nên bỏ qua khi gặp. Giá trị đơn cũ vẫn chạy:
+   *  "solid" | "blurred" hiểu là danh sách 1 phần tử ("blurred" là
+   *  tên cũ của "blurred-photo"). Mặc định ["solid"] — hành vi đã
+   *  duyệt, không đổi gì khi không truyền. */
+  background: backgroundProp = "solid",
   /** Lớp phủ tùy chọn — danh sách lớp phủ muốn hiện trong slideshow.
    *  Không truyền = hành vi hiện tại (AmbientLayer theo fx). Truyền
    *  vào thì chỉ hiện các lớp phủ đó; chỉ sparkle/petals/bokeh có tác
@@ -156,7 +181,10 @@ export function IntroSlideshow({
   /** Khách bấm "Xem thiệp" → vào nội dung thiệp. */
   onEnter: () => void;
   photos?: string[];
-  background?: "solid" | "blurred";
+  /** Một tầng con của lớp đáy slideshow — id nhóm nền trong
+   *  BackgroundGroupId, cộng "blurred" là tên cũ của "blurred-photo"
+   *  (giữ tương thích ngược với prop background đơn trước 2026-11-10). */
+  background?: SlideshowBackgroundLayer | SlideshowBackgroundLayer[];
   overlay?: OverlayId[];
 }) {
   const reduce = useReducedMotion();
@@ -232,13 +260,42 @@ export function IntroSlideshow({
     };
   }, [overlay, fx]);
 
-  // Lớp đáy "blurred": nền sau Polaroid là chính ảnh đang hiện, phóng
-  // to tràn khung + blur + tối nhẹ. Không có ảnh thì về nền cover.
-  const blurredBg = background === "blurred" && photos.length > 0;
+  // Lớp đáy — CHUẨN HÓA prop background thành danh sách chồng dưới
+  // lên trên: giá trị đơn → 1 phần tử; "blurred" (tên cũ) →
+  // "blurred-photo"; bỏ trùng giữ thứ tự; rỗng → ["solid"].
+  const baseLayers = useMemo<BackgroundGroupId[]>(() => {
+    const raw = Array.isArray(backgroundProp) ? backgroundProp : [backgroundProp];
+    const out: BackgroundGroupId[] = [];
+    for (const item of raw) {
+      const layer = (item === "blurred" ? "blurred-photo" : item) as BackgroundGroupId;
+      if (
+        (layer === "solid" ||
+          layer === "glow" ||
+          layer === "blurred-photo" ||
+          layer === "particles" ||
+          layer === "motif") &&
+        !out.includes(layer)
+      ) {
+        out.push(layer);
+      }
+    }
+    return out.length > 0 ? out : ["solid"];
+  }, [backgroundProp]);
+
+  // Nền mờ hay không phụ thuộc vào tầng ĐẶC (không trong suốt) ở trên
+  // cùng của danh sách đáy: ảnh mờ ở trên cùng → chữ trắng trên nền
+  // tối (như chế độ "blurred" cũ); màu đặc ở trên cùng (che ảnh mờ)
+  // → chữ theo màu cảnh như cũ. Không có ảnh thì không có nền mờ.
+  const topOpaque = [...baseLayers]
+    .reverse()
+    .find((l) => l === "solid" || l === "blurred-photo");
+  const blurredBg = topOpaque === "blurred-photo" && photos.length > 0;
 
   // Nền từng cảnh đổi màu theo ảnh; không có ảnh thì nền cover của mẫu.
   // Đáy blurred thì chữ luôn trắng trên nền tối (ảnh đã tối đi).
   const scene = SLIDESHOW_SCENES[index % SLIDESHOW_SCENES.length];
+  // Màu của tầng "solid": màu cảnh khi có ảnh, màu cover khi không ảnh.
+  const solidColor = photos.length === 0 ? preset.coverBg : scene.bg;
   const colors =
     photos.length === 0
       ? {
@@ -290,45 +347,79 @@ export function IntroSlideshow({
       }}
       onClick={advance}
     >
-      {/* Lớp đáy "blurred": chính ảnh đang hiện, phóng to tràn khung +
-          blur + tối nhẹ, làm nền sau Polaroid. Dùng lại ảnh đã tải
-          (không tải thêm). Giảm chuyển động: đổi ảnh tức thì, không
-          chuyển mờ. Lớp này nằm dưới cùng (trước cả lớp phủ). */}
-      {blurredBg && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 overflow-hidden"
-          style={{ background: "#141414" }}
-        >
-          {reduce ? (
-            <img
-              src={photos[index]}
-              alt=""
-              className="h-full w-full object-cover"
-              style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.25)" }}
+      {/* Lớp đáy — DANH SÁCH chồng dưới lên trên (quy tắc chồng tầng):
+          mỗi tầng con là một div phủ kín khung, vẽ theo thứ tự trong
+          `baseLayers` (phần tử sau nằm trên phần tử trước). "solid" =
+          màu cảnh/màu cover (đổi màu mượt 1s như container trước đây);
+          "glow" = gradient nắng vàng loang từ trên xuống (bán trong
+          suốt nên lớp dưới vẫn thấy); "blurred-photo" = chính ảnh đang
+          hiện, phóng to tràn khung + blur + tối nhẹ, làm nền sau
+          Polaroid — dùng lại ảnh đã tải (không tải thêm); giảm chuyển
+          động thì đổi ảnh tức thì, không chuyển mờ. "particles"/
+          "motif" không vẽ ở đáy slideshow (hạt bay thuộc lớp phủ, họa
+          tiết thuộc bìa) nên bỏ qua. Mặc định ["solid"] nên nhìn y
+          hệt trước khi đổi. */}
+      {baseLayers.map((layer) => {
+        if (layer === "solid") {
+          return (
+            <div
+              key="solid"
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{ background: solidColor, transition: "background-color 1s ease" }}
             />
-          ) : (
-            <AnimatePresence>
-              <motion.div
-                key={photos[index]}
-                className="absolute inset-0"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.9 }}
-              >
+          );
+        }
+        if (layer === "glow") {
+          return (
+            <div
+              key="glow"
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{ background: GLOW_GRADIENT }}
+            />
+          );
+        }
+        if (layer === "blurred-photo" && photos.length > 0) {
+          return (
+            <div
+              key="blurred-photo"
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 overflow-hidden"
+              style={{ background: "#141414" }}
+            >
+              {reduce ? (
                 <img
                   src={photos[index]}
                   alt=""
                   className="h-full w-full object-cover"
                   style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.25)" }}
                 />
-              </motion.div>
-            </AnimatePresence>
-          )}
-          <div className="absolute inset-0 bg-black/25" />
-        </div>
-      )}
+              ) : (
+                <AnimatePresence>
+                  <motion.div
+                    key={photos[index]}
+                    className="absolute inset-0"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.9 }}
+                  >
+                    <img
+                      src={photos[index]}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.25)" }}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              )}
+              <div className="absolute inset-0 bg-black/25" />
+            </div>
+          );
+        }
+        return null;
+      })}
 
       {/* Lớp phủ theo biến thể (hoặc prop overlay) — phủ lên cả nội dung. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
