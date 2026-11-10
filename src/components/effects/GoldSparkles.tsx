@@ -28,11 +28,11 @@ export function GoldSparkles({ count = 16, speed = 1, seed = 1, className }: Gol
     <div className={`pointer-events-none absolute inset-0 ${className ?? ""}`}>
       <Sparkles
         className="h-full w-full"
-        sparkleColor="#c9a86a"
-        density={0.8}
+        sparkleColor="#f6d365"
+        density={0.5}
         count={count}
-        minSize={0.5}
-        maxSize={2}
+        minSize={0.8}
+        maxSize={2.2}
         speed={speed}
         fade="radial"
         seed={seed}

@@ -8,6 +8,13 @@ import { hashSeed, mulberry32 } from "@/lib/seeded";
 // sáng nhấp nháy RÕ (scale + xoay + chớp sáng), không phải ánh sáng thở
 // chậm như Shimmer. Dùng SVG 4 cánh để nét trên mọi máy. Vị trí ổn định
 // theo seed; có thể truyền positions cố định (vd quanh chữ Hỷ).
+//
+// NÂNG CẤP 2026-11-10 theo mẫu Pikbest "Let's Fall In Love" (325641):
+// bản cũ mọi sao cùng cỡ 6–14px, cùng màu, nhịp 1,8–2,6s gần giống nhau
+// → nhấp gần như đồng loạt, không có sao nào làm điểm nhấn, glow yếu.
+// Bản mới (chỉ chế độ ngẫu nhiên — sao cố định quanh chữ/tên giữ nguyên):
+// 2 sao HERO 20–30px trắng ấm + glow mạnh, còn lại 6–14px vàng, nhịp
+// 1,6–3,4 giây rải ra (không đồng loạt), xoay khởi đầu ngẫu nhiên.
 export interface TwinkleProps {
   count?: number;
   seed?: number | string;
@@ -38,13 +45,22 @@ export function Twinkle({
   const sparks = useMemo(() => {
     const rand = mulberry32(typeof seed === "number" ? seed : hashSeed(seed));
     const n = positions?.length ?? count;
-    return Array.from({ length: n }, (_, i) => ({
-      left: positions?.[i]?.left ?? rand() * 100,
-      top: positions?.[i]?.top ?? rand() * 100,
-      size: size[0] + rand() * (size[1] - size[0]),
-      duration: 1.8 + rand() * 0.8,
-      delay: -rand() * 2.6, // delay âm: đã nhấp giữa chừng ngay khi mở trang
-    }));
+    return Array.from({ length: n }, (_, i) => {
+      // Chế độ ngẫu nhiên (không positions): 2 sao đầu là HERO — to, trắng
+      // ấm, glow mạnh, nhịp chậm hơn; còn lại nhỏ, vàng, nhịp rải 1,6–3,4s.
+      // Chế độ positions cố định (quanh chữ Hỷ/tên): giữ nguyên như cũ.
+      const hero = !positions && n >= 6 && i < 2;
+      return {
+        left: positions?.[i]?.left ?? rand() * 100,
+        top: positions?.[i]?.top ?? rand() * 100,
+        size: hero ? 20 + rand() * 10 : size[0] + rand() * (size[1] - size[0]),
+        color: hero ? "#fff6d8" : color,
+        glow: hero ? 12 : 4,
+        rotate: Math.floor(rand() * 360),
+        duration: hero ? 2.6 + rand() * 1.0 : 1.6 + rand() * 1.8,
+        delay: -rand() * 2.6, // delay âm: đã nhấp giữa chừng ngay khi mở trang
+      };
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [count, seed, posKey, sizeKey]);
   if (disabled || reduce) return null;
@@ -63,8 +79,8 @@ export function Twinkle({
             animationDelay: `${s.delay}s`,
           }}
         >
-          <svg viewBox="0 0 24 24" width={s.size} height={s.size} style={{ filter: `drop-shadow(0 0 4px ${color})` }}>
-            <path d={STAR} fill={color} />
+          <svg viewBox="0 0 24 24" width={s.size} height={s.size} style={{ filter: `drop-shadow(0 0 ${s.glow}px ${s.color})`, transform: `rotate(${s.rotate}deg)` }}>
+            <path d={STAR} fill={s.color} />
           </svg>
         </span>
       ))}
