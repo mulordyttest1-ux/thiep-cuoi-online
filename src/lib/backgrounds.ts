@@ -56,10 +56,10 @@ export const BACKGROUND_STYLES: BackgroundStyle[] = [
     id: "blurred-photo",
     name: "Nền mờ từ ảnh",
     description:
-      "Lấy chính tấm ảnh đang hiện, phóng to tràn khung, làm mờ + tối nhẹ, đặt làm nền sau ảnh nét (Ambient mode của YouTube). Nền tự ăn màu theo từng ảnh, không còn viền trống.",
+      "Lấy chính tấm ảnh đang hiện, phóng to SIÊU TO (scale ~2.2) tràn khung, làm mờ thật mạnh (blur ~56px) + tối nhẹ, đặt làm nền sau ảnh nét (Ambient mode của YouTube). Nền chỉ còn mảng màu mềm loang theo từng ảnh, không thấy chi tiết sắc nét của ảnh gốc, không còn viền trống.",
     usedIn:
-      "Slideshow — prop background=\"blurred\" của IntroSlideshow (src/components/IntroSlideshow.tsx). Mặc định slideshow vẫn chạy nền màu đặc; kiểu này chỉ bật khi truyền prop.",
-    variants: [],
+      "Slideshow — MẶC ĐỊNH từ 2026-11-10 (trước đây chỉ bật khi truyền prop background=\"blurred\"/\"blurred-photo\" vào IntroSlideshow).",
+    variants: ["le-nghi", "hoa-bay", "anh-vang", "toi-gian", "dien-anh", "le-hoi"],
   },
   {
     id: "particles",

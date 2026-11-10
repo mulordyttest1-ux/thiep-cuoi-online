@@ -74,8 +74,11 @@ export const VARIANT_LABELS: Record<EffectVariant, string> = {
 // màu đặc rồi chồng thêm gradient/họa tiết/hạt; phủ chồng nắng + tia
 // vàng + cánh hoa... Lớp nội dung (slideshow Polaroid + chữ chạy)
 // không nằm trong preset, thứ tự chồng cố định xem
-// SLIDESHOW_CONTENT_LAYERS trong layers.ts. Hai trường này CHỈ ĐẶT
-// TÊN cho hành vi hiện tại, không đổi mặc định mẫu nào.
+// SLIDESHOW_CONTENT_LAYERS trong layers.ts. Hai trường này đặt tên
+// cho hành vi hiện tại; riêng `background` — hành vi thật do mặc
+// định của IntroSlideshow quyết định (từ 2026-11-10 mặc định
+// ["solid", "blurred-photo"], tức nền mờ từ ảnh là mặc định cho
+// mọi mẫu).
 export interface TemplateEffects {
   burst?: { count?: number; colors?: string[]; duration?: number; spread?: number };
   ambient?: {
@@ -103,7 +106,8 @@ export interface TemplateEffects {
   progressBar?: boolean;
   /** Mô hình 3 lớp (xem src/lib/layers.ts): lớp đáy — các kiểu nền
    *  xếp chồng dưới lên trên (lớp dưới cùng thường là màu đặc).
-   *  Chỉ đặt tên, không đổi hành vi. */
+   *  Hành vi thật do mặc định của IntroSlideshow quyết định (từ
+   *  2026-11-10 mặc định ["solid", "blurred-photo"]). */
   background?: BackgroundGroupId[];
   /** Mô hình 3 lớp: lớp phủ — các lớp phủ xếp chồng trên nội dung
    *  (ánh nắng, tia lấp lánh, cánh hoa, bokeh). Chỉ đặt tên hành vi
@@ -157,7 +161,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.15, right: 0.24, hoa: 0.4 },
     cinema: { pinned: true, marquee: true, grain: true, chapters: true },
     progressBar: true,
-    background: ["solid", "motif"],
+    background: ["solid", "blurred-photo", "motif"],
     overlay: ["sun", "sparkle", "petals"],
   },
   "hoa-bay": {
@@ -169,7 +173,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.08, right: 0.12, hoa: 0.25 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
-    background: ["solid", "particles"],
+    background: ["solid", "blurred-photo", "particles"],
     overlay: ["sun", "petals"],
   },
   "anh-vang": {
@@ -182,7 +186,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.1, right: 0.15, hoa: 0.3 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
-    background: ["solid", "particles"],
+    background: ["solid", "blurred-photo", "particles"],
     overlay: ["sun", "bokeh", "sparkle"],
   },
   "toi-gian": {
@@ -193,7 +197,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: 0, right: 0, hoa: 0 },
     cinema: { pinned: false, marquee: false, grain: false, chapters: false },
     progressBar: true,
-    background: ["solid"],
+    background: ["solid", "blurred-photo"],
     overlay: ["sun"],
   },
   "dien-anh": {
@@ -205,7 +209,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.2, right: 0.3, hoa: 0.5 },
     cinema: { pinned: true, marquee: true, grain: true, chapters: true },
     progressBar: true,
-    background: ["solid", "glow"],
+    background: ["solid", "blurred-photo", "glow"],
     overlay: ["sun", "sparkle"],
   },
   "le-hoi": {
@@ -218,7 +222,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.12, right: 0.18, hoa: 0.35 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
-    background: ["solid", "particles"],
+    background: ["solid", "blurred-photo", "particles"],
     overlay: ["sun", "sparkle", "petals"],
   },
 };
