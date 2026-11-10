@@ -53,12 +53,12 @@ const TEXT_EFFECTS: { id: TextEffectId; name: string; desc: string; isDefault?: 
   {
     id: "scatter",
     name: "Scatter chậm",
-    desc: "Từng chữ cái bay về ghép lại thành chữ trong ~6 giây; lúc chuyển ảnh chữ vỡ vụn bay đi.",
+    desc: "Từng chữ cái bay về ghép lại thành chữ, đáp đủ sau ~3 giây (nhịp chung với cát/giấy dán); lúc chuyển ảnh chữ vỡ vụn bay đi.",
   },
   {
     id: "paper",
     name: "Giấy dán",
-    desc: "Từng chữ rơi từ trên xuống, lật như lật trang rồi dán phẳng; nhanh dần theo hàm số mũ, đáp đủ sau ~5 giây.",
+    desc: "Từng chữ rơi từ trên xuống, lật như lật trang rồi dán phẳng; nhanh dần theo hàm số mũ, đáp đủ sau ~3 giây (nhịp chung với cát/scatter).",
   },
 ];
 
@@ -337,7 +337,7 @@ function TextEffectCard({ effect }: { effect: (typeof TEXT_EFFECTS)[number] }) {
 /** Thẻ nền — demo đúng kiểu nền đó sau chữ mẫu. Màu đặc: 4 màu cảnh
  *  thật (SLIDESHOW_SCENES) tự chuyển 3s/lần. Gradient nắng: vệt nắng
  *  "warm" thật của bìa. Nền mờ: đúng lớp blurred-photo của slideshow
- *  (ảnh phóng scale 2.2 + blur 56px + tối nhẹ, sau Polaroid nét).
+ *  (ảnh phóng scale 1.2 + blur 20px + tối nhẹ, sau Polaroid nét).
  *  Hạt bay: AmbientLayer thật. Họa tiết: TemplateMotif thật của Song
  *  Phụng Đỏ trên nền bìa le-nghi. */
 function BackgroundCard({ style }: { style: (typeof BACKGROUND_STYLES)[number] }) {
@@ -424,7 +424,7 @@ function BackgroundCard({ style }: { style: (typeof BACKGROUND_STYLES)[number] }
               src={DEMO_PHOTO}
               alt=""
               className="h-full w-full object-cover"
-              style={{ filter: "blur(56px) brightness(0.55)", transform: "scale(2.2)" }}
+              style={{ filter: "blur(20px) brightness(0.55)", transform: "scale(1.2)" }}
             />
             <div className="absolute inset-0 bg-black/25" />
           </div>
