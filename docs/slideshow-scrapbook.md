@@ -18,7 +18,7 @@ Kịch bản đã duyệt 2026-11-10 (chị chủ chốt). Mẫu tham khảo: Pi
   4. Vàng hoàng hôn `#f6d365` — chữ đỏ đậm
 - Chồng ảnh: ảnh hiện tại ở trên cùng; 2 ảnh trước nghiêng ló ra phía
   sau; ảnh còn lại đỗ ngoài khung hình (đẩy xuống 120dvh) chờ trượt vào.
-- Nhịp chậm: mỗi ảnh giữ 4,5 giây; chuyển cảnh 0,9 giây
+- Nhịp chậm: mỗi ảnh giữ 12 giây; chuyển cảnh 0,9 giây
   (`cubic-bezier(0.22,1,0.3,1)`).
 
 ## Chia thông tin theo số ảnh (quy tắc bắt buộc)
@@ -64,7 +64,9 @@ cho lúc thiệp có nhiều ảnh; production không đổi hành vi.
   bay về ghép lại thành chữ.
 - Lúc chuyển ảnh: **Shatter** — chữ vỡ vụn từng chữ cái rồi bay đi.
 - Làm NHẸ và CHẬM cho hợp trang trọng: mảnh lệch tối đa ±14px lúc tụ,
-  ±26px lúc vỡ, xoay ±10°/±22°, mỗi chữ 0,6 giây, stagger 0,02 giây/chữ.
+  ±26px lúc vỡ, xoay ±10°/±22°, mỗi chữ 6 giây lúc vào, stagger 0,1
+  giây/chữ (dòng 20 chữ lắp xong trong ~8 giây); lúc ra tan nhanh
+  riêng 0,8 giây để chữ cũ không đè lên ảnh sau.
 - Chữ nhóm theo từ để dòng dài ngắt ở khoảng trắng giữa các từ (không
   vỡ giữa từ); hiệu ứng vẫn chạy từng chữ cái.
 - Dùng framer-motion (đã có sẵn), không thêm thư viện mới.
