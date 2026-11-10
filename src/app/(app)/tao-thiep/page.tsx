@@ -54,11 +54,12 @@ const FAMILY_FIELDS = new Set<StdEditField>([
   "brideParentsAddress",
 ]);
 
-/** Câu mẫu sửa trong editor lưu ở localStorage theo mã thiệp (máy này).
- *  Máy chủ chưa có đường nhận câu mẫu từ editor (POST /api/invitations chỉ
- *  nhận data; upsert giữ nguyên customTexts cũ của bản ghi) nên câu mẫu sửa
- *  ở editor chưa lên được máy chủ — mở bằng ?edit= thì lấy câu mẫu từ bản
- *  ghi máy chủ (khách sửa) khi có, không thì lấy bản editor đã lưu ở đây. */
+/** Câu mẫu sửa trong editor lưu ở localStorage theo mã thiệp (máy này) và
+ *  gửi kèm khi đồng bộ lên máy chủ (POST /api/invitations nhận customTexts,
+ *  upsert merge vào bản ghi — sửa 10/11/2026 sau lỗi dòng tên khách "Quý Gia
+ *  Đình" chỉ hiện ở editor mà khách vẫn thấy dòng chấm). Mở bằng ?edit= thì
+ *  lấy câu mẫu từ bản ghi máy chủ (khách sửa) khi có, không thì lấy bản
+ *  editor đã lưu ở đây. */
 const editorCustomTextsKey = (id: string) => `td_editor_custom_texts_${id}`;
 const loadEditorCustomTexts = (id: string): Record<string, string> => {
   if (!id) return {};
@@ -725,7 +726,15 @@ function EditorInner() {
       const res = await fetch("/api/invitations", {
         method: "POST",
         headers: adminHeaders(),
-        body: JSON.stringify({ data: { ...(dataOverride ?? data), id: (idOverride ?? savedId) || undefined } }),
+        // Câu mẫu sửa trong editor gửi kèm để lên máy chủ (trước đây chỉ
+        // gửi data nên khách mở link máy chủ vẫn thấy câu mẫu cũ — lỗi
+        // 10/11/2026: dòng tên khách "Quý Gia Đình" hiện đúng ở editor
+        // nhưng khách vẫn thấy dòng chấm). Thiệp đã chốt thì không gửi —
+        // server cũng giữ nguyên câu mẫu ở nhánh đã chốt.
+        body: JSON.stringify({
+          data: { ...(dataOverride ?? data), id: (idOverride ?? savedId) || undefined },
+          customTexts: readOnly ? undefined : customTextsRef.current,
+        }),
       });
       const j = (await res.json()) as Record<string, unknown>;
       if (!res.ok || !j.ok) {

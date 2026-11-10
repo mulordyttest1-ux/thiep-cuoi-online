@@ -141,7 +141,12 @@ export function editorUrlFor(origin: string, rec: StoredInvitation): string {
 
 export async function upsertInvitation(
   data: InvitationData,
-  opts: { status?: StoredInvitation["status"] } = {}
+  // customTexts: câu mẫu gửi kèm (vd editor đồng bộ) — bản ghi MỚI thì lấy
+  // luôn; bản ghi CŨ thì MERGE (key gửi lên ghi đè, key cũ không có trong
+  // lần gửi được giữ nguyên) để không bao giờ xoá câu mẫu khách đã sửa mà
+  // bên gửi không biết. Thiệp đã chốt in thì nhánh đã-chốt dưới đây giữ
+  // nguyên customTexts (không merge) — đúng luật khoá.
+  opts: { status?: StoredInvitation["status"]; customTexts?: Record<string, string> } = {}
 ): Promise<StoredInvitation> {
   assertStoreAvailable();
   const now = new Date().toISOString();
@@ -176,6 +181,10 @@ export async function upsertInvitation(
       // đây không xóa mốc — lỗi live 09/11): xóa để trang khách không bị
       // khóa oan. Bản ghi đã chốt đi nhánh trên nên không tới đây.
       customerConfirmedAt: null,
+      // Câu mẫu: MERGE — key gửi lên ghi đè, key cũ không có trong lần gửi
+      // được giữ nguyên (khách sửa câu mẫu rồi editor đồng bộ sau cũng
+      // không mất).
+      customTexts: { ...(existing.customTexts ?? {}), ...(opts.customTexts ?? {}) },
       updatedAt: now,
     };
     return backendSave(updated);
@@ -201,7 +210,7 @@ export async function upsertInvitation(
     paidMemo: null,
     reconcileLog: [],
     customerConfirmedAt: null,
-    customTexts: {},
+    customTexts: { ...(opts.customTexts ?? {}) },
     editedFields: [],
     chat: [],
     history: [],
