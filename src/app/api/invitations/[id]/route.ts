@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getInvitation } from "@/lib/server-store";
-import { isAdminRequest } from "@/lib/server-auth";
+import { editorUrlFor, getInvitation } from "@/lib/server-store";
+import { isAdminRequest, originOf } from "@/lib/server-auth";
 import { canEdit, guestAccess, previewAccess } from "@/lib/access";
 
 export const dynamic = "force-dynamic";
@@ -105,6 +105,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       chat: rec.chat ?? [],
       history: rec.history ?? [],
       manualList: rec.manualList ?? [],
+      // Link mở thiệp này trong editor — chỉ trả ở nhánh admin (Quản lý),
+      // không bao giờ trả ở các nhánh khách (edit/preview/guest).
+      editUrl: editorUrlFor(originOf(req), rec),
     });
   }
 
