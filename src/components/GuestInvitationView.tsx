@@ -24,6 +24,8 @@ import { type TextEffectId } from "@/lib/intro";
 import { BurstParticles, ScrollProgress, SmoothScroll } from "@/components/effects";
 import { IntroCover } from "@/components/IntroCover";
 import { IntroSlideshow } from "@/components/IntroSlideshow";
+import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlideshow";
+import type { SlideStyleId } from "@/lib/slide-styles";
 import { vietQrUrl } from "@/lib/store";
 import { isBlockVisible } from "@/lib/blocks";
 import InvitationPreview, { type SensitiveField } from "@/components/InvitationPreview";
@@ -44,6 +46,7 @@ export default function GuestInvitationView({
   editedCustomTexts,
   fromWizard,
   textEffectOverride,
+  slideStyleOverride,
 }: {
   data: InvitationData;
   guestName?: string;
@@ -55,6 +58,10 @@ export default function GuestInvitationView({
   /** Ghi đè hiệu ứng chữ trong slideshow (vd ?tx=sand|scatter — chỉ để
    *  thử, không đổi dữ liệu thiệp). Không truyền = cát ("sand"). */
   textEffectOverride?: TextEffectId;
+  /** Ghi đè kiểu slide ảnh trong intro (vd ?slide=romantic-brochure —
+   *  chỉ để thử, không đổi dữ liệu thiệp). Không truyền = slideshow
+   *  Polaroid scrapbook mặc định. */
+  slideStyleOverride?: SlideStyleId;
   /** Demo: mờ tên/ngày/giờ/địa điểm (cả phong bì lẫn thiệp). Trang demo
    *  chỉ để xem — không truyền onSensitiveClick nên bấm vào ô mờ không
    *  làm gì; việc sửa diễn ra ở wizard. */
@@ -190,6 +197,8 @@ export default function GuestInvitationView({
         {burstOverlay}
         {!coverDone ? (
           <IntroCover data={data} fx={fx} onDone={() => setCoverDone(true)} />
+        ) : slideStyleOverride === "romantic-brochure" ? (
+          <RomanticBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
         ) : (
           <IntroSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
         )}
