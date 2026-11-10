@@ -87,7 +87,18 @@ chậm đã lưu; `?tx=paper` thì về bản giấy dán; giá trị lạ → v
   bản live: "không thấy flip, chỉ thấy fall" và nhịp "bị khựt khựt"):
   chữ bắt đầu ở rotateX −90° (nhìn ngang cạnh tờ giấy, gần như chưa
   thấy mặt chữ) và KHÔNG fade-in — cú LẬT chính là thứ làm chữ hiện ra;
-  perspective 450 cho nổi 3D rõ hơn. TỐC ĐỘ DÙNG HÀM SỐ MŨ kiểu GIA TỐC
+  perspective 450 cho nổi 3D rõ hơn. V3 (sửa 2026-11-10 theo phản hồi
+  trực tiếp của chị sau khi xem bản live v2 trên điện thoại: "flip từ
+  trái qua phải hoặc từ hư không chứ nó xuất hiện cái dãy này xấu quá"
+  — "cái dãy" là vệt ngang mỏng lúc mới bắt đầu, vì v2 giữ opacity 1
+  suốt nên tất cả các chữ cùng hiện ra dưới dạng vạch ngang mỏng):
+  mỗi chữ bắt đầu opacity 0 (vô hình hoàn toàn) và chỉ mờ vào TRONG
+  LÚC lật — keyframes opacity [0, 0, 1, 1] với times [0, 0.25, 0.5, 1]
+  (vô hình 25% đầu lúc còn gần như nhìn ngang cạnh, mờ vào tới 50%
+  lúc đã lật đủ để thấy rõ mặt chữ, rõ hẳn từ đó tới lúc đáp phẳng).
+  Quy tắc: không bao giờ có thời điểm nào chữ hiện rõ trong khi
+  rotateX còn gần −90°; chữ chưa tới lượt thì vô hình — lật từ trái
+  qua phải, hoặc từ hư không lật vào. TỐC ĐỘ DÙNG HÀM SỐ MŨ kiểu GIA TỐC
   TỔNG XUYÊN SUỐT: MỘT đường cong tiến độ chung cho cả dòng
   (start_i = (T − DUR) × (1 − e^(−2,5·i/(N−1))) / (1 − e^(−2,5)), T ≈ 5
   giây) — khoảng cách giữa các lần đáp co lại liên tục, mặt trận các
