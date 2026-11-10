@@ -1,4 +1,6 @@
 import { hashSeed, mulberry32 } from "./seeded";
+import type { BackgroundGroupId } from "./backgrounds";
+import type { OverlayId } from "./layers";
 
 export type TemplateStyle = "minimal" | "traditional" | "floral" | "luxury";
 
@@ -64,6 +66,12 @@ export const VARIANT_LABELS: Record<EffectVariant, string> = {
 // Bộ hiệu ứng của một mẫu — chọn từ thư viện src/components/effects (mỗi
 // hiệu ứng nhận thông số riêng, xem specs/song-phung-do.md §4h). Mỗi mẫu
 // gán 1 biến thể trong VARIANT_PRESETS; effects khai báo = preset đó.
+//
+// MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts): mỗi
+// preset mang 2 trường lớp — `background` (lớp đáy, kiểu nền chính) và
+// `overlay` (lớp phủ: danh sách các lớp phủ xếp chồng). Lớp nội dung
+// (slideshow Polaroid + chữ chạy) không nằm trong preset. Hai trường
+// này CHỈ ĐẶT TÊN cho hành vi hiện tại, không đổi mặc định mẫu nào.
 export interface TemplateEffects {
   burst?: { count?: number; colors?: string[]; duration?: number; spread?: number };
   ambient?: {
@@ -89,6 +97,13 @@ export interface TemplateEffects {
   // của lớp (phụng phải ×0.5, HOA ×0.2 — xem ParallaxLayer).
   cinema?: { pinned?: boolean; marquee?: boolean; grain?: boolean; chapters?: boolean };
   progressBar?: boolean;
+  /** Mô hình 3 lớp (xem src/lib/layers.ts): lớp đáy — kiểu nền chính
+   *  của biến thể (chỉ đặt tên, không đổi hành vi). */
+  background?: BackgroundGroupId;
+  /** Mô hình 3 lớp: lớp phủ — các lớp phủ xếp chồng trên nội dung
+   *  (ánh nắng, tia lấp lánh, cánh hoa, bokeh). Chỉ đặt tên hành vi
+   *  hiện tại; render vẫn theo ambient/twinkle + SunFlare như cũ. */
+  overlay?: OverlayId[];
 }
 
 export interface Template {
@@ -137,6 +152,8 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.15, right: 0.24, hoa: 0.4 },
     cinema: { pinned: true, marquee: true, grain: true, chapters: true },
     progressBar: true,
+    background: "motif",
+    overlay: ["sun", "sparkle", "petals"],
   },
   "hoa-bay": {
     burst: { count: 24, duration: 1.2, spread: 200, colors: ["#ffb2b2", "#f6d365", "#e8c87e", "#f9c5d5"] },
@@ -147,6 +164,8 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.08, right: 0.12, hoa: 0.25 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
+    background: "particles",
+    overlay: ["sun", "petals"],
   },
   "anh-vang": {
     burst: { count: 70, duration: 1.5, spread: 300 },
@@ -158,6 +177,8 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.1, right: 0.15, hoa: 0.3 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
+    background: "particles",
+    overlay: ["sun", "bokeh", "sparkle"],
   },
   "toi-gian": {
     burst: { count: 0 },
@@ -167,6 +188,8 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: 0, right: 0, hoa: 0 },
     cinema: { pinned: false, marquee: false, grain: false, chapters: false },
     progressBar: true,
+    background: "solid",
+    overlay: ["sun"],
   },
   "dien-anh": {
     burst: { count: 36, duration: 1.2, spread: 240 },
@@ -177,6 +200,8 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.2, right: 0.3, hoa: 0.5 },
     cinema: { pinned: true, marquee: true, grain: true, chapters: true },
     progressBar: true,
+    background: "glow",
+    overlay: ["sun", "sparkle"],
   },
   "le-hoi": {
     burst: { count: 90, duration: 1.6, spread: 340, colors: ["#c9a86a", "#f6d365", "#e85d75", "#ff8fa3", "#d4af37", "#a31621"] },
@@ -188,6 +213,8 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.12, right: 0.18, hoa: 0.35 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
+    background: "particles",
+    overlay: ["sun", "sparkle", "petals"],
   },
 };
 
