@@ -17,11 +17,12 @@
 // là ảnh minh họa Unsplash, KHÔNG dùng ở đây (không để thông tin sẵn).
 // Không có ảnh khách: chỉ chữ trên nền cover theo biến thể.
 //
-// CHỮ: Scatter & Reform lúc hiện (từng chữ cái tách thành mảnh vụn bay về
-// ghép lại thành chữ) + Shatter lúc chuyển ảnh (chữ vỡ vụn từng chữ cái
-// rồi bay đi). Làm NHẸ và CHẬM (mảnh nhỏ, bay chậm, không loạn) cho hợp
-// trang trọng; framer-motion, không thêm thư viện. Chữ chỉ dùng dữ liệu
-// thật của thiệp; không có dữ liệu thì bỏ dòng đó (không bịa).
+// CHỮ: hai hiệu ứng có tên (chị chủ chốt 2026-11-10) — "sand" (mặc
+// định): hạt cát rơi nhẹ từ trên xuống tụ lại thành chữ, lúc chuyển ảnh
+// thì chữ vỡ thành cát bay lên; "scatter": Scatter & Reform CHẬM đã lưu
+// (PR #28: mỗi chữ bay 6 giây, stagger 0,1s/chữ, exit tan nhanh 0,8s).
+// Chọn qua ?tx=sand|scatter trên trang khách. Chữ chỉ dùng dữ liệu thật
+// của thiệp; không có dữ liệu thì bỏ dòng đó (không bịa).
 // MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts):
 //   1) Lớp đáy — nền: prop `background` là DANH SÁCH chồng dưới lên
 //      trên (quy tắc chồng tầng, chị chốt 2026-11-10): "solid" = màu
@@ -43,6 +44,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns, type KenBurnsDirection } from "@/components/effects";
+import { SandText } from "@/components/SandText";
 import type { OverlayId } from "@/lib/layers";
 import type { BackgroundGroupId } from "@/lib/backgrounds";
 import {
@@ -51,6 +53,7 @@ import {
   resolveIntroVariant,
   SLIDESHOW_SCENES,
   type SlideshowLine,
+  type TextEffectId,
 } from "@/lib/intro";
 
 const PHOTO_MS = 12000; // mỗi ảnh hiện ~12s rồi sang ảnh sau — chữ chạy
@@ -180,6 +183,11 @@ export function IntroSlideshow({
    *  trong AmbientLayer nên ["bokeh", "sparkle"] chỉ hiện bokeh +
    *  sao 4 cánh, không hiện tia vàng. */
   overlay,
+  /** Hiệu ứng chữ — "sand" (mặc định): hạt cát rơi nhẹ từ trên xuống
+   *  tụ lại thành chữ, lúc chuyển ảnh thì cát bay lên; "scatter":
+   *  Scatter & Reform chậm đã lưu (PR #28). Chọn qua ?tx= trên trang
+   *  khách; không truyền = cát. */
+  textEffect = "sand",
 }: {
   data: InvitationData;
   fx: TemplateEffects;
@@ -195,6 +203,7 @@ export function IntroSlideshow({
    *  (giữ tương thích ngược với prop background đơn trước 2026-11-10). */
   background?: SlideshowBackgroundLayer | SlideshowBackgroundLayer[];
   overlay?: OverlayId[];
+  textEffect?: TextEffectId;
 }) {
   const reduce = useReducedMotion();
   const tpl = getTemplate(data.templateId);
@@ -498,24 +507,37 @@ export function IntroSlideshow({
         })}
       </div>
 
-      {/* Chữ chạy theo từng ảnh: hiện bằng Scatter & Reform (mảnh vụn
-          bay về ghép chữ), lúc chuyển ảnh thì Shatter (vỡ vụn bay đi). */}
+      {/* Chữ chạy theo từng ảnh: "sand" thì hạt cát rơi nhẹ từ trên
+          xuống tụ lại thành chữ, lúc chuyển ảnh thì cát bay lên;
+          "scatter" thì Scatter & Reform chậm đã lưu (mảnh vụn bay về
+          ghép chữ, lúc chuyển thì Shatter vỡ vụn bay đi). */}
       <div className="relative z-10 mx-auto w-full max-w-xl px-6" style={{ minHeight: 190 }}>
         <AnimatePresence>
           <div
             key={photos.length === 0 ? "empty" : index}
             className="absolute inset-0 flex flex-col items-center justify-center pb-2 text-center"
           >
-            {currentLines.map((line) => (
-              <ShatterText
-                key={line.text}
-                text={line.text}
-                slideKey={photos.length === 0 ? 0 : index}
-                reduce={!!reduce}
-                className={`${lineClass(line.kind)} ${blurCls}`}
-                style={{ color: lineColor(line.kind), textShadow }}
-              />
-            ))}
+            {currentLines.map((line) =>
+              textEffect === "sand" ? (
+                <SandText
+                  key={line.text}
+                  text={line.text}
+                  slideKey={photos.length === 0 ? 0 : index}
+                  reduce={!!reduce}
+                  className={`${lineClass(line.kind)} ${blurCls}`}
+                  style={{ color: lineColor(line.kind), textShadow }}
+                />
+              ) : (
+                <ShatterText
+                  key={line.text}
+                  text={line.text}
+                  slideKey={photos.length === 0 ? 0 : index}
+                  reduce={!!reduce}
+                  className={`${lineClass(line.kind)} ${blurCls}`}
+                  style={{ color: lineColor(line.kind), textShadow }}
+                />
+              )
+            )}
           </div>
         </AnimatePresence>
       </div>

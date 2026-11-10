@@ -58,18 +58,29 @@ Component nhận prop tùy chọn `photos?: string[]` (mặc định
 `[data.photoUrl]`, bỏ trùng) để QA được trường hợp nhiều ảnh và để sẵn
 cho lúc thiệp có nhiều ảnh; production không đổi hành vi.
 
-## Hiệu ứng chữ
+## Hiệu ứng chữ (2 kiểu, chọn qua `?tx=` trên trang khách)
 
-- Lúc hiện: **Scatter & Reform** — từng chữ cái (tách thành mảnh nhỏ)
-  bay về ghép lại thành chữ.
-- Lúc chuyển ảnh: **Shatter** — chữ vỡ vụn từng chữ cái rồi bay đi.
-- Làm NHẸ và CHẬM cho hợp trang trọng: mảnh lệch tối đa ±14px lúc tụ,
-  ±26px lúc vỡ, xoay ±10°/±22°, mỗi chữ 6 giây lúc vào, stagger 0,1
-  giây/chữ (dòng 20 chữ lắp xong trong ~8 giây); lúc ra tan nhanh
-  riêng 0,8 giây để chữ cũ không đè lên ảnh sau.
+Mặc định là **cát** (`sand`); `?tx=scatter` thì về bản Scatter & Reform
+chậm đã lưu; giá trị lạ → về cát.
+
+- **Cát — `sand` (mặc định, chị chốt 2026-11-10 theo mẫu cộng đồng Text
+  Particles)**: chữ được vẽ lên canvas ẩn rồi lấy mẫu điểm ảnh làm đích
+  cho từng hạt cát (chấm vuông 1–2px màu chữ, lệch sắc nhẹ). Lúc hiện,
+  hạt của từng chữ rơi NHẸ TỪ TRÊN XUỐNG (ease-out mềm, không lò xo nảy,
+  không nổ tung như mẫu gốc), các chữ tụ theo thứ tự từ trái sang phải —
+  cả dòng tụ xong trong ~6 giây rồi chữ đứng sắc nét ~3 giây (hạt tụ xong
+  thì chữ DOM thật mờ vào, hạt mờ đi). Lúc chuyển ảnh, chữ vỡ thành hạt
+  cát BAY LÊN rồi mờ dần trong ~2 giây, tan hết không đè lên ảnh sau.
+  Số hạt giới hạn (bước lấy mẫu ~3–4px, trần ~2600 hạt/dòng).
+- **Scatter chậm — `scatter` (đã lưu, PR #28)**: lúc hiện từng chữ cái
+  (tách thành mảnh nhỏ) bay về ghép lại thành chữ — mỗi chữ 6 giây lúc
+  vào, stagger 0,1 giây/chữ (dòng 20 chữ lắp xong trong ~8 giây); lúc ra
+  tan nhanh riêng 0,8 giây để chữ cũ không đè lên ảnh sau. Mảnh lệch tối
+  đa ±14px lúc tụ, ±26px lúc vỡ, xoay ±10°/±22°.
 - Chữ nhóm theo từ để dòng dài ngắt ở khoảng trắng giữa các từ (không
   vỡ giữa từ); hiệu ứng vẫn chạy từng chữ cái.
-- Dùng framer-motion (đã có sẵn), không thêm thư viện mới.
+- Dùng framer-motion (đã có sẵn) + Canvas 2D thuần cho cát, không thêm
+  thư viện mới.
 - Chữ chỉ dùng dữ liệu thật của thiệp (tên, ngày, giờ, địa điểm);
   demo/thư viện dùng `defaultInvitation` như hiện tại.
 
@@ -77,7 +88,8 @@ cho lúc thiệp có nhiều ảnh; production không đổi hành vi.
 
 - Cover chạy 1 lần trước slideshow; nút "Xem thiệp"/"Xem thiệp cưới"
   vào thiệp; nút "← Quay lại sửa thiệp" khi `fromWizard`.
-- `?fx=` đổi được hiệu ứng theo biến thể.
+- `?fx=` đổi được hiệu ứng theo biến thể; `?tx=sand|scatter` đổi được
+  hiệu ứng chữ (mặc định cát).
 - `prefers-reduced-motion`: hiện tĩnh, bấm để qua.
 - Không nhạc tự phát.
 
@@ -85,6 +97,10 @@ cho lúc thiệp có nhiều ảnh; production không đổi hành vi.
 
 - `src/components/IntroSlideshow.tsx` — viết lại thành scrapbook
   (Polaroid + chồng ảnh + `ShatterText` + nền đổi màu theo cảnh).
+- `src/components/SandText.tsx` (mới) — hiệu ứng chữ hạt cát (canvas);
+  `src/lib/intro.ts` — thêm `TextEffectId` / `resolveTextEffect`;
+  `src/components/GuestInvitationView.tsx` + `src/app/(app)/thiep/[id]/page.tsx`
+  — đọc `?tx=` truyền xuống slideshow.
 - `src/lib/intro.ts` — thêm `SLIDESHOW_SCENES`, `SLIDESHOW_PHRASES`,
   `SlideshowLine`, `getSlideshowSlides`.
 - `docs/slideshow-scrapbook.md` — file này.
@@ -115,3 +131,5 @@ hưởng cả luồng "Xem demo" trong wizard khi khách đã tải ảnh lên (
 sau nén vẫn là data-URI dài). Cần xử lý riêng (ví dụ: demo dùng
 sessionStorage thay vì nhét toàn bộ data vào URL, hoặc tăng
 `maxHeaderSize` của server).
+
+<!-- Ghi chú: commit này chỉ để Vercel build lại — lần build trước lỗi ngắt quãng ở next/font (không tải được Google Fonts lúc build), không đổi code. -->

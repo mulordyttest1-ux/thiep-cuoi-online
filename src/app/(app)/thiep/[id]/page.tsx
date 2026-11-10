@@ -7,6 +7,7 @@ import { MotionConfig } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation } from "@/lib/types";
 import { getVariantEffects, isEffectVariant } from "@/lib/templates";
+import { resolveTextEffect } from "@/lib/intro";
 import { decodeShare, loadInvitationById } from "@/lib/store";
 import GuestInvitationView from "@/components/GuestInvitationView";
 import { STATUS_LABEL, type InvitationStatus } from "@/lib/access";
@@ -29,6 +30,10 @@ function CardInner() {
   // le-hoi — xem docs/effect-variants-research.md): ghi đè preset của mẫu
   // CHỈ khi xem, không đổi dữ liệu thiệp. Giá trị lạ → bỏ qua.
   const fxOverride = fxParam && isEffectVariant(fxParam) ? getVariantEffects(fxParam) : undefined;
+  // Thử nhanh hiệu ứng chữ (?tx=sand|scatter — sand = hạt cát mặc định,
+  // scatter = Scatter & Reform chậm đã lưu): ghi đè CHỈ khi xem, không
+  // đổi dữ liệu thiệp. Giá trị lạ → về "sand".
+  const textEffectOverride = resolveTextEffect(search.get("tx"));
 
   useEffect(() => {
     let alive = true;
@@ -183,6 +188,7 @@ function CardInner() {
       guestName={guestName}
       serverMode={serverMode}
       effectsOverride={fxOverride}
+      textEffectOverride={textEffectOverride}
       blurred={search.get("blur") === "1"}
       fromWizard={search.get("from") === "wizard"}
     />
