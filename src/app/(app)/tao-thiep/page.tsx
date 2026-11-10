@@ -275,6 +275,49 @@ function EditorInner() {
     }
   };
 
+  // "Thiệp mới": chuyển sang làm thiệp cho khách tiếp theo — xóa trắng
+  // form + xóa id/link máy chủ trong trang. Thiệp cũ KHÔNG bị đụng: chỉ
+  // reset state trong trang, không xóa localStorage hay bản ghi máy chủ
+  // nào — mở lại link cũ vẫn thấy đúng dữ liệu cũ. Lưu tiếp theo tạo
+  // thiệp mới (saveInvitation sinh id mới khi data.id rỗng).
+  const onNewInvitation = () => {
+    const blank = emptyInvitation("minimal-do-do");
+    const isBlank = (Object.keys(blank) as (keyof InvitationData)[]).every((k) => data[k] === blank[k]);
+    if (isBlank) return;
+    if (
+      !window.confirm(
+        "Tạo thiệp mới sẽ xóa trắng form này để làm thiệp cho khách tiếp theo. Thiệp đang làm — nếu đã bấm Lưu thiệp / đồng bộ — vẫn còn nguyên trên máy chủ và trong Quản lý. Tiếp tục?"
+      )
+    ) {
+      return;
+    }
+    setData(blank);
+    setSavedId("");
+    setServerId("");
+    setServerStatus("");
+    setPreviewUrl("");
+    setServerEditUrl("");
+    setCustomerEditUrl("");
+    setGuestUrl("");
+    setPayInfo(null);
+    setShareLink("");
+    setEditLink("");
+    setNotice("Đã tạo thiệp mới trống — dán dữ liệu khách tiếp theo vào rồi bấm Lưu thiệp.");
+    setCepNotice("");
+    setCepWarning("");
+    setCepCopyNotice("");
+    setImportText("");
+    setImportMeta("");
+    setPlainImportText("");
+    setSvgPayload(null);
+    setPanelNotice("");
+    setReconcileRef("");
+    setReconcileReason("");
+    setReconcileNotice("");
+    setLinkSyncError("");
+    setLinkSyncBusy(false);
+  };
+
   const onCopy = async () => {
     try {
       const link = shareLink || buildShareUrl(window.location.origin, { ...data, id: savedId || "demo" });
@@ -716,6 +759,7 @@ function EditorInner() {
 
       <div className="flex flex-wrap gap-2 pt-2">
         <button type="button" onClick={onSave} className="rounded-full bg-[#7a1f2b] px-5 py-3 font-semibold text-white hover:bg-[#5e1620]">{d.saveCard}</button>
+        <button type="button" onClick={onNewInvitation} data-testid="new-invitation" className="rounded-full border px-5 py-3 font-semibold">＋ Thiệp mới</button>
         <button type="button" onClick={onCopy} className="rounded-full border-2 border-[#7a1f2b] px-5 py-3 font-semibold text-[#7a1f2b]">{d.copyLink}</button>
         <button type="button" onClick={onOpenCard} className="rounded-full border px-5 py-3 font-semibold">{d.openCard}</button>
         <button type="button" onClick={onCopyEditLink} className="rounded-full border px-5 py-3 font-semibold">Sao chép link cho khách sửa</button>
