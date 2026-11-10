@@ -182,12 +182,14 @@ export default function PrintFormPreview({
   );
 
   // Dòng tên khách dưới "Trân trọng kính mời": chưa có chữ thì 1 hàng
-  // chấm, có chữ thì hiện chữ đó trên gạch chấm dưới.
+  // chấm TƯỢNG TRƯNG — chỉ một nửa độ dài cũ (20 chấm, chị chốt
+  // 2026-11-10), vẫn căn giữa như cũ. Có chữ thì hiện chữ đó trên gạch
+  // chấm dưới.
   const guestName = ct("printGuestLine").trim();
   const guestLine = guestName ? (
     <span className={`border-b border-dotted px-1 pb-0.5 text-lg font-bold ${plain ? "border-black/70" : "border-[#710001]/70"}`}>{guestName}</span>
   ) : (
-    <span aria-hidden="true" className="tracking-[0.2em]">........................................</span>
+    <span aria-hidden="true" className="tracking-[0.2em]">....................</span>
   );
 
   // Câu kết tiệc: lời mời đã nhập thì hiện lời đó, chưa có thì dùng câu
@@ -200,7 +202,11 @@ export default function PrintFormPreview({
   // Dạng trơn: toàn bộ nội dung thiệp màu đen, một font hệ thống chuẩn của
   // trình duyệt (không serif, không đỏ, không nền kem, không viền đỏ,
   // không chữ nghiêng) để dấu tiếng Việt không vỡ trên điện thoại/máy tính.
-  const sectionCls = plain ? "text-center text-black" : "text-center font-serif text-[#ea1d25]";
+  // min-w-0 ở section + grid-cols-1 (minmax(0,1fr)): hai cột không được
+  // phình track grid theo min-content của nội dung (dòng chấm "Kính mời!"
+  // dài 447px từng làm cả form rộng 447px, tràn khung iPhone) — nội
+  // dung dài tự ngắt/clip trong khung thay vì đẩy khung rộng ra.
+  const sectionCls = plain ? "min-w-0 text-center text-black" : "min-w-0 text-center font-serif text-[#ea1d25]";
   const labelCls = plain ? "text-black" : "text-[#710001]";
   const italicCls = plain ? "" : " italic";
 
@@ -211,7 +217,7 @@ export default function PrintFormPreview({
       data-testid="print-form"
       data-plain={plain ? "true" : undefined}
     >
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
         {/* Cột LỄ */}
         <section aria-label="Lễ" className={sectionCls}>
           <div className="flex gap-4">
