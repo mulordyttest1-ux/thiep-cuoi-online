@@ -6,11 +6,14 @@
 // Gom thành 5 nhóm có tên ở đây để mẫu mới chỉ cần chọn một kiểu nền
 // là xong, khỏi nghĩ lại từ đầu.
 //
-// LƯU Ý: một biến thể thường XẾP CHỒNG nhiều kiểu nền (vd bìa le-nghi =
-// họa tiết phụng + Hỷ trên nền đỏ + gradient nắng + tia vàng/cánh hoa).
-// `background` trong VARIANT_PRESETS (templates.ts) chỉ tên kiểu nền
-// CHÍNH/đặc trưng nhất của biến thể đó; bảng dưới ghi rõ mỗi nhóm đang
-// dùng ở đâu để không nhầm lớp nền với lớp phủ.
+// QUY TẮC CHỒNG TẦNG (chị chốt 2026-11-10): 3 lớp (đáy / nội dung /
+// phủ) chỉ là 3 TẦNG CHÍNH — trong mỗi tầng, các tầng con của nó được
+// CHỒNG lên nhau theo thứ tự dưới lên trên. Lớp đáy cũng vậy: một biến
+// thể có thể có đáy = [màu đặc, gradient ánh sáng] hoặc [màu đặc, họa
+// tiết mẫu]. `background` trong VARIANT_PRESETS (templates.ts) vì vậy
+// là DANH SÁCH các nhóm nền xếp chồng (dưới lên trên), không phải một
+// id duy nhất; lớp dưới cùng thường là màu đặc (nền trơn của mẫu/cảnh).
+// Lớp phủ (`overlay`) cũng là danh sách — xem src/lib/layers.ts.
 
 import type { EffectVariant } from "./templates";
 
@@ -25,7 +28,8 @@ export interface BackgroundStyle {
   description: string;
   /** Đang dùng ở đâu trong app. */
   usedIn: string;
-  /** Biến thể nào lấy nhóm này làm kiểu nền chính. */
+  /** Biến thể nào dùng nhóm này trong lớp đáy (dù ở vị trí nào trong
+   *  danh sách chồng — xem VARIANT_PRESETS trong templates.ts). */
   variants: EffectVariant[];
 }
 
@@ -37,7 +41,7 @@ export const BACKGROUND_STYLES: BackgroundStyle[] = [
       "Nền một màu trơn, đổi màu theo từng ảnh/cảnh. Không họa tiết, không hạt.",
     usedIn:
       "Slideshow scrapbook — 4 màu trong SLIDESHOW_SCENES (src/lib/intro.ts): đỏ đậm #8c1d2f, hồng phấn #f9e8ec, trắng kem #fdf8f1, vàng hoàng hôn #f6d365; đổi theo từng ảnh.",
-    variants: ["toi-gian"],
+    variants: ["le-nghi", "hoa-bay", "anh-vang", "toi-gian", "dien-anh", "le-hoi"],
   },
   {
     id: "glow",
@@ -82,9 +86,9 @@ export function getBackgroundStyle(id: BackgroundGroupId): BackgroundStyle {
   return BACKGROUND_STYLES.find((s) => s.id === id) ?? BACKGROUND_STYLES[0];
 }
 
-/** Các kiểu nền chính của một biến thể — hiện mỗi biến thể có đúng 1
- *  kiểu nền chính (xem VARIANT_PRESETS), hàm này để sẵn cho lúc một
- *  biến thể cần nhiều kiểu nền chính. */
+/** Các kiểu nền của một biến thể trong lớp đáy — đọc từ danh sách
+ *  chồng của nó trong VARIANT_PRESETS (qua trường `variants` tĩnh của
+ *  catalog; giữ đồng bộ với templates.ts khi gán lại preset). */
 export function getVariantBackgrounds(variant: EffectVariant): BackgroundStyle[] {
   return BACKGROUND_STYLES.filter((s) => s.variants.includes(variant));
 }

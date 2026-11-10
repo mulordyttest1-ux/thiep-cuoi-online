@@ -1,6 +1,7 @@
 // MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, chị chủ chốt).
 //
-// Toàn bộ intro (cover + bộ sưu tập + vào thiệp) gồm 3 lớp xếp chồng:
+// Toàn bộ intro (cover + bộ sưu tập + vào thiệp) gồm 3 TẦNG CHÍNH xếp
+// chồng:
 //   1) LỚP ĐÁY (base) — nền: 5 nhóm trong src/lib/backgrounds.ts
 //      (Màu đặc, Gradient ánh sáng, Nền mờ từ ảnh, Hạt bay, Họa tiết
 //      của mẫu). Ví dụ scrapbook: đáy là blurred background.
@@ -12,9 +13,14 @@
 //      (gradient nắng SunFlare) và AmbientLayer (petals/sparkle/bokeh);
 //      gom thành catalog có tên ở file này.
 //
-// Một biến thể thường XẾP CHỒNG nhiều lớp phủ (vd bìa le-nghi = nắng +
-// tia vàng + cánh hoa). Vì vậy `overlay` trong VARIANT_PRESETS là DANH
-// SÁCH các lớp phủ biến thể đó dùng, không phải một id duy nhất.
+// QUY TẮC CHỒNG TẦNG (chị chốt 2026-11-10): 3 lớp trên chỉ là 3 TẦNG
+// CHÍNH — trong mỗi tầng, các tầng con của nó được CHỒNG lên nhau theo
+// thứ tự dưới lên trên. Lớp phủ đã là danh sách từ đầu (vd bìa le-nghi
+// = nắng + tia vàng + cánh hoa); lớp đáy từ nay cũng là DANH SÁCH (vd
+// [màu đặc, gradient ánh sáng] hoặc [màu đặc, họa tiết mẫu]); lớp nội
+// dung cũng chồng nhiều thành phần (dòng mời → ảnh → chữ → chấm trang
+// → nút). `getPresetLayers` vì vậy trả về cả 3 tầng, mỗi tầng là một
+// danh sách có thứ tự (dưới lên trên).
 // File này là điểm vào duy nhất của mô hình (re-export cả catalog nền).
 
 import type { EffectVariant, TemplateEffects } from "./templates";
@@ -84,15 +90,44 @@ export function getOverlayStyle(id: OverlayId): OverlayStyle {
   return OVERLAY_STYLES.find((s) => s.id === id) ?? OVERLAY_STYLES[0];
 }
 
-/** 3 lớp của một bộ hiệu ứng (đọc từ VARIANT_PRESETS): lớp đáy +
- *  lớp phủ. Lớp nội dung là slideshow, không nằm trong preset.
- *  Preset cũ thiếu trường thì đáy về "solid", phủ về [] (không phủ). */
+/** Các tầng con của lớp nội dung (slideshow), theo thứ tự chồng dưới
+ *  lên trên như đang render trong IntroSlideshow: dòng mời → chồng
+ *  ảnh Polaroid → chữ chạy → chấm trang → nút "Xem thiệp". Thứ tự này
+ *  cố định cho mọi biến thể (không nằm trong preset); thành phần nào
+ *  không có (vd chấm trang chỉ khi nhiều ảnh) thì bỏ qua khi render. */
+export type ContentLayerId = "invite" | "photos" | "text" | "dots" | "button";
+
+export const SLIDESHOW_CONTENT_LAYERS: ContentLayerId[] = [
+  "invite",
+  "photos",
+  "text",
+  "dots",
+  "button",
+];
+
+/** 3 tầng chính của một bộ hiệu ứng (đọc từ VARIANT_PRESETS): mỗi tầng
+ *  là một DANH SÁCH có thứ tự (dưới lên trên) — lớp đáy chồng nhiều
+ *  kiểu nền, lớp nội dung chồng các thành phần slideshow, lớp phủ
+ *  chồng nhiều lớp phủ. Preset cũ thiếu trường thì đáy về ["solid"],
+ *  phủ về [] (không phủ). `background` cũ dạng một id đơn (trước
+ *  2026-11-10) vẫn hiểu là danh sách 1 phần tử. */
 export function getPresetLayers(fx: TemplateEffects): {
-  background: import("./backgrounds").BackgroundGroupId;
+  background: import("./backgrounds").BackgroundGroupId[];
+  content: ContentLayerId[];
   overlay: OverlayId[];
 } {
+  const raw = fx.background as
+    | import("./backgrounds").BackgroundGroupId
+    | import("./backgrounds").BackgroundGroupId[]
+    | undefined;
+  const background: import("./backgrounds").BackgroundGroupId[] = Array.isArray(raw)
+    ? raw
+    : raw
+      ? [raw]
+      : ["solid"];
   return {
-    background: fx.background ?? "solid",
+    background: background.length > 0 ? background : ["solid"],
+    content: [...SLIDESHOW_CONTENT_LAYERS],
     overlay: fx.overlay ?? [],
   };
 }

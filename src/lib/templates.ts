@@ -68,10 +68,14 @@ export const VARIANT_LABELS: Record<EffectVariant, string> = {
 // gán 1 biến thể trong VARIANT_PRESETS; effects khai báo = preset đó.
 //
 // MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts): mỗi
-// preset mang 2 trường lớp — `background` (lớp đáy, kiểu nền chính) và
-// `overlay` (lớp phủ: danh sách các lớp phủ xếp chồng). Lớp nội dung
-// (slideshow Polaroid + chữ chạy) không nằm trong preset. Hai trường
-// này CHỈ ĐẶT TÊN cho hành vi hiện tại, không đổi mặc định mẫu nào.
+// preset mang 2 trường lớp — `background` (lớp đáy) và `overlay`
+// (lớp phủ). Cả hai đều là DANH SÁCH chồng theo thứ tự dưới lên trên
+// (quy tắc chồng tầng, chị chốt 2026-11-10): đáy thường bắt đầu bằng
+// màu đặc rồi chồng thêm gradient/họa tiết/hạt; phủ chồng nắng + tia
+// vàng + cánh hoa... Lớp nội dung (slideshow Polaroid + chữ chạy)
+// không nằm trong preset, thứ tự chồng cố định xem
+// SLIDESHOW_CONTENT_LAYERS trong layers.ts. Hai trường này CHỈ ĐẶT
+// TÊN cho hành vi hiện tại, không đổi mặc định mẫu nào.
 export interface TemplateEffects {
   burst?: { count?: number; colors?: string[]; duration?: number; spread?: number };
   ambient?: {
@@ -97,9 +101,10 @@ export interface TemplateEffects {
   // của lớp (phụng phải ×0.5, HOA ×0.2 — xem ParallaxLayer).
   cinema?: { pinned?: boolean; marquee?: boolean; grain?: boolean; chapters?: boolean };
   progressBar?: boolean;
-  /** Mô hình 3 lớp (xem src/lib/layers.ts): lớp đáy — kiểu nền chính
-   *  của biến thể (chỉ đặt tên, không đổi hành vi). */
-  background?: BackgroundGroupId;
+  /** Mô hình 3 lớp (xem src/lib/layers.ts): lớp đáy — các kiểu nền
+   *  xếp chồng dưới lên trên (lớp dưới cùng thường là màu đặc).
+   *  Chỉ đặt tên, không đổi hành vi. */
+  background?: BackgroundGroupId[];
   /** Mô hình 3 lớp: lớp phủ — các lớp phủ xếp chồng trên nội dung
    *  (ánh nắng, tia lấp lánh, cánh hoa, bokeh). Chỉ đặt tên hành vi
    *  hiện tại; render vẫn theo ambient/twinkle + SunFlare như cũ. */
@@ -152,7 +157,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.15, right: 0.24, hoa: 0.4 },
     cinema: { pinned: true, marquee: true, grain: true, chapters: true },
     progressBar: true,
-    background: "motif",
+    background: ["solid", "motif"],
     overlay: ["sun", "sparkle", "petals"],
   },
   "hoa-bay": {
@@ -164,7 +169,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.08, right: 0.12, hoa: 0.25 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
-    background: "particles",
+    background: ["solid", "particles"],
     overlay: ["sun", "petals"],
   },
   "anh-vang": {
@@ -177,7 +182,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.1, right: 0.15, hoa: 0.3 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
-    background: "particles",
+    background: ["solid", "particles"],
     overlay: ["sun", "bokeh", "sparkle"],
   },
   "toi-gian": {
@@ -188,7 +193,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: 0, right: 0, hoa: 0 },
     cinema: { pinned: false, marquee: false, grain: false, chapters: false },
     progressBar: true,
-    background: "solid",
+    background: ["solid"],
     overlay: ["sun"],
   },
   "dien-anh": {
@@ -200,7 +205,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.2, right: 0.3, hoa: 0.5 },
     cinema: { pinned: true, marquee: true, grain: true, chapters: true },
     progressBar: true,
-    background: "glow",
+    background: ["solid", "glow"],
     overlay: ["sun", "sparkle"],
   },
   "le-hoi": {
@@ -213,7 +218,7 @@ export const VARIANT_PRESETS: Record<EffectVariant, TemplateEffects> = {
     parallax: { left: -0.12, right: 0.18, hoa: 0.35 },
     cinema: { pinned: false, marquee: true, grain: false, chapters: false },
     progressBar: true,
-    background: "particles",
+    background: ["solid", "particles"],
     overlay: ["sun", "sparkle", "petals"],
   },
 };
