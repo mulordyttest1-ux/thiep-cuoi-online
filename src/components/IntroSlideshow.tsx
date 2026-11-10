@@ -22,7 +22,13 @@
 // rồi bay đi). Làm NHẸ và CHẬM (mảnh nhỏ, bay chậm, không loạn) cho hợp
 // trang trọng; framer-motion, không thêm thư viện. Chữ chỉ dùng dữ liệu
 // thật của thiệp; không có dữ liệu thì bỏ dòng đó (không bịa).
-// Giảm chuyển động: ảnh tĩnh, chữ đủ, không tự chuyển ảnh.
+// MÔ HÌNH 3 LỚP CHO INTRO (2026-11-10, xem src/lib/layers.ts):
+//   1) Lớp đáy — nền: prop `background` ("solid" = màu đặc đổi theo
+//      ảnh, mặc định; "blurred" = nền mờ từ chính ảnh đang hiện).
+//   2) Lớp nội dung — slideshow: ảnh Polaroid + chữ chạy (dưới đây).
+//   3) Lớp phủ — AmbientLayer theo fx, hoặc prop `overlay` truyền vào
+//      thì chỉ hiện các lớp phủ đó. Mặc định cả hai prop đều giữ hành
+//      vi hiện tại, không đổi gì khi không truyền.
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -31,6 +37,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns, type KenBurnsDirection } from "@/components/effects";
+import type { OverlayId } from "@/lib/layers";
 import {
   getIntroPreset,
   getSlideshowSlides,
@@ -126,6 +133,19 @@ export function IntroSlideshow({
    *  đó GuestInvitationView truyền album vào); QA cũng dùng nó để kiểm
    *  trường hợp 3/5 ảnh. Không truyền thì chỉ dùng photoUrl. */
   photos: photosProp,
+  /** Lớp đáy của slideshow — "solid" = nền màu đặc đổi theo ảnh
+   *  (mặc định, hành vi đã duyệt); "blurred" = nền mờ từ chính ảnh
+   *  đang hiện (phóng to tràn khung + blur + tối nhẹ, Ambient mode).
+   *  Nền mờ dùng lại ảnh đã tải, không tải thêm ảnh nào. */
+  background = "solid",
+  /** Lớp phủ tùy chọn — danh sách lớp phủ muốn hiện trong slideshow.
+   *  Không truyền = hành vi hiện tại (AmbientLayer theo fx). Truyền
+   *  vào thì chỉ hiện các lớp phủ đó; chỉ sparkle/petals/bokeh có tác
+   *  dụng ở slideshow ("sun" — nắng bìa — chỉ có ở IntroCover nên
+   *  truyền vào cũng không đổi gì). Lưu ý: bokeh thay thế tia/cánh
+   *  trong AmbientLayer nên ["bokeh", "sparkle"] chỉ hiện bokeh +
+   *  sao 4 cánh, không hiện tia vàng. */
+  overlay,
 }: {
   data: InvitationData;
   fx: TemplateEffects;
@@ -136,6 +156,8 @@ export function IntroSlideshow({
   /** Khách bấm "Xem thiệp" → vào nội dung thiệp. */
   onEnter: () => void;
   photos?: string[];
+  background?: "solid" | "blurred";
+  overlay?: OverlayId[];
 }) {
   const reduce = useReducedMotion();
   const tpl = getTemplate(data.templateId);
@@ -179,7 +201,43 @@ export function IntroSlideshow({
   );
   const currentLines = photos.length === 0 ? allCoreLines : (slides[index] ?? []);
 
+  // Lớp phủ — mặc định theo fx (AmbientLayer như hiện tại); truyền
+  // prop overlay vào thì chỉ hiện các lớp phủ đó. Bokeh thay thế
+  // tia/cánh trong AmbientLayer (xem ghi chú ở prop overlay).
+  const overlayFx = useMemo<TemplateEffects>(() => {
+    if (!overlay) return fx;
+    const wantSparkle = overlay.includes("sparkle");
+    const wantPetals = overlay.includes("petals");
+    const wantBokeh = overlay.includes("bokeh");
+    if (!wantSparkle && !wantPetals && !wantBokeh) {
+      return { ...fx, ambient: undefined, twinkle: undefined };
+    }
+    const kind = wantBokeh
+      ? "bokeh"
+      : wantSparkle && wantPetals
+        ? "both"
+        : wantSparkle
+          ? "sparkle"
+          : "petals";
+    return {
+      ...fx,
+      ambient: {
+        count: fx.ambient?.count ?? 12,
+        speed: fx.ambient?.speed,
+        kind,
+        petals: fx.ambient?.petals ?? 6,
+        petalColors: fx.ambient?.petalColors,
+      },
+      twinkle: wantSparkle ? (fx.twinkle ?? { count: 10 }) : undefined,
+    };
+  }, [overlay, fx]);
+
+  // Lớp đáy "blurred": nền sau Polaroid là chính ảnh đang hiện, phóng
+  // to tràn khung + blur + tối nhẹ. Không có ảnh thì về nền cover.
+  const blurredBg = background === "blurred" && photos.length > 0;
+
   // Nền từng cảnh đổi màu theo ảnh; không có ảnh thì nền cover của mẫu.
+  // Đáy blurred thì chữ luôn trắng trên nền tối (ảnh đã tối đi).
   const scene = SLIDESHOW_SCENES[index % SLIDESHOW_SCENES.length];
   const colors =
     photos.length === 0
@@ -188,8 +246,13 @@ export function IntroSlideshow({
           muted: preset.darkBg ? "rgba(255,255,255,0.85)" : "rgba(90,31,43,0.72)",
           accent: preset.darkBg ? "#f6d365" : "#c9a86a",
         }
-      : { text: scene.text, muted: scene.muted, accent: scene.accent };
-  const textShadow = scene.dark || (photos.length === 0 && preset.darkBg) ? "0 2px 12px rgba(0,0,0,0.45)" : undefined;
+      : blurredBg
+        ? { text: "#ffffff", muted: "rgba(255,255,255,0.85)", accent: "#f6d365" }
+        : { text: scene.text, muted: scene.muted, accent: scene.accent };
+  const textShadow =
+    blurredBg || scene.dark || (photos.length === 0 && preset.darkBg)
+      ? "0 2px 12px rgba(0,0,0,0.45)"
+      : undefined;
 
   // Hướng Ken Burns đổi theo ảnh để không đơn điệu; dien-anh lia chậm
   // ngang (kiểu váy cưới: ảnh dài lia chậm), các biến thể khác zoom nhẹ.
@@ -222,14 +285,54 @@ export function IntroSlideshow({
     <div
       className="relative flex min-h-[100dvh] flex-col overflow-hidden"
       style={{
-        background: photos.length === 0 ? preset.coverBg : scene.bg,
+        background: photos.length === 0 ? preset.coverBg : blurredBg ? "#141414" : scene.bg,
         transition: "background-color 1s ease",
       }}
       onClick={advance}
     >
-      {/* Lớp sáng theo biến thể phủ lên ảnh. */}
+      {/* Lớp đáy "blurred": chính ảnh đang hiện, phóng to tràn khung +
+          blur + tối nhẹ, làm nền sau Polaroid. Dùng lại ảnh đã tải
+          (không tải thêm). Giảm chuyển động: đổi ảnh tức thì, không
+          chuyển mờ. Lớp này nằm dưới cùng (trước cả lớp phủ). */}
+      {blurredBg && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+          style={{ background: "#141414" }}
+        >
+          {reduce ? (
+            <img
+              src={photos[index]}
+              alt=""
+              className="h-full w-full object-cover"
+              style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.25)" }}
+            />
+          ) : (
+            <AnimatePresence>
+              <motion.div
+                key={photos[index]}
+                className="absolute inset-0"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.9 }}
+              >
+                <img
+                  src={photos[index]}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.25)" }}
+                />
+              </motion.div>
+            </AnimatePresence>
+          )}
+          <div className="absolute inset-0 bg-black/25" />
+        </div>
+      )}
+
+      {/* Lớp phủ theo biến thể (hoặc prop overlay) — phủ lên cả nội dung. */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        <AmbientLayer fx={fx} templateId={data.templateId} />
+        <AmbientLayer fx={overlayFx} templateId={data.templateId} />
       </div>
 
       {/* Dòng mời — giữ nguyên như trước. */}
