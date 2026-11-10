@@ -131,3 +131,5 @@ hưởng cả luồng "Xem demo" trong wizard khi khách đã tải ảnh lên (
 sau nén vẫn là data-URI dài). Cần xử lý riêng (ví dụ: demo dùng
 sessionStorage thay vì nhét toàn bộ data vào URL, hoặc tăng
 `maxHeaderSize` của server).
+
+<!-- Ghi chú: commit này chỉ để Vercel build lại — lần build trước lỗi ngắt quãng ở next/font (không tải được Google Fonts lúc build), không đổi code. -->
