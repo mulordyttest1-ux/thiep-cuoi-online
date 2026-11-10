@@ -7,15 +7,19 @@
 // bóng đổ nhẹ hiện ra lúc đáp rồi đứng yên. KHÔNG nảy đàn hồi, KHÔNG
 // xoay tròn, KHÔNG gấp 3D kiểu paper-cut, KHÔNG kiểu chữ cắt báo ransom.
 //
-// V2 — SỬA 2026-11-10 theo phản hồi trực tiếp của chị sau khi xem bản
-// live v1: chị "không thấy flip, chỉ thấy fall" và nhịp "bị khựt khựt".
-// Hai lỗi của v1 và cách sửa:
-//  (1) Flip không nhìn ra: v1 bắt đầu rotateX 78° (chữ chỉ bị bóp dẹt,
-//      vẫn đọc được) + fade-in opacity — nên mắt chỉ thấy chữ RƠI.
-//      V2 bắt đầu rotateX −90° (nhìn ngang cạnh tờ giấy, gần như chưa
-//      thấy mặt chữ) và KHÔNG fade-in (opacity giữ 1 suốt): cú LẬT
-//      chính là thứ làm chữ hiện ra. Perspective 450 (thay vì 700)
-//      cho nổi 3D rõ hơn; bản lề ở mép dưới chữ.
+// V3 — SỬA 2026-11-10 theo phản hồi trực tiếp của chị sau khi xem bản
+// live v2 trên điện thoại: "flip từ trái qua phải hoặc từ hư không chứ
+// nó xuất hiện cái dãy này xấu quá". "Cái dãy" = vệt ngang mỏng lúc mới
+// bắt đầu: v2 giữ opacity 1 suốt nên TẤT CẢ các chữ cùng hiện ra dưới
+// dạng vạch ngang mỏng (rotateX −90°) xếp thành một hàng ngang trên
+// slide. V3: mỗi chữ bắt đầu opacity 0 (VÔ HÌNH HOÀN TOÀN) và chỉ mờ
+// vào TRONG LÚC lật — keyframes opacity [0, 0, 1, 1] với times
+// [0, 0.25, 0.5, 1]: vô hình trong 25% đầu lúc còn gần như nhìn ngang
+// cạnh, mờ vào tới 50% lúc đã lật đủ để thấy rõ mặt chữ, rõ hẳn từ đó
+// tới lúc đáp phẳng. Quy tắc: KHÔNG BAO GIỜ có thời điểm nào chữ hiện
+// rõ (opacity ~1) trong khi rotateX còn gần −90° — đó chính là vệt
+// mỏng chị chê. Chữ chưa tới lượt thì vô hình; chữ chỉ xuất hiện khi
+// đang lật — lật từ trái qua phải, hoặc từ hư không lật vào.
 //  (2) Nhịp khựt khựt: v1 chia gap theo từng chữ (gap_i = 0,85 × 0,8^i)
 //      nên mỗi chữ là một đoạn riêng, giữa các chữ có khoảng chết.
 //      V2 dùng MỘT đường cong tiến độ chung cho cả dòng (xem startAt):
@@ -108,13 +112,20 @@ export function PaperText({
                     reduce
                       ? false
                       : {
-                          // KHÔNG opacity: chữ hiện ra nhờ cú lật, không phải fade-in.
+                          // V3: opacity 0 — chữ VÔ HÌNH tới khi tới lượt lật
+                          // (v2 giữ opacity 1 nên cả dòng hiện thành vệt
+                          // ngang mỏng lúc mới bắt đầu — chị chê xấu).
+                          opacity: 0,
                           y: Y_FROM,
                           rotateX: FLIP_FROM,
                           filter: "drop-shadow(0px 0px 0px rgba(0,0,0,0))",
                         }
                   }
                   animate={{
+                    // Mờ vào TRONG LÚC lật: vô hình 25% đầu (còn gần như
+                    // nhìn ngang cạnh), mờ vào tới 50% (đã lật đủ để thấy
+                    // rõ mặt chữ), rõ hẳn từ đó tới lúc đáp phẳng.
+                    opacity: [0, 0, 1, 1],
                     y: 0,
                     rotateX: 0,
                     filter: "drop-shadow(0px 3px 4px rgba(0,0,0,0.30))",
@@ -136,6 +147,10 @@ export function PaperText({
                     // lật đều (ease-in-out) để cú lật nhìn rõ suốt cú rơi.
                     y: { duration: DUR, delay, ease: [0.42, 0, 1, 1] },
                     rotateX: { duration: DUR, delay, ease: [0.65, 0, 0.35, 1] },
+                    // Opacity: keyframes [0, 0, 1, 1] với times [0, 0.25,
+                    // 0.5, 1] — vô hình 25% đầu, mờ vào tới 50%, rõ hẳn
+                    // sau đó. Delay ghi rõ riêng (không kế thừa).
+                    opacity: { duration: DUR, delay, times: [0, 0.25, 0.5, 1], ease: "linear" },
                     // Bóng đổ chỉ hiện dần trong đoạn cuối của cú rơi.
                     filter: { duration: 0.3, delay: delay + DUR - 0.3 },
                   }}
