@@ -20,7 +20,7 @@ các tầng con cho mỗi tầng là xong, khỏi nghĩ lại từ đầu. Catal
 |----|-----|-------|-----------------|---------------------------|
 | `solid` | Màu đặc | Nền một màu trơn, đổi màu theo từng ảnh/cảnh. | Slideshow scrapbook — 4 màu trong `SLIDESHOW_SCENES` (`src/lib/intro.ts`): đỏ đậm `#8c1d2f`, hồng phấn `#f9e8ec`, trắng kem `#fdf8f1`, vàng hoàng hôn `#f6d365`. | tất cả 6 biến thể (thường là lớp dưới cùng) |
 | `glow` | Gradient ánh sáng | Vệt nắng vàng loang từ trên xuống (radial/linear gradient). | Bìa intro — `SunFlare` theo biến thể (`src/components/IntroCover.tsx`): warm, petals, bokeh, thin, streak, festive. Slideshow cũng vẽ được tầng này (prop `background` có `"glow"`). | `dien-anh` |
-| `blurred-photo` | Nền mờ từ ảnh | Lấy chính tấm ảnh đang hiện, phóng to tràn khung, làm mờ + tối nhẹ, đặt làm nền sau ảnh nét (Ambient mode của YouTube). Nền tự ăn màu theo từng ảnh. | Slideshow — prop `background="blurred"` (tên cũ) hoặc `"blurred-photo"` của `IntroSlideshow` (mặc định vẫn là `solid`). | — (chưa gán cho biến thể nào) |
+| `blurred-photo` | Nền mờ từ ảnh | Lấy chính tấm ảnh đang hiện, phóng to SIÊU TO (scale ~2.2) tràn khung, làm mờ thật mạnh (blur ~56px) + tối nhẹ, đặt làm nền sau ảnh nét (Ambient mode của YouTube). Nền chỉ còn mảng màu mềm loang theo từng ảnh, không thấy chi tiết sắc nét của ảnh gốc. | Slideshow — MẶC ĐỊNH từ 2026-11-10 (trước đây chỉ bật khi truyền prop `background="blurred"`/`"blurred-photo"`). | cả 6 biến thể (mặc định slideshow) |
 | `particles` | Hạt bay | Hạt hiệu ứng bay/lấp lánh phủ trên nền: cánh hoa rơi, tia vàng 4 cánh, bokeh hào quang mờ, hoặc cả hai. | `AmbientLayer` (`src/components/effects/AmbientLayer.tsx`) — kind: petals / sparkle / bokeh / both. | `hoa-bay`, `anh-vang`, `le-hoi` |
 | `motif` | Họa tiết của mẫu | Màu nền + họa tiết riêng của từng mẫu: phượng, chữ Hỷ, hoa văn — dấu ấn nhận diện mẫu. | Bìa intro — `TemplateMotif` + nền cover theo biến thể (`IntroCover.tsx`, `INTRO_PRESETS.coverBg` trong `src/lib/intro.ts`); họa tiết từng mẫu khai báo trong `templates.ts` (motif, pattern, palette). | `le-nghi` |
 
@@ -59,27 +59,21 @@ phải một id duy nhất.
 
 | Biến thể | Lớp đáy (`background`, dưới lên trên) | Lớp phủ (`overlay`, dưới lên trên) |
 |----------|------------------------|---------------------|
-| `le-nghi` Truyền Thống Lễ Nghi | `solid`, `motif` | `sun`, `sparkle`, `petals` |
-| `hoa-bay` Lãng Mạn Hoa Bay | `solid`, `particles` | `sun`, `petals` |
-| `anh-vang` Sang Trọng Ánh Vàng | `solid`, `particles` | `sun`, `bokeh`, `sparkle` |
-| `toi-gian` Tối Giản Hiện Đại | `solid` | `sun` (vệt nắng mỏng, gần như không có) |
-| `dien-anh` Điện Ảnh Cuộn Chuyện | `solid`, `glow` | `sun`, `sparkle` |
-| `le-hoi` Lễ Hội Rực Rỡ | `solid`, `particles` | `sun`, `sparkle`, `petals` |
+| `le-nghi` Truyền Thống Lễ Nghi | `solid`, `blurred-photo`, `motif` | `sun`, `sparkle`, `petals` |
+| `hoa-bay` Lãng Mạn Hoa Bay | `solid`, `blurred-photo`, `particles` | `sun`, `petals` |
+| `anh-vang` Sang Trọng Ánh Vàng | `solid`, `blurred-photo`, `particles` | `sun`, `bokeh`, `sparkle` |
+| `toi-gian` Tối Giản Hiện Đại | `solid`, `blurred-photo` | `sun` (vệt nắng mỏng, gần như không có) |
+| `dien-anh` Điện Ảnh Cuộn Chuyện | `solid`, `blurred-photo`, `glow` | `sun`, `sparkle` |
+| `le-hoi` Lễ Hội Rực Rỡ | `solid`, `blurred-photo`, `particles` | `sun`, `sparkle`, `petals` |
 
-Cả hai trường chỉ đặt tên cho hành vi hiện tại — không đổi mặc định
-của mẫu nào: lớp dưới cùng của đáy luôn là màu đặc vốn đã có (nền
-trơn của mẫu/cảnh), các tầng trên là kiểu nền đã gán trước đây. Render
-vẫn theo `ambient`/`twinkle` + `SunFlare` như cũ; `getPresetLayers(fx)`
-trong `layers.ts` đọc cả 3 tầng từ một preset, mỗi tầng là một danh
-sách có thứ tự (dưới lên trên). `background` cũ dạng một id đơn vẫn
-hiểu là danh sách 1 phần tử.
+Hai trường đặt tên cho hành vi hiện tại; riêng `background` — hành vi thật do mặc định của `IntroSlideshow` quyết định: từ 2026-11-10 mặc định là `["solid", "blurred-photo"]`, tức nền mờ từ ảnh là mặc định cho mọi mẫu (solid nằm dưới làm nền dự phòng khi không có ảnh). Lớp dưới cùng của đáy luôn là màu đặc vốn đã có (nền trơn của mẫu/cảnh), các tầng trên là kiểu nền đã gán. Render vẫn theo `ambient`/`twinkle` + `SunFlare` như cũ; `getPresetLayers(fx)` trong `layers.ts` đọc cả 3 tầng từ một preset, mỗi tầng là một danh sách có thứ tự (dưới lên trên). `background` cũ dạng một id đơn vẫn hiểu là danh sách 1 phần tử.
 
 ## Ví dụ: scrapbook 3 lớp (chồng trong từng tầng)
 
 - **Đáy = [màu đặc, nền mờ từ ảnh]** (`background=["solid",
   "blurred-photo"]`, hay tên cũ `"blurred"`): màu cảnh ở dưới cùng,
-  chính ảnh cưới đang hiện phóng to tràn khung, blur 28px + tối đi,
-  chồng lên trên làm nền sau Polaroid.
+  chính ảnh cưới đang hiện phóng to SIÊU TO (scale 2.2) tràn khung,
+  blur 56px + tối đi, chồng lên trên làm nền sau Polaroid.
 - **Đáy = [màu đặc, gradient ánh sáng]** (`background=["solid",
   "glow"]`): màu cảnh ở dưới, vệt nắng vàng loang từ trên xuống chồng
   lên (bán trong suốt, màu dưới vẫn thấy).
@@ -95,7 +89,7 @@ nguyên như trước, không đổi.
 ## Prop mới của `IntroSlideshow`
 
 - `background?: SlideshowBackgroundLayer | SlideshowBackgroundLayer[]`
-  (mặc định `"solid"`, tức `["solid"]`): lớp đáy của slideshow, danh
+  (mặc định `["solid", "blurred-photo"]` từ 2026-11-10): lớp đáy của slideshow, danh
   sách chồng dưới lên trên. Mỗi phần tử: `"solid"` (màu đặc đổi theo
   ảnh), `"glow"` (gradient nắng vàng), `"blurred-photo"` (nền mờ từ
   chính ảnh đang hiện; `"blurred"` là tên cũ, vẫn chạy). `"particles"`/
@@ -112,5 +106,7 @@ nguyên như trước, không đổi.
 ## QA
 
 Xem `~/workspace/qa-screenshots-backgrounds/report.json` — mỗi nhóm nền
-và mỗi lớp phủ đều có ảnh chụp thấy được, mặc định slideshow không đổi
-(vẫn nền màu đặc + phủ theo `fx`), 0 lỗi JS.
+và mỗi lớp phủ đều có ảnh chụp thấy được (mặc định cũ: nền màu đặc +
+phủ theo `fx`), 0 lỗi JS. Từ 2026-11-10, mặc định slideshow đổi
+thành `["solid", "blurred-photo"]` (nền mờ từ ảnh siêu to) — xem
+`~/workspace/qa-screenshots-slideshow-blurred-bg/report.md`.
