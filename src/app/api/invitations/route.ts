@@ -44,16 +44,27 @@ export async function POST(req: Request) {
   }
 }
 
-/** Kiểm tra nhanh một thiệp có bản ghi máy chủ không (không trả dữ liệu). */
+/** Kiểm tra nhanh một thiệp có bản ghi máy chủ không (không trả dữ liệu).
+ *  Yêu cầu admin (phiên AdminGate / token) thì trả thêm link khách (?t=)
+ *  để editor lấy link có sẵn mà không phải ghi đè dữ liệu bằng upsert.
+ *  Link mang editToken nên người ngoài chỉ biết có/không, không thấy link. */
 export async function GET(req: Request) {
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ ok: false, error: "Thiếu id." }, { status: 400 });
   const rec = await getInvitation(id);
+  const admin = isAdminRequest(req);
+  const origin = originOf(req);
   return NextResponse.json({
     ok: true,
     id,
     exists: Boolean(rec),
     status: rec?.status ?? null,
     statusLabel: rec ? STATUS_LABEL[rec.status] : null,
+    ...(admin && rec
+      ? {
+          customerEditUrl: `${origin}/khach/${encodeURIComponent(rec.id)}?t=${rec.editToken}`,
+          editUrl: `${origin}/tao-thiep?edit=${encodeURIComponent(rec.id)}&t=${rec.editToken}`,
+        }
+      : {}),
   });
 }
