@@ -39,8 +39,10 @@
 //      tự chồng theo SLIDESHOW_CONTENT_LAYERS: dòng mời → ảnh →
 //      chữ → chấm trang → nút "Xem thiệp".
 //   3) Lớp phủ — AmbientLayer theo fx, hoặc prop `overlay` truyền vào
-//      thì chỉ hiện các lớp phủ đó. Mặc định cả hai prop đều giữ hành
-//      vi hiện tại, không đổi gì khi không truyền.
+//      thì chỉ hiện các lớp phủ đó. Mặc định: `background` là
+//      ["solid", "blurred-photo"] (nền mờ từ ảnh là mặc định từ
+//      2026-11-10, chị chốt đổi backdrop đáy sang ảnh blur siêu to);
+//      `overlay` không truyền thì giữ hành vi hiện tại.
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
@@ -173,14 +175,17 @@ export function IntroSlideshow({
    *  chồng tầng, chị chốt 2026-11-10). Mỗi phần tử là một tầng con:
    *  "solid" = nền màu đặc đổi theo ảnh; "glow" = gradient nắng vàng
    *  loang từ trên xuống (bán trong suốt, lớp dưới vẫn thấy);
-   *  "blurred-photo" = nền mờ từ chính ảnh đang hiện (phóng to tràn
-   *  khung + blur + tối nhẹ, Ambient mode). "particles"/"motif"
-   *  không vẽ được ở đáy slideshow (hạt bay thuộc lớp phủ, họa tiết
-   *  thuộc bìa) nên bỏ qua khi gặp. Giá trị đơn cũ vẫn chạy:
-   *  "solid" | "blurred" hiểu là danh sách 1 phần tử ("blurred" là
-   *  tên cũ của "blurred-photo"). Mặc định ["solid"] — hành vi đã
-   *  duyệt, không đổi gì khi không truyền. */
-  background: backgroundProp = "solid",
+   *  "blurred-photo" = nền mờ từ chính ảnh đang hiện (phóng to SIÊU
+   *  TO scale 2.2 + blur mạnh 56px + tối nhẹ, Ambient mode — nền chỉ
+   *  còn mảng màu mềm loang, không thấy chi tiết ảnh gốc).
+   *  "particles"/"motif" không vẽ được ở đáy slideshow (hạt bay
+   *  thuộc lớp phủ, họa tiết thuộc bìa) nên bỏ qua khi gặp. Giá trị
+   *  đơn cũ vẫn chạy: "solid" | "blurred" hiểu là danh sách 1 phần
+   *  tử ("blurred" là tên cũ của "blurred-photo"). Mặc định ["solid",
+   *  "blurred-photo"] — MẶC ĐỊNH từ 2026-11-10 (chị chốt đổi backdrop
+   *  đáy sang ảnh blur siêu to): solid nằm dưới làm nền dự phòng khi
+   *  không có ảnh, blurred-photo nằm trên khi có ảnh. */
+  background: backgroundProp = ["solid", "blurred-photo"],
   /** Lớp phủ tùy chọn — danh sách lớp phủ muốn hiện trong slideshow.
    *  Không truyền = hành vi hiện tại (AmbientLayer theo fx). Truyền
    *  vào thì chỉ hiện các lớp phủ đó; chỉ sparkle/petals/bokeh có tác
@@ -379,12 +384,13 @@ export function IntroSlideshow({
           màu cảnh/màu cover (đổi màu mượt 1s như container trước đây);
           "glow" = gradient nắng vàng loang từ trên xuống (bán trong
           suốt nên lớp dưới vẫn thấy); "blurred-photo" = chính ảnh đang
-          hiện, phóng to tràn khung + blur + tối nhẹ, làm nền sau
-          Polaroid — dùng lại ảnh đã tải (không tải thêm); giảm chuyển
-          động thì đổi ảnh tức thì, không chuyển mờ. "particles"/
-          "motif" không vẽ ở đáy slideshow (hạt bay thuộc lớp phủ, họa
-          tiết thuộc bìa) nên bỏ qua. Mặc định ["solid"] nên nhìn y
-          hệt trước khi đổi. */}
+          hiện, phóng to SIÊU TO (scale 2.2) + blur mạnh (56px) +
+          tối nhẹ, làm nền sau Polaroid — nền chỉ còn mảng màu mềm
+          loang, không thấy chi tiết ảnh gốc; dùng lại ảnh đã tải
+          (không tải thêm); giảm chuyển động thì đổi ảnh tức thì,
+          không chuyển mờ. "particles"/"motif" không vẽ ở đáy
+          slideshow (hạt bay thuộc lớp phủ, họa tiết thuộc bìa) nên
+          bỏ qua. Mặc định ["solid", "blurred-photo"] từ 2026-11-10. */}
       {baseLayers.map((layer) => {
         if (layer === "solid") {
           return (
@@ -419,7 +425,7 @@ export function IntroSlideshow({
                   src={photos[index]}
                   alt=""
                   className="h-full w-full object-cover"
-                  style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.25)" }}
+                  style={{ filter: "blur(56px) brightness(0.55)", transform: "scale(2.2)" }}
                 />
               ) : (
                 <AnimatePresence>
@@ -435,7 +441,7 @@ export function IntroSlideshow({
                       src={photos[index]}
                       alt=""
                       className="h-full w-full object-cover"
-                      style={{ filter: "blur(28px) brightness(0.55)", transform: "scale(1.25)" }}
+                      style={{ filter: "blur(56px) brightness(0.55)", transform: "scale(2.2)" }}
                     />
                   </motion.div>
                 </AnimatePresence>
