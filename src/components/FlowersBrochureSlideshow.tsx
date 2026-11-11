@@ -10,8 +10,12 @@
 //   rồi tan ra lộ ảnh mới; hướng quét XEN KẼ trái/phải theo từng lần
 //   chuyển — nằm trong thư viện chuyển cảnh (FlowerSweepOverlay).
 // - MỌI CẢNH CHỈ 1 ẢNH, chính giữa, viền trắng ~10px, nghiêng nhẹ xen
-//   kẽ ±1–2° theo cảnh. ẢNH ĐỨNG YÊN HOÀN TOÀN trong cảnh (không zoom,
-//   không lia, không Ken Burns — khác cả 3 kiểu cũ).
+//   kẽ ±1–2° theo cảnh. Ảnh trôi NHẸ liên tục trong cảnh (DriftRest
+//   ±3px/±0,5° — nguyên tắc chuyển ảnh, Nancy 2026-11-11: phân tích
+//   cũ ghi "đứng yên hoàn toàn" vì chỉ đo kích thước, không đo vị trí;
+//   mắt chị bắt được ảnh vẫn dập dìu nhẹ), và lúc chuyển thì cả khung
+//   trôi mạnh ±50px đúng chiều mây hoa quét. Không zoom, không lia,
+//   không Ken Burns — khác cả 3 kiểu cũ.
 // - Thẻ tiêu đề ĐỎ (dải đỏ mờ, chữ trắng) — vị trí luân phiên theo
 //   từng cảnh (trên-trái / dưới-phải / giữa-phải / dưới-giữa); trong
 //   app là dòng chữ của cảnh (tên/ngày/địa điểm, hệ chữ SandText/
@@ -27,7 +31,7 @@
 // nhẹ): bằng nền hồng phấn + đám mây hoa chuyển cảnh + thẻ tiêu đề đỏ.
 // KHÁC peach-heart: không tim pha lê, hoa chuyển là MÀN CHẮN quét
 // ngang (không phải hoa tung từ tâm); KHÁC warm-confession: không mờ
-// qua trắng, ảnh đứng yên (không zoom/lia/nhúc nhích); KHÁC comic:
+// qua trắng, ảnh chỉ trôi nhẹ (không zoom/lia/nhúc nhích mạnh); KHÁC comic:
 // không panel, không lật trang, không màn kết.
 //
 // Nhịp theo chuẩn app: mỗi ảnh giữ 12 giây (PHOTO_MS), không bê nhịp
@@ -43,6 +47,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer } from "@/components/effects";
+import { DriftRest, DriftSurge } from "@/components/effects/Drift";
 import { FlowerSweepOverlay } from "@/components/transitions";
 import { FLOWER_SWEEP, HEART_PATH } from "@/lib/transitions";
 import { SandText } from "@/components/SandText";
@@ -185,6 +190,9 @@ export function FlowersBrochureSlideshow({
   // lần chuyển (để overlay remount + chạy lại từ đầu); dir xen kẽ
   // trái/phải theo từng lần chuyển như video gốc (lần 1 từ phải).
   const [sweep, setSweep] = useState<{ key: number; dir: 1 | -1 } | null>(null);
+  // Đã quét lần nào chưa — cú trôi chuyển cảnh (DriftSurge) chỉ chạy
+  // từ lần chuyển đầu tiên (tránh ảnh trượt ngang lúc mới mở thiệp).
+  const [hasSwept, setHasSwept] = useState(false);
   const indexRef = useRef(0);
   indexRef.current = index;
   const sweepCountRef = useRef(0);
@@ -218,6 +226,7 @@ export function FlowersBrochureSlideshow({
     sweepCountRef.current += 1;
     const key = sweepCountRef.current;
     const dir: 1 | -1 = key % 2 === 1 ? 1 : -1; // lần 1 từ phải, lần 2 từ trái...
+    setHasSwept(true);
     setSweep({ key, dir });
     // Đổi ảnh NGAY LÚC đám mây che kín nhất (0,62s) — giấu sau đám
     // hoa, không bao giờ thấy 2 ảnh chồng nhau.
@@ -401,8 +410,16 @@ export function FlowersBrochureSlideshow({
       </motion.p>
 
       {/* Vùng cảnh: 1 ảnh duy nhất, chính giữa, viền trắng ~10px,
-          nghiêng nhẹ xen kẽ, ĐỨNG YÊN hoàn toàn (không zoom/lia).
-          Thẻ tiêu đề đỏ đè lên ảnh, vị trí luân phiên theo cảnh. */}
+          nghiêng nhẹ xen kẽ. DRIFT (nguyên tắc chuyển ảnh, Nancy
+          2026-11-11): lúc nghỉ ảnh trôi nhẹ liên tục (DriftRest
+          ±3px/±0,5°, 7s — bọc trong khung nên không đụng góc nghiêng);
+          lúc chuyển, CẢ KHUNG ẢNH trôi mạnh ±50px đúng CHIỀU mây hoa
+          đang quét (dir = 1: mây vào từ phải, ra bên trái → khung bắt
+          đầu lệch phải +50px rồi trôi sang trái; dir = −1 thì ngược
+          lại — DriftSurge, 1,3s = nhịp quét, chỉ từ lần chuyển đầu
+          tiên, ảnh đổi ở 620ms giấu sau đám hoa nên cú trôi lộ dần
+          cùng lúc đám hoa tan ra). Thẻ tiêu đề đỏ đè lên ảnh, vị trí
+          luân phiên theo cảnh. */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6">
         {photos.length === 0 ? (
           /* Không có ảnh: chỉ thẻ tiêu đề đỏ với đủ dòng chính trên nền hồng. */
@@ -413,12 +430,19 @@ export function FlowersBrochureSlideshow({
             {renderLines("empty")}
           </div>
         ) : (
+          <DriftSurge
+            sceneKey={index}
+            offset={{ x: 50 * (sweep?.dir ?? 1) }}
+            durationS={FLOWER_SWEEP.durationS}
+            disabled={!!reduce || !hasSwept}
+          >
           <div
             className="relative w-[min(78vw,600px)]"
             style={{ transform: `rotate(${tilt}deg)` }}
           >
             <div className="relative overflow-hidden rounded-[3px] bg-white p-2.5 shadow-[0_14px_40px_rgba(122,31,43,0.16)]">
               <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[2px]">
+                <DriftRest disabled={!!reduce} className="h-full w-full">
                 <img
                   src={currentPhoto}
                   alt=""
@@ -429,6 +453,7 @@ export function FlowersBrochureSlideshow({
                     e.currentTarget.style.display = "none";
                   }}
                 />
+                </DriftRest>
               </div>
               {/* Thẻ tiêu đề đỏ — dải đỏ mờ, chữ trắng, vị trí luân
                   phiên theo cảnh (trên-trái / dưới-phải / giữa-phải /
@@ -441,6 +466,7 @@ export function FlowersBrochureSlideshow({
               </div>
             </div>
           </div>
+          </DriftSurge>
         )}
       </div>
 
