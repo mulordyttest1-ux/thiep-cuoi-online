@@ -13,7 +13,16 @@
 // không nền màu cảnh/blur tối; chữ màu mận đậm trên nền sáng (thay vì
 // chữ trắng trên nền tối). KHÁC brochure lãng mạn: nền low-poly trắng/
 // bạc (không giấy kem), tim PHA LÊ nhiều mặt cắt (không tim đặc),
-// chuyển cảnh VỠ + LẮP GHÉP bằng mảnh (không đường chéo mảnh).
+// chuyển cảnh VỠ + LẮP GHÉP bằng mảnh (không đường chéo mảnh) —
+// ĐÚNG NHƯ VIDEO GỐC (xem kỹ từng khung hình 4–8s và 12–16s):
+// VỠ (tim → ảnh tràn): tim sáng trắng dần (wash) rồi tan; một DẢI
+// mảnh NHỎ (hàng chục mảnh 3–12px, xám đậm/hồng/tím/trắng) quét NGANG
+// từ trái sang phải như vệt nứt lan ra, kèm vài TẤM LỚN trong mờ
+// (mặt cắt pha lê) bong ra + mờ dần; ảnh mới lộ ra SAU lớp wash.
+// LẮP GHÉP (ảnh tràn → tim): dải mảnh nhỏ quét ngang bay VÀO, tụ lại
+// quanh hình tim; các tấm lớn mờ dần hiện ra xếp thành tim; ảnh mới
+// hiện dần TRONG hình tim. Chuyển theo hướng (target layout), không
+// phải nổ tròn tỏa ra từ tâm như bản cũ.
 // Chạy được với 1 ảnh (luôn tim pha lê); nhiều ảnh thì bố cục xen kẽ
 // theo chỉ số cảnh (chẵn: tim pha lê chứa ảnh + thẻ chữ; lẻ: ảnh tràn
 // khung + mảnh trôi + thẻ chữ). Nhịp theo chuẩn app: mỗi ảnh giữ 12
@@ -53,8 +62,34 @@ const INK = "#5e2a52";
 const INK_MUTED = "rgba(94,42,82,0.72)";
 /** Hồng viền thẻ chữ. */
 const ROSE = "#d9a0c8";
-/** Màu mảnh vỡ / cánh hoa (hồng đào, tím, trắng, xám đậm — như mẫu). */
-const SHARD_COLORS = ["#f6c6e8", "#b678d8", "#ffffff", "#e88fd0", "#3a3340", "#d9a0c8"];
+/** Màu cánh hoa trôi (hồng đào, tím, trắng — như mẫu). */
+const PETAL_COLORS = ["#f6c6e8", "#d9a0c8", "#ffffff", "#e8b4e0"];
+
+/** 6 TẤM LỚN (mặt cắt pha lê) — vị trí quanh tâm tim (offset px từ
+ *  tâm), xếp thành hình tim: 2 trên, 2 giữa, 2 dưới. VỠ: bong ra +
+ *  mờ dần. LẮP: mờ dần hiện ra xếp thành tim. */
+const PLATES: { x: number; y: number; size: number; rotate: number }[] = [
+  { x: -95, y: -75, size: 120, rotate: -18 },
+  { x: 95, y: -75, size: 110, rotate: 14 },
+  { x: -125, y: 5, size: 95, rotate: 24 },
+  { x: 125, y: 5, size: 130, rotate: -12 },
+  { x: -55, y: 105, size: 100, rotate: 30 },
+  { x: 55, y: 105, size: 90, rotate: -28 },
+];
+/** Màu tấm lớn — trắng/hồng/tím ĐẬM HƠN để đọc được trên nền wash
+ *  trắng (bản cũ quá nhạt nên chìm hẳn); drop-shadow tạo viền. */
+const PLATE_COLORS = [
+  "rgba(255,255,255,0.92)",
+  "rgba(246,198,232,0.9)",
+  "rgba(182,120,216,0.75)",
+  "rgba(255,255,255,0.85)",
+  "rgba(232,143,208,0.88)",
+  "rgba(214,143,216,0.8)",
+];
+/** Màu dải mảnh quét ngang — video gốc: dải mảnh CHỦ YẾU là mảnh xám
+ *  đậm/tím đậm, điểm hồng/trắng (bản cũ quá nhiều hồng nhạt/trắng nên
+ *  chìm trên nền wash sáng). */
+const STREAM_COLORS = ["#3a3340", "#3a3340", "#b678d8", "#a55fd0", "#e88fd0", "#f6c6e8", "#ffffff"];
 
 /** Giả ngẫu nhiên xác định từ số nguyên — ổn định giữa các lần render
  *  (copy từ ShatterText trong IntroSlideshow để scatter nhìn giống). */
@@ -295,35 +330,110 @@ export function PeachHeartSlideshow({
     </div>
   );
 
-  // Cụm mảnh vỡ lúc chuyển cảnh: ~14 mảnh tam giác bay ra ngoài từ
-  // tâm tim rồi mờ dần (~0,9s) — mô phỏng tim pha lê vỡ như mẫu.
-  const burst = !reduce && burstKey > 0 && (
-    <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 z-20">
-      {Array.from({ length: 14 }, (_, i) => {
-        const angle = (i / 14) * Math.PI * 2 + jitter(i + burstKey * 7, 0.35);
-        const dist = 130 + jitter(i * 3 + burstKey, 70);
-        return (
-          <motion.span
-            key={`${burstKey}-${i}`}
-            className="absolute block"
-            style={{
-              width: 12 + Math.abs(jitter(i * 5 + burstKey, 8)),
-              height: 12 + Math.abs(jitter(i * 11 + burstKey, 8)),
-              background: SHARD_COLORS[i % SHARD_COLORS.length],
-              clipPath: "polygon(50% 0, 100% 100%, 0 100%)",
-            }}
-            initial={{ x: 0, y: 0, opacity: 1, scale: 1, rotate: 0 }}
-            animate={{
-              x: Math.cos(angle) * dist,
-              y: Math.sin(angle) * dist,
-              opacity: 0,
-              scale: 0.4,
-              rotate: jitter(i * 13 + burstKey, 160),
-            }}
-            transition={{ duration: 0.9, ease: "easeOut" }}
-          />
-        );
-      })}
+  // DẢI MẢNH CHUYỂN CẢNH — đúng video gốc: hàng chục mảnh NHỎ (3–12px)
+  // xếp thành dải ngang, quét từ trái sang phải (mảnh trái chạy trước,
+  // tạo mặt sóng lan dần như vệt nứt). Xác định theo burstKey nên mỗi
+  // lần chuyển dải mảnh khác nhau nhưng ổn định trong lần đó.
+  const streamShards = useMemo(() => {
+    if (burstKey === 0) return [];
+    return Array.from({ length: 48 }, (_, i) => ({
+      leftPct: 2 + ((i * 37 + burstKey * 13) % 92),
+      // Dải ngang HẸP (36–62% chiều cao) như vệt nứt trong video — bản
+      // cũ rải 28–72% nên dải mảnh loãng, không thành vệt.
+      topPct: 36 + ((i * 53 + burstKey * 7) % 26),
+      size: 4 + ((i * 29 + burstKey * 5) % 10),
+      delay: ((2 + ((i * 37 + burstKey * 13) % 92)) / 100) * 0.35,
+      dx: 150 + ((i * 41 + burstKey * 3) % 170),
+      dy: jitter(i * 7 + burstKey * 3, 26),
+      rot: jitter(i * 11 + burstKey, 170),
+      color: STREAM_COLORS[(i + burstKey) % STREAM_COLORS.length],
+      petal: i % 3 === 0,
+    }));
+  }, [burstKey]);
+
+  // LỚP CHUYỂN CẢNH — phủ toàn slide, chạy 1 lần mỗi khi đổi ảnh
+  // (key = burstKey nên remount + chạy lại). Theo hướng đích:
+  // - target "full" (tim → ảnh tràn) = VỠ: wash trắng đỉnh 0,5; dải
+  //   mảnh quét ngang bay RA + mờ dần; tấm lớn bong ra + mờ dần.
+  // - target "heart" (ảnh tràn → tim) = LẮP GHÉP: wash nhẹ 0,3; dải
+  //   mảnh quét ngang bay VÀO + mờ dần lúc "đáp" vào tim; tấm lớn mờ
+  //   dần hiện ra xếp thành tim rồi tan vào tim thật (tim vào sau,
+  //   delay 0,65s). Mọi phần tử kết thúc ở opacity 0 nên lớp phủ có
+  //   ở lại cũng vô hình. Tắt hẳn khi giảm chuyển động.
+  const isAssemble = layout === "heart";
+  const transitionOverlay = !reduce && burstKey > 0 && (
+    <div key={burstKey} aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+      {/* Wash trắng: tim sáng trắng dần rồi tan (VỠ) / nền mờ nhẹ (LẮP). */}
+      <motion.div
+        className="absolute inset-0 bg-white"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isAssemble ? [0, 0.3, 0] : [0, 0.5, 0.12, 0] }}
+        transition={{
+          duration: isAssemble ? 0.8 : 1.0,
+          times: isAssemble ? [0, 0.3, 1] : [0, 0.35, 0.65, 1],
+          ease: "easeInOut",
+        }}
+      />
+      {/* Tấm lớn (mặt cắt pha lê): VỠ = bong ra + mờ dần; LẮP = mờ dần
+          hiện ra xếp thành tim rồi tan vào tim thật. */}
+      {PLATES.map((p, i) => (
+        <motion.span
+          key={`plate-${i}`}
+          className="absolute block"
+          style={{
+            left: "50%",
+            top: "46%",
+            width: p.size,
+            height: p.size,
+            marginLeft: -p.size / 2,
+            marginTop: -p.size / 2,
+            background: PLATE_COLORS[i % PLATE_COLORS.length],
+            clipPath: "polygon(50% 0, 100% 100%, 0 100%)",
+            filter: "drop-shadow(0 0 6px rgba(165,95,208,0.35))",
+          }}
+          initial={
+            isAssemble
+              ? { x: p.x * 0.45, y: p.y * 0.45, opacity: 0, scale: 1.28, rotate: p.rotate + 18 }
+              : { x: 0, y: 0, opacity: 0.7, scale: 1, rotate: p.rotate }
+          }
+          animate={
+            isAssemble
+              ? { x: 0, y: 0, opacity: [0, 0.7, 0.7, 0], scale: 1, rotate: p.rotate }
+              : { x: p.x * 0.45, y: p.y * 0.45, opacity: [0.7, 0.7, 0], scale: 1.28, rotate: p.rotate + 18 }
+          }
+          transition={{
+            duration: isAssemble ? 1.2 : 1.0,
+            delay: isAssemble ? 0.15 : 0,
+            times: isAssemble ? [0, 0.15, 0.75, 1] : [0, 0.5, 1],
+            ease: isAssemble ? "easeOut" : "easeIn",
+          }}
+        />
+      ))}
+      {/* Dải mảnh nhỏ quét ngang trái→phải. VỠ: hiện rồi mờ dần khi bay
+          ra. LẮP: mờ dần hiện ra khi bay vào rồi mờ dần lúc "đáp". */}
+      {streamShards.map((s, i) => (
+        <motion.span
+          key={`shard-${i}`}
+          className="absolute block"
+          style={{
+            left: `${s.leftPct}%`,
+            top: `${s.topPct}%`,
+            width: s.size,
+            height: s.size,
+            background: s.color,
+            clipPath: s.petal ? undefined : "polygon(50% 0, 100% 100%, 0 100%)",
+            borderRadius: s.petal ? "60% 0 60% 0" : undefined,
+          }}
+          initial={{ x: 0, y: 0, opacity: 0, rotate: 0 }}
+          animate={{ x: s.dx, y: s.dy, opacity: [0, 1, 1, 0], rotate: s.rot }}
+          transition={{
+            duration: isAssemble ? 1.0 : 0.9,
+            delay: s.delay,
+            times: isAssemble ? [0, 0.2, 0.7, 1] : [0, 0.15, 0.65, 1],
+            ease: "easeOut",
+          }}
+        />
+      ))}
     </div>
   );
 
@@ -342,7 +452,7 @@ export function PeachHeartSlideshow({
               top: `${4 + Math.abs(jitter(i * 23, 40))}%`,
               width: size,
               height: size * 0.8,
-              background: ["#f6c6e8", "#d9a0c8", "#ffffff", "#e8b4e0"][i % 4],
+              background: PETAL_COLORS[i % 4],
               borderRadius: "60% 0 60% 0",
               opacity: 0.55 + Math.abs(jitter(i * 29, 0.3)),
             }}
@@ -357,6 +467,9 @@ export function PeachHeartSlideshow({
   // Tim pha lê chứa ảnh: ảnh clip theo hình tim + lớp phủ mặt cắt
   // (gradient hồng→tím nhạt + tam giác facet + viền sáng) + glow mờ
   // phía sau; tim phập phồng nhẹ như mẫu (tắt khi giảm chuyển động).
+  // Ảnh trong tim crossfade theo key (vào muộn 0,65s khi LẮP GHÉP —
+  // tim hiện dần sau khi dải mảnh tụ lại, như video gốc; lúc mới mở
+  // thì hiện ngay, không delay).
   const crystalHeart = (heartClass: string) =>
     currentPhoto ? (
       <motion.div
@@ -364,44 +477,55 @@ export function PeachHeartSlideshow({
         animate={reduce ? undefined : { scale: [1, 1.03, 1] }}
         transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
       >
-        {/* Glow hồng mờ sau tim. */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-[-8%] rounded-full"
-          style={{
-            background: "radial-gradient(closest-side, rgba(232,143,208,0.45), rgba(165,95,208,0.12) 60%, transparent 75%)",
-            filter: "blur(10px)",
-          }}
-        />
-        <div className="relative h-full w-full overflow-hidden" style={{ clipPath: `url(#${heartId})` }}>
-          <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
-            <img
-              src={currentPhoto}
-              alt=""
-              loading="eager"
-              referrerPolicy="no-referrer"
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
+        <AnimatePresence>
+          <motion.div
+            key={currentPhoto}
+            className="absolute inset-0"
+            initial={reduce ? false : { opacity: 0, scale: 1.07 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.03, transition: { duration: reduce ? 0 : 0.6, ease: "easeIn" } }}
+            transition={{ duration: reduce ? 0 : 0.7, delay: reduce || burstKey === 0 ? 0 : 0.65, ease: "easeOut" }}
+          >
+            {/* Glow hồng mờ sau tim. */}
+            <div
+              aria-hidden="true"
+              className="absolute inset-[-8%] rounded-full"
+              style={{
+                background: "radial-gradient(closest-side, rgba(232,143,208,0.45), rgba(165,95,208,0.12) 60%, transparent 75%)",
+                filter: "blur(10px)",
               }}
             />
-          </KenBurns>
-          {/* Lớp pha lê phủ lên ảnh: gradient hồng→tím nhạt + mặt cắt. */}
-          <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <defs>
-              <linearGradient id={`${facetId}-grad`} x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#f7b8e4" stopOpacity="0.34" />
-                <stop offset="45%" stopColor="#ec8fd6" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#a55fd0" stopOpacity="0.3" />
-              </linearGradient>
-            </defs>
-            <path d={HEART_PATH} fill={`url(#${facetId}-grad)`} />
-            {FACETS.map((f, i) => (
-              <polygon key={i} points={f.points} fill={f.fill} opacity={f.opacity} />
-            ))}
-            <path d={HEART_PATH} fill="none" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="0.7" />
-          </svg>
-        </div>
+            <div className="relative h-full w-full overflow-hidden" style={{ clipPath: `url(#${heartId})` }}>
+              <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
+                <img
+                  src={currentPhoto}
+                  alt=""
+                  loading="eager"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+              </KenBurns>
+              {/* Lớp pha lê phủ lên ảnh: gradient hồng→tím nhạt + mặt cắt. */}
+              <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id={`${facetId}-grad`} x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#f7b8e4" stopOpacity="0.34" />
+                    <stop offset="45%" stopColor="#ec8fd6" stopOpacity="0.22" />
+                    <stop offset="100%" stopColor="#a55fd0" stopOpacity="0.3" />
+                  </linearGradient>
+                </defs>
+                <path d={HEART_PATH} fill={`url(#${facetId}-grad)`} />
+                {FACETS.map((f, i) => (
+                  <polygon key={i} points={f.points} fill={f.fill} opacity={f.opacity} />
+                ))}
+                <path d={HEART_PATH} fill="none" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="0.7" />
+              </svg>
+            </div>
+          </motion.div>
+        </AnimatePresence>
       </motion.div>
     ) : null;
 
@@ -460,7 +584,6 @@ export function PeachHeartSlideshow({
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6 py-6 sm:flex-row sm:gap-10">
           {crystalHeart("h-[36dvh] w-[min(78vw,340px)] sm:h-[54dvh] sm:w-[min(42vw,440px)]")}
           <div className="relative w-full max-w-md sm:w-[42%]">{textCard()}</div>
-          {burst}
         </div>
       ) : (
         /* Bố cục ảnh tràn khung: ảnh tràn + vignette trắng mềm + mảnh
@@ -475,7 +598,7 @@ export function PeachHeartSlideshow({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: 0.9 }}
+                  transition={{ duration: reduce ? 0 : 0.8, delay: reduce || burstKey === 0 ? 0 : 0.45 }}
                 >
                   <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
                     <img
@@ -503,9 +626,11 @@ export function PeachHeartSlideshow({
             </div>
           )}
           <div className="relative mx-auto w-full max-w-md px-6 pb-2">{textCard()}</div>
-          {burst}
         </div>
       )}
+
+      {/* Lớp chuyển cảnh VỠ / LẮP GHÉP — phủ toàn slide mỗi khi đổi ảnh. */}
+      {transitionOverlay}
 
       {/* Chấm trang — chỉ khi có nhiều ảnh. */}
       {photos.length > 1 && (

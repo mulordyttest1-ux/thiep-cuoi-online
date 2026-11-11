@@ -15,9 +15,21 @@
 //
 // NHỊP CHẬM THEO CHUẨN APP (không bê nhịp gốc): video gốc nhanh
 // (12,7s chứa ~8 ảnh + 4 câu + màn kết, mỗi ghi chú ~2,5s); bản này
-// mỗi TRANG giữ 12 giây (PHOTO_MS) như slideshow Polaroid, chuyển
-// trang trượt + fade 0,9s, chữ dùng hiệu ứng chữ sẵn có (sand/paper/
-// scatter) với nhịp đáp chung TEXT_PACE_*.
+// mỗi TRANG giữ 12 giây (PHOTO_MS) như slideshow Polaroid, chữ dùng
+// hiệu ứng chữ sẵn có (sand/paper/scatter) với nhịp đáp chung
+// TEXT_PACE_*.
+//
+// CHUYỂN TRANG THEO ĐÚNG VIDEO (đã đối chiếu từng khung hình
+// preview.mp4 — t3.3/t3.7, t5.8/t6.0/t6.4, t9.5/t10.0, f_09): camera
+// LIA NHẸ liên tục (zoom chậm + lia ngang, không bao giờ đứng yên);
+// đổi trang = trang cũ XOAY CHÉO trượt đi + trang mới trượt vào,
+// chồng nhau trong cùng 0,9s (không mode="wait", không khoảng trống),
+// TRÁI TIM outline lớn + chữ "love" QUÉT NGANG làm màn chắn giữa lúc
+// chuyển; panel TRƯỢT VÀO từ các hướng khác nhau theo nhịp (stagger
+// 0,12s: lớn từ trái, nhỏ từ phải/dưới), ghi chú vàng pop-in sau khi
+// panel đáp; màn kết: nền đỏ TRÀN VÀO từ trái sau cú quét tim (wipe
+// clip-path 0,9s, không cắt cứng nền), chữ thư pháp hiện lên với nét
+// chữ LẤP ĐẦY BẰNG MẢNH ẢNH rồi chuyển trắng đặc sau 0,7s.
 //
 // CẤU TRÚC CẢNH: ảnh chia thành các trang, mỗi trang tối đa 3 panel
 // (1 ảnh = 1 panel lớn + ghi chú; 2 ảnh = 2 panel ngang; 3 ảnh = 1
@@ -158,6 +170,94 @@ function HeartDoodle({ className = "" }: { className?: string }) {
         strokeLinecap="round"
       />
     </svg>
+  );
+}
+
+/** Trái tim vẽ tay QUÉT NGANG giữa lúc chuyển trang — như mẫu lúc
+ *  đổi cảnh (t≈6,0s): trái tim outline lớn + chữ "love" quét qua khung
+ *  hình làm màn chắn, trang cũ xoay chéo trượt đi, trang mới trượt vào.
+ *  Chạy đúng 0,9s chuyển trang: từ trái sang phải, vừa xoay nhẹ vừa
+ *  phóng to, mờ dần ở cuối. Chỉ trang trí — không chặn bấm. */
+function HeartSweep({ tone = "red" }: { tone?: "red" | "white" }) {
+  const stroke = tone === "white" ? "rgba(255,255,255,0.9)" : "#e63946";
+  return (
+    <motion.div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center overflow-hidden"
+      initial={{ opacity: 0 }}
+      animate={{
+        opacity: [0, 0.9, 0.9, 0],
+        x: ["-32%", "0%", "12%", "38%"],
+        rotate: [-8, -2, 2, 8],
+        scale: [0.7, 1, 1.15, 1.3],
+      }}
+      transition={{ duration: 0.9, times: [0, 0.25, 0.6, 1], ease: "easeInOut" }}
+    >
+      <svg viewBox="0 0 100 100" className="h-[62vmin] w-[62vmin]">
+        <path d={HEART_PATH} fill="none" stroke={stroke} strokeWidth="3.5" strokeLinejoin="round" />
+        <path
+          d="M28 30 C24 34 22 40 24 46"
+          fill="none"
+          stroke={stroke}
+          strokeWidth="3"
+          strokeLinecap="round"
+          opacity="0.6"
+        />
+      </svg>
+      <span className="absolute font-display text-3xl italic" style={{ color: stroke }}>
+        love
+      </span>
+    </motion.div>
+  );
+}
+
+/** Panel TRƯỢT VÀO theo hướng riêng + stagger — như mẫu: mỗi panel
+ *  vào từ một hướng khác nhau theo nhịp (lớn từ trái, nhỏ từ phải/
+ *  dưới). Bọc ngoài ComicPanel — góc nghiêng của panel giữ nguyên
+ *  bên trong. Ảnh ở trạng thái nghỉ luôn opacity 1; chỉ lúc vào
+ *  (0,65s) mới trượt + dissolve — đó là hiệu ứng chuyển. */
+function PanelEnter({
+  from,
+  delay,
+  reduce,
+  children,
+}: {
+  from: "left" | "right" | "bottom";
+  delay: number;
+  reduce: boolean;
+  children: React.ReactNode;
+}) {
+  const offset =
+    from === "left" ? { x: -70, y: 0 } : from === "right" ? { x: 70, y: 0 } : { x: 0, y: 60 };
+  return (
+    <motion.div
+      className="h-full w-full"
+      initial={
+        reduce
+          ? false
+          : { opacity: 0, ...offset, rotate: from === "left" ? -3 : from === "right" ? 3 : 0 }
+      }
+      animate={{ opacity: 1, x: 0, y: 0, rotate: 0 }}
+      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+/** Máy quay LIA NHẸ qua trang trong suốt 12s — như mẫu: camera không
+ *  bao giờ đứng yên (zoom chậm + lia ngang). Chỉ chạy lúc nghỉ; lúc
+ *  chuyển trang thì transform của trang cha lo. */
+function PageDrift({ reduce, children }: { reduce: boolean; children: React.ReactNode }) {
+  return (
+    <motion.div
+      className="flex w-full flex-col items-center justify-center gap-6"
+      initial={false}
+      animate={reduce ? { scale: 1, x: 0 } : { scale: [1, 1.05], x: [0, -10] }}
+      transition={reduce ? { duration: 0 } : { duration: 12, ease: "linear" }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -370,7 +470,7 @@ export function ComicDiarySlideshow({
       style={{ background: NOTE_YELLOW, borderColor: INK }}
       initial={reduce ? false : { scale: 0.8, rotate: -6, opacity: 0 }}
       animate={{ scale: 1, rotate: -2, opacity: 1 }}
-      transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.4 }}
+      transition={{ type: "spring", stiffness: 260, damping: 18, delay: 0.55 }}
     >
       {/* Miếng băng dán trên đầu ghi chú. */}
       <div
@@ -386,11 +486,11 @@ export function ComicDiarySlideshow({
     <div
       className="relative flex min-h-[100dvh] flex-col overflow-hidden"
       style={{
-        background: isFinale ? FINALE_RED : PAPER_BG,
+        // Nền giấy kem luôn — màn đỏ quét vào bằng lớp phủ riêng (không
+        // cắt cứng nền lúc sang màn kết).
+        background: PAPER_BG,
         // Vân giấy chấm mờ trên nền.
-        backgroundImage: isFinale
-          ? "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1.4px)"
-          : "radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1.4px)",
+        backgroundImage: "radial-gradient(rgba(0,0,0,0.05) 1px, transparent 1.4px)",
         backgroundSize: "9px 9px",
       }}
       onClick={advance}
@@ -399,6 +499,28 @@ export function ComicDiarySlideshow({
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-[5]">
         <AmbientLayer fx={fx} templateId={data.templateId} />
       </div>
+
+      {/* Màn đỏ QUÉT VÀO lúc sang màn kết — như mẫu (t≈9,5–10,0s): nền
+          đỏ tràn vào từ trái sau cú quét tim, không cắt cứng nền. */}
+      <AnimatePresence>
+        {isFinale && (
+          <motion.div
+            key="finale-red"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 z-[6]"
+            style={{
+              backgroundColor: FINALE_RED,
+              backgroundImage:
+                "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1.4px)",
+              backgroundSize: "9px 9px",
+            }}
+            initial={reduce ? false : { clipPath: "inset(0 100% 0 0)" }}
+            animate={{ clipPath: "inset(0 0% 0 0)" }}
+            exit={{ clipPath: "inset(0 0 0 100%)" }}
+            transition={{ duration: 0.9, ease: "easeInOut" }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Dòng mời — giữ như slideshow Polaroid. */}
       <motion.p
@@ -411,16 +533,26 @@ export function ComicDiarySlideshow({
         {guestName ? `Trân trọng kính mời ${guestName}` : "Trân trọng kính mời"}
       </motion.p>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={index}
-          data-testid="comic-page"
-          className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-5 py-6 sm:px-8"
-          initial={reduce ? false : { opacity: 0, x: 70 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={reduce ? undefined : { opacity: 0, x: -70 }}
-          transition={{ duration: 0.9, ease: "easeInOut" }}
-        >
+      {/* Trang truyện tranh — AnimatePresence ĐỒNG BỘ (không mode="wait"):
+          trang cũ và trang mới chồng nhau trong cùng 0,9s: trang cũ xoay
+          chéo trượt đi, trang mới trượt vào, tim quét ngang làm màn chắn
+          — như mẫu (t≈6,0s), không có khoảng trống giữa hai trang.
+          Trang cuộn dọc bên trong khi nội dung cao hơn màn hình (trang
+          3 panel trên điện thoại): ghi chú luôn ở đầu trang, không bị
+          cắt như khi căn giữa trong khung cố định. */}
+      <div className="relative z-10 flex-1">
+        {!reduce && <HeartSweep key={`sweep-${index}`} tone={isFinale ? "white" : "red"} />}
+        <AnimatePresence>
+          <motion.div
+            key={index}
+            data-testid="comic-page"
+            className="absolute inset-0 overflow-y-auto"
+            initial={reduce ? false : { opacity: 0, x: 120, rotate: 2.5 }}
+            animate={{ opacity: 1, x: 0, rotate: 0 }}
+            exit={reduce ? undefined : { opacity: 0, x: -120, rotate: -2.5, scale: 1.03 }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <div className="mx-auto flex min-h-full w-full flex-col items-center justify-center gap-6 px-5 py-6 sm:px-8">
           {isFinale ? (
             /* MÀN KẾT: nền đỏ vân giấy + chữ thư pháp lớn — nét chữ lấp
                đầy bằng mảnh ảnh rồi chuyển trắng đặc (như f_09 → f_11). */
@@ -451,7 +583,7 @@ export function ComicDiarySlideshow({
                       }}
                       initial={{ opacity: 1 }}
                       animate={{ opacity: 0 }}
-                      transition={{ delay: 2.4, duration: 0.8 }}
+                      transition={{ delay: 0.7, duration: 0.8 }}
                     >
                       Chúng mình cưới nhau rồi!
                     </motion.span>
@@ -459,7 +591,7 @@ export function ComicDiarySlideshow({
                       className="relative block font-display text-[2.6rem] font-bold leading-tight text-white [text-shadow:2px_2px_0_rgba(0,0,0,0.35)] sm:text-6xl"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      transition={{ delay: 2.4, duration: 0.8 }}
+                      transition={{ delay: 0.7, duration: 0.8 }}
                     >
                       Chúng mình cưới nhau rồi!
                     </motion.span>
@@ -474,7 +606,7 @@ export function ComicDiarySlideshow({
                 className="relative mt-6 flex items-center gap-2"
                 initial={reduce ? false : { opacity: 0, scale: 0.6 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 3, duration: 0.5 }}
+                transition={{ delay: 1.8, duration: 0.5 }}
               >
                 <HeartDoodle className="h-8 w-8" />
                 {coupleName && (
@@ -484,60 +616,80 @@ export function ComicDiarySlideshow({
               </motion.div>
             </div>
           ) : (
-            <>
-              {/* Trang truyện tranh: panel theo số ảnh trong trang. */}
+            <PageDrift reduce={!!reduce}>
+              {/* Trang truyện tranh: panel theo số ảnh trong trang —
+                  mỗi panel trượt vào từ một hướng khác nhau theo nhịp
+                  (stagger 0,12s), như mẫu. */}
               {currentPage.length === 1 ? (
                 <div className="order-2 w-full max-w-md sm:order-1">
-                  <ComicPanel
-                    src={currentPage[0]}
-                    index={index * PANELS_PER_PAGE}
-                    ratioClass="aspect-[4/3]"
-                    reduce={!!reduce}
-                  />
+                  <PanelEnter from="left" delay={0.05} reduce={!!reduce}>
+                    <ComicPanel
+                      src={currentPage[0]}
+                      index={index * PANELS_PER_PAGE}
+                      ratioClass="aspect-[4/3]"
+                      reduce={!!reduce}
+                    />
+                  </PanelEnter>
                 </div>
               ) : currentPage.length === 2 ? (
                 <div className="order-2 grid w-full max-w-2xl grid-cols-1 gap-5 sm:order-1 sm:grid-cols-2">
                   {currentPage.map((src, k) => (
-                    <ComicPanel
+                    <PanelEnter
                       key={src}
-                      src={src}
-                      index={index * PANELS_PER_PAGE + k}
-                      ratioClass="aspect-[4/3]"
+                      from={k === 0 ? "left" : "right"}
+                      delay={0.05 + k * 0.12}
                       reduce={!!reduce}
-                    />
+                    >
+                      <ComicPanel
+                        src={src}
+                        index={index * PANELS_PER_PAGE + k}
+                        ratioClass="aspect-[4/3]"
+                        reduce={!!reduce}
+                      />
+                    </PanelEnter>
                   ))}
                 </div>
               ) : (
                 <div className="order-2 flex w-full max-w-2xl flex-col gap-5 sm:order-1 sm:flex-row">
                   <div className="w-full sm:w-[55%]">
-                    <ComicPanel
-                      src={currentPage[0]}
-                      index={index * PANELS_PER_PAGE}
-                      // Mobile: panel ngang để trang gọn hơn (panel dọc
-                      // 3/4 trên điện thoại cao quá, đẩy ghi chú + nút
-                      // xuống dưới màn hình); desktop giữ panel dọc.
-                      ratioClass="aspect-[4/3] sm:aspect-[3/4]"
-                      reduce={!!reduce}
-                    />
+                    <PanelEnter from="left" delay={0.05} reduce={!!reduce}>
+                      <ComicPanel
+                        src={currentPage[0]}
+                        index={index * PANELS_PER_PAGE}
+                        // Mobile: panel ngang để trang gọn hơn (panel dọc
+                        // 3/4 trên điện thoại cao quá, đẩy ghi chú + nút
+                        // xuống dưới màn hình); desktop giữ panel dọc.
+                        ratioClass="aspect-[4/3] sm:aspect-[3/4]"
+                        reduce={!!reduce}
+                      />
+                    </PanelEnter>
                   </div>
                   <div className="flex w-full flex-col gap-5 sm:w-[45%]">
                     {currentPage.slice(1).map((src, k) => (
-                      <ComicPanel
+                      <PanelEnter
                         key={src}
-                        src={src}
-                        index={index * PANELS_PER_PAGE + 1 + k}
-                        ratioClass="aspect-[4/3] sm:aspect-[16/10]"
+                        from={k === 0 ? "right" : "bottom"}
+                        delay={0.17 + k * 0.12}
                         reduce={!!reduce}
-                      />
+                      >
+                        <ComicPanel
+                          src={src}
+                          index={index * PANELS_PER_PAGE + 1 + k}
+                          ratioClass="aspect-[4/3] sm:aspect-[16/10]"
+                          reduce={!!reduce}
+                        />
+                      </PanelEnter>
                     ))}
                   </div>
                 </div>
               )}
               {note}
-            </>
+            </PageDrift>
           )}
-        </motion.div>
-      </AnimatePresence>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </div>
 
       {/* Chấm trang — chỉ khi có nhiều cảnh. */}
       {sceneCount > 1 && (
