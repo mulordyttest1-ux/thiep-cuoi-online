@@ -21,6 +21,11 @@
 // ngang che kín màn hình ("Hoa Cuốn Màn", mẫu Pikbest 1440022, làm
 // 2026-11-11). Kiểu mới là kiểu RIÊNG trong thư viện, không thay
 // mặc định.
+// "peach-heart-full": Tim Đào Trọn Hình — cùng cấu trúc Trái Tim Đào
+// (tim pha lê đặc, chữ trắng trên tim, vỡ dải mảnh đặc + lắp dải
+// cong) nhưng tim nhỏ lại vừa trọn trong khung (rộng 92vw, cao ~28%
+// viewport) thay vì khổng lồ tràn hai bên; chị chọn giữa 2 cỡ tim
+// (2026-11-11).
 // Chọn qua ?slide=<id> trên trang khách; giá trị lạ → về "scrapbook".
 
 /** Kiểu slide ảnh của intro. */
@@ -28,6 +33,7 @@ export type SlideStyleId =
   | "scrapbook"
   | "romantic-brochure"
   | "peach-heart"
+  | "peach-heart-full"
   | "warm-confession"
   | "comic-diary"
   | "flowers-brochure";
@@ -59,6 +65,12 @@ export const SLIDE_STYLES: Record<SlideStyleId, SlideStyle> = {
     description:
       "Trái tim pha lê nhiều mặt cắt chứa ảnh cưới, nền low-poly sáng, cánh hoa trôi; chuyển cảnh tim vỡ thành mảnh rồi lắp lại.",
   },
+  "peach-heart-full": {
+    id: "peach-heart-full",
+    label: "Tim Đào Trọn Hình",
+    description:
+      "Như Trái Tim Đào nhưng tim nhỏ lại vừa trọn trong khung (rộng 92vw, cao ~28% màn hình) để thấy trọn hình tim thay vì khổng lồ tràn hai bên; vẫn tim pha lê đặc, chữ trắng trên tim, vỡ dải mảnh đặc + lắp dải cong.",
+  },
   "warm-confession": {
     id: "warm-confession",
     label: "Tỏ Tình Ấm Áp",
@@ -84,6 +96,7 @@ export function isSlideStyleId(v: string | null | undefined): v is SlideStyleId 
     v === "scrapbook" ||
     v === "romantic-brochure" ||
     v === "peach-heart" ||
+    v === "peach-heart-full" ||
     v === "warm-confession" ||
     v === "comic-diary" ||
     v === "flowers-brochure"
