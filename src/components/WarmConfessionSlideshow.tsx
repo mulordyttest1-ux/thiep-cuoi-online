@@ -20,8 +20,9 @@
 //
 // Nhịp theo chuẩn app: mỗi ảnh giữ 12 giây (PHOTO_MS), không bê nhịp
 // nhanh của video gốc. 1 ảnh → luôn bố cục rộng; nhiều ảnh → xen kẽ
-// rộng / collage theo chỉ số cảnh. Ảnh opacity 1 luôn (chỉ khung cảnh
-// crossfade như brochure — ảnh trong khung không mờ).
+// rộng / collage theo chỉ số cảnh. Ảnh opacity 1 luôn ở trạng thái
+// nghỉ — chỉ trong lúc chuyển cảnh (0,8s) cả khung cảnh mới mờ về
+// trắng rồi hiện lại từ trắng (fade-through-white đúng mẫu).
 //
 // Tái dùng đồ sẵn có: getSlideshowSlides (chia dòng theo số ảnh như
 // scrapbook), hiệu ứng chữ SandText/PaperText, KenBurns, AmbientLayer
@@ -48,6 +49,21 @@ import {
 } from "@/lib/intro";
 
 const PHOTO_MS = 12000; // mỗi ảnh hiện ~12s rồi sang ảnh sau (chuẩn app)
+
+/** Hiệu ứng chuyển MỜ DẦN QUA TRẮNG (fade-through-white) đúng mẫu
+ *  10077037 — đo trực tiếp từ preview.mp4 (độ sáng trung bình khung):
+ *  cảnh cũ còn nguyên màu tới ~12,7s (mean 148) → mờ dần về trắng,
+ *  chạm trắng gần như tuyệt đối ở ~13,0s (mean 253, 97% điểm ảnh >240)
+ *  → cảnh mới hiện dần từ trắng, tới ~13,3s đã rõ (mean ~206). Pha mờ
+ *  về trắng TĂNG TỐC (148→168→207→253: easeIn), pha hiện từ trắng
+ *  GIẢM TỐC (253→230→207: easeOut). Tổng chuyển ~0,8s — nhanh, dứt
+ *  khoát, trắng hẳn ở giữa (không phải crossfade mờ đục 2 ảnh chồng
+ *  nhau). Bản cũ chỉ crossfade 0,9s + chớp trắng 0,5→0 nên chuyển nhìn
+ *  nhạt, chưa ra được pha trắng của mẫu. */
+const TRANS_OUT_S = 0.35; // cảnh cũ mờ về trắng (easeIn — tăng tốc)
+const TRANS_HOLD_S = 0.1; // giữ trắng một nhịp ngắn (đỉnh trắng ~13,0s)
+const TRANS_IN_S = 0.35; // cảnh mới hiện dần từ trắng (easeOut — giảm tốc)
+const TRANS_TOTAL_S = TRANS_OUT_S + TRANS_HOLD_S + TRANS_IN_S; // 0,8s
 
 /** Nền kem ấm của mẫu (sáng, ấm — khác nền màu cảnh đậm của Polaroid). */
 const PAPER_BG = "#fdf9f3";
@@ -239,10 +255,16 @@ export function WarmConfessionSlideshow({
     [photosProp, data.photoUrl]
   );
   const [index, setIndex] = useState(0);
+  // Lớp trắng chỉ chạy từ lần đổi cảnh đầu tiên trở đi — lần mở đầu
+  // không có chớp trắng (tránh màn hình nháy trắng khi vừa vào).
+  const [everAdvanced, setEverAdvanced] = useState(false);
 
   useEffect(() => {
     if (reduce || photos.length <= 1) return;
-    const t = window.setInterval(() => setIndex((i) => (i + 1) % photos.length), PHOTO_MS);
+    const t = window.setInterval(() => {
+      setEverAdvanced(true);
+      setIndex((i) => (i + 1) % photos.length);
+    }, PHOTO_MS);
     return () => window.clearInterval(t);
   }, [reduce, photos.length]);
 
@@ -283,7 +305,10 @@ export function WarmConfessionSlideshow({
   const cardTilt = cardSide === "left" ? -2.5 : 2.5;
 
   const advance = () => {
-    if (photos.length > 1) setIndex((i) => (i + 1) % photos.length);
+    if (photos.length > 1) {
+      setEverAdvanced(true);
+      setIndex((i) => (i + 1) % photos.length);
+    }
   };
 
   const lineClass = (kind: SlideshowLine["kind"]) =>
@@ -386,17 +411,28 @@ export function WarmConfessionSlideshow({
         {guestName ? `Trân trọng kính mời ${guestName}` : "Trân trọng kính mời"}
       </motion.p>
 
-      {/* Vùng cảnh: ảnh + thẻ ghi chú. Đổi cảnh = crossfade + chớp trắng
-          (mờ dần qua trắng như mẫu); ảnh trong khung luôn opacity 1. */}
+      {/* Vùng cảnh: ảnh + thẻ ghi chú. Đổi cảnh = MỜ DẦN QUA TRẮNG đúng
+          mẫu (không crossfade 2 cảnh chồng nhau): mode="wait" để cảnh cũ
+          mờ hết về trắng rồi cảnh mới mới hiện từ trắng — lớp trắng phủ
+          toàn khung trong lúc chuyển nên cả cú nhảy chiều cao (rộng ↔
+          collage) cũng được giấu trong pha trắng. Giảm chuyển động: đổi
+          cảnh tức thì (duration 0), không lớp trắng. */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6">
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           <motion.div
             key={photos.length === 0 ? "empty" : index}
             className="relative w-full max-w-2xl"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.9 }}
+            exit={{
+              opacity: 0,
+              transition: { duration: reduce ? 0 : TRANS_OUT_S, ease: "easeIn" },
+            }}
+            transition={{
+              duration: reduce ? 0 : TRANS_IN_S,
+              delay: reduce ? 0 : TRANS_HOLD_S,
+              ease: "easeOut",
+            }}
           >
             {photos.length === 0 ? (
               /* Không có ảnh: chỉ thẻ ghi chú với đủ dòng chính trên nền kem. */
@@ -470,16 +506,29 @@ export function WarmConfessionSlideshow({
         </AnimatePresence>
       </div>
 
-      {/* Chớp trắng khi đổi cảnh — mờ dần qua trắng như mẫu (không chạy
-          khi giảm chuyển động). */}
-      {!reduce && (
+      {/* Lớp trắng phủ toàn khung khi đổi cảnh — pha trắng của hiệu ứng
+          mờ qua trắng (đúng mẫu: trắng gần như tuyệt đối ở giữa, 97%
+          điểm ảnh >240 ở khung đỉnh): dâng 0→1 trong pha mờ về trắng,
+          giữ 1 một nhịp ngắn, hạ 1→0 trong pha hiện từ trắng. Keyframes
+          chạy lại mỗi lần đổi cảnh (key theo index); không chạy ở lần mở
+          đầu (everAdvanced) và không chạy khi giảm chuyển động. */}
+      {!reduce && everAdvanced && (
         <motion.div
-          key={`flash-${photos.length === 0 ? "empty" : index}`}
+          key={`veil-${photos.length === 0 ? "empty" : index}`}
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 z-[15] bg-white"
-          initial={{ opacity: 0.5 }}
-          animate={{ opacity: 0 }}
-          transition={{ duration: 1.0, ease: "easeOut" }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 1, 0] }}
+          transition={{
+            duration: TRANS_TOTAL_S,
+            times: [
+              0,
+              TRANS_OUT_S / TRANS_TOTAL_S,
+              (TRANS_OUT_S + TRANS_HOLD_S) / TRANS_TOTAL_S,
+              1,
+            ],
+            ease: ["easeIn", "linear", "easeOut"],
+          }}
         />
       )}
 
