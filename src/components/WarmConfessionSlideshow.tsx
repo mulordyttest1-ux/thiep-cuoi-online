@@ -44,6 +44,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer } from "@/components/effects";
+import { FadeThroughWhiteScene } from "@/components/transitions";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
 import {
@@ -56,20 +57,9 @@ import {
 
 const PHOTO_MS = 12000; // mỗi ảnh hiện ~12s rồi sang ảnh sau (chuẩn app)
 
-/** Hiệu ứng chuyển MỜ DẦN QUA TRẮNG (fade-through-white) đúng mẫu
- *  10077037 — đo trực tiếp từ preview.mp4 (độ sáng trung bình khung):
- *  cảnh cũ còn nguyên màu tới ~12,7s (mean 148) → mờ dần về trắng,
- *  chạm trắng gần như tuyệt đối ở ~13,0s (mean 253, 97% điểm ảnh >240)
- *  → cảnh mới hiện dần từ trắng, tới ~13,3s đã rõ (mean ~206). Pha mờ
- *  về trắng TĂNG TỐC (148→168→207→253: easeIn), pha hiện từ trắng
- *  GIẢM TỐC (253→230→207: easeOut). Tổng chuyển ~0,8s — nhanh, dứt
- *  khoát, trắng hẳn ở giữa (không phải crossfade mờ đục 2 ảnh chồng
- *  nhau). Bản cũ chỉ crossfade 0,9s + chớp trắng 0,5→0 nên chuyển nhìn
- *  nhạt, chưa ra được pha trắng của mẫu. */
-const TRANS_OUT_S = 0.35; // cảnh cũ mờ về trắng (easeIn — tăng tốc)
-const TRANS_HOLD_S = 0.1; // giữ trắng một nhịp ngắn (đỉnh trắng ~13,0s)
-const TRANS_IN_S = 0.35; // cảnh mới hiện dần từ trắng (easeOut — giảm tốc)
-const TRANS_TOTAL_S = TRANS_OUT_S + TRANS_HOLD_S + TRANS_IN_S; // 0,8s
+/** Hiệu ứng chuyển "MỜ QUA TRẮNG" nằm trong thư viện chuyển cảnh
+ *  (src/components/transitions/FadeThroughWhiteScene) — 3 pha 0,8s,
+ *  đo trực tiếp từ preview.mp4 mẫu 10077037. */
 
 /** Chuyển động ảnh ZOOM + FADE + MOVE đúng mẫu 10077037 — đo trực tiếp
  *  từ preview.mp4 bằng phase correlation (khung 960×540):
@@ -493,29 +483,19 @@ export function WarmConfessionSlideshow({
         {guestName ? `Trân trọng kính mời ${guestName}` : "Trân trọng kính mời"}
       </motion.p>
 
-      {/* Vùng cảnh: ảnh + thẻ ghi chú. Đổi cảnh = MỜ DẦN QUA TRẮNG đúng
-          mẫu (không crossfade 2 cảnh chồng nhau): mode="wait" để cảnh cũ
-          mờ hết về trắng rồi cảnh mới mới hiện từ trắng — lớp trắng phủ
-          toàn khung trong lúc chuyển nên cả cú nhảy chiều cao (rộng ↔
-          collage) cũng được giấu trong pha trắng. Giảm chuyển động: đổi
-          cảnh tức thì (duration 0), không lớp trắng. */}
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={photos.length === 0 ? "empty" : index}
-            className="relative w-full max-w-2xl"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{
-              opacity: 0,
-              transition: { duration: reduce ? 0 : TRANS_OUT_S, ease: "easeIn" },
-            }}
-            transition={{
-              duration: reduce ? 0 : TRANS_IN_S,
-              delay: reduce ? 0 : TRANS_HOLD_S,
-              ease: "easeOut",
-            }}
-          >
+      {/* Vùng cảnh: ảnh + thẻ ghi chú. Đổi cảnh = "MỜ QUA TRẮNG" trong
+          thư viện chuyển cảnh (src/components/transitions/
+          FadeThroughWhiteScene): cảnh cũ mờ hết về trắng rồi cảnh mới
+          mới hiện từ trắng — lớp trắng phủ toàn khung trong lúc chuyển
+          nên cả cú nhảy chiều cao (rộng ↔ collage) cũng được giấu
+          trong pha trắng. Giảm chuyển động: đổi cảnh tức thì. */}
+      <FadeThroughWhiteScene
+        sceneKey={photos.length === 0 ? "empty" : index}
+        reduce={!!reduce}
+        active={everAdvanced}
+        wrapperClassName="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6"
+        sceneClassName="relative w-full max-w-2xl"
+      >
             {photos.length === 0 ? (
               /* Không có ảnh: chỉ thẻ ghi chú với đủ dòng chính trên nền kem. */
               <div className="flex justify-center">{noteCard()}</div>
@@ -588,35 +568,7 @@ export function WarmConfessionSlideshow({
                 <div className="-mt-10 flex justify-center px-2">{noteCard()}</div>
               </div>
             )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Lớp trắng phủ toàn khung khi đổi cảnh — pha trắng của hiệu ứng
-          mờ qua trắng (đúng mẫu: trắng gần như tuyệt đối ở giữa, 97%
-          điểm ảnh >240 ở khung đỉnh): dâng 0→1 trong pha mờ về trắng,
-          giữ 1 một nhịp ngắn, hạ 1→0 trong pha hiện từ trắng. Keyframes
-          chạy lại mỗi lần đổi cảnh (key theo index); không chạy ở lần mở
-          đầu (everAdvanced) và không chạy khi giảm chuyển động. */}
-      {!reduce && everAdvanced && (
-        <motion.div
-          key={`veil-${photos.length === 0 ? "empty" : index}`}
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-[15] bg-white"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 1, 1, 0] }}
-          transition={{
-            duration: TRANS_TOTAL_S,
-            times: [
-              0,
-              TRANS_OUT_S / TRANS_TOTAL_S,
-              (TRANS_OUT_S + TRANS_HOLD_S) / TRANS_TOTAL_S,
-              1,
-            ],
-            ease: ["easeIn", "linear", "easeOut"],
-          }}
-        />
-      )}
+      </FadeThroughWhiteScene>
 
       {/* Chấm trang — chỉ khi có nhiều ảnh. */}
       {photos.length > 1 && (
