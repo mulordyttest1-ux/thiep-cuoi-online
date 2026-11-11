@@ -10,12 +10,13 @@
 //   rồi tan ra lộ ảnh mới; hướng quét XEN KẼ trái/phải theo từng lần
 //   chuyển — nằm trong thư viện chuyển cảnh (FlowerSweepOverlay).
 // - MỌI CẢNH CHỈ 1 ẢNH, chính giữa, viền trắng ~10px, nghiêng nhẹ xen
-//   kẽ ±1–2° theo cảnh. Ảnh trôi NHẸ liên tục trong cảnh (DriftRest
-//   ±3px/±0,5° — nguyên tắc chuyển ảnh, Nancy 2026-11-11: phân tích
-//   cũ ghi "đứng yên hoàn toàn" vì chỉ đo kích thước, không đo vị trí;
-//   mắt chị bắt được ảnh vẫn dập dìu nhẹ), và lúc chuyển thì cả khung
-//   trôi mạnh ±50px đúng chiều mây hoa quét. Không zoom, không lia,
-//   không Ken Burns — khác cả 3 kiểu cũ.
+//   kẽ ±1–2° theo cảnh. Cả khung ảnh trôi + zoom NHẸ liên tục trong
+//   cảnh (DriftRest V2 bọc ngoài khung — MOVE + ZOOM cùng lúc, ±8px/
+//   ±6px + xoay ±1° + scale 1,00 → 1,04, 6s — nguyên tắc chuyển ảnh,
+//   Nancy 2026-11-11; phân tích cũ ghi "đứng yên hoàn toàn" vì chỉ đo
+//   kích thước, không đo vị trí; mắt chị bắt được ảnh vẫn dập dìu
+//   nhẹ), và lúc chuyển thì cả khung trôi mạnh ±50px đúng chiều mây
+//   hoa quét. Không lia, không Ken Burns — khác cả 3 kiểu cũ.
 // - Thẻ tiêu đề ĐỎ (dải đỏ mờ, chữ trắng) — vị trí luân phiên theo
 //   từng cảnh (trên-trái / dưới-phải / giữa-phải / dưới-giữa); trong
 //   app là dòng chữ của cảnh (tên/ngày/địa điểm, hệ chữ SandText/
@@ -410,16 +411,18 @@ export function FlowersBrochureSlideshow({
       </motion.p>
 
       {/* Vùng cảnh: 1 ảnh duy nhất, chính giữa, viền trắng ~10px,
-          nghiêng nhẹ xen kẽ. DRIFT (nguyên tắc chuyển ảnh, Nancy
-          2026-11-11): lúc nghỉ ảnh trôi nhẹ liên tục (DriftRest
-          ±3px/±0,5°, 7s — bọc trong khung nên không đụng góc nghiêng);
-          lúc chuyển, CẢ KHUNG ẢNH trôi mạnh ±50px đúng CHIỀU mây hoa
-          đang quét (dir = 1: mây vào từ phải, ra bên trái → khung bắt
-          đầu lệch phải +50px rồi trôi sang trái; dir = −1 thì ngược
-          lại — DriftSurge, 1,3s = nhịp quét, chỉ từ lần chuyển đầu
-          tiên, ảnh đổi ở 620ms giấu sau đám hoa nên cú trôi lộ dần
-          cùng lúc đám hoa tan ra). Thẻ tiêu đề đỏ đè lên ảnh, vị trí
-          luân phiên theo cảnh. */}
+          nghiêng nhẹ xen kẽ. DRIFT V2 (nguyên tắc chuyển ảnh, Nancy
+          2026-11-11 15:15): lúc nghỉ CẢ KHUNG ẢNH bồng bềnh — DriftRest
+          (±8px/±6px + xoay ±1° + scale 1,00 → 1,04, 6s — MOVE + ZOOM
+          cùng lúc, giống nổi lơ lửng) bọc NGOÀI khung nghiêng nên khung
+          trắng + ảnh + dải tiêu đề đỏ trôi cùng nhau, không còn ảnh
+          trượt trong khung đứng yên; lúc chuyển, CẢ KHUNG ẢNH trôi mạnh
+          ±50px đúng CHIỀU mây hoa đang quét (dir = 1: mây vào từ phải,
+          ra bên trái → khung bắt đầu lệch phải +50px rồi trôi sang
+          trái; dir = −1 thì ngược lại — DriftSurge, 1,3s = nhịp quét,
+          chỉ từ lần chuyển đầu tiên, ảnh đổi ở 620ms giấu sau đám hoa
+          nên cú trôi lộ dần cùng lúc đám hoa tan ra). Thẻ tiêu đề đỏ
+          đè lên ảnh, vị trí luân phiên theo cảnh. */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6">
         {photos.length === 0 ? (
           /* Không có ảnh: chỉ thẻ tiêu đề đỏ với đủ dòng chính trên nền hồng. */
@@ -436,13 +439,13 @@ export function FlowersBrochureSlideshow({
             durationS={FLOWER_SWEEP.durationS}
             disabled={!!reduce || !hasSwept}
           >
+          <DriftRest disabled={!!reduce}>
           <div
             className="relative w-[min(78vw,600px)]"
             style={{ transform: `rotate(${tilt}deg)` }}
           >
-            <div className="relative overflow-hidden rounded-[3px] bg-white p-2.5 shadow-[0_14px_40px_rgba(122,31,43,0.16)]">
+            <div data-testid="photo-frame" className="relative overflow-hidden rounded-[3px] bg-white p-2.5 shadow-[0_14px_40px_rgba(122,31,43,0.16)]">
               <div className="relative aspect-[16/10] w-full overflow-hidden rounded-[2px]">
-                <DriftRest disabled={!!reduce} className="h-full w-full">
                 <img
                   src={currentPhoto}
                   alt=""
@@ -453,7 +456,6 @@ export function FlowersBrochureSlideshow({
                     e.currentTarget.style.display = "none";
                   }}
                 />
-                </DriftRest>
               </div>
               {/* Thẻ tiêu đề đỏ — dải đỏ mờ, chữ trắng, vị trí luân
                   phiên theo cảnh (trên-trái / dưới-phải / giữa-phải /
@@ -466,6 +468,7 @@ export function FlowersBrochureSlideshow({
               </div>
             </div>
           </div>
+          </DriftRest>
           </DriftSurge>
         )}
       </div>

@@ -71,16 +71,15 @@ const PHOTO_MS = 12000; // mỗi ảnh hiện ~12s rồi sang ảnh sau (chuẩn
  *  - Cảnh cuối 26,5–30,3s: gần như đứng yên (chỉ còn fade kết).
  *  Đổi sang nhịp app 12s/cảnh: zoom 1,00 → 1,10 trong 12s (ease-out),
  *  lia ngang ±12px + dọc ∓2px, đổi hướng xen kẽ theo cảnh; mờ dần vào
- *  trong 0,8s đầu. Khi hết hành trình chính, ảnh dao động nhẹ vô hạn
- *  (scale ±0,8%, x/y ±3px, xoay ±0,5°, chu kỳ 6s — drift nghỉ chuẩn
- *  DRIFT_REST, nguyên tắc chuyển ảnh 2026-11-11) — nhẹ tới mức gần
- *  như không nhận ra nếu không nhìn kỹ, nhưng ảnh luôn "sống". Lúc
- *  đổi cảnh, ảnh mới trôi về phía người xem (scale 1,05 → 1 + trôi
- *  lên 8px trong 0,8s, khớp pha mờ qua trắng). */
+ *  trong 0,8s đầu. Khi hết hành trình chính, CẢ KHUNG ẢNH dao động
+ *  nhẹ vô hạn (x/y ±8px/±6px + xoay ±1° + scale 1,00 → 1,04, chu kỳ
+ *  6s — drift nghỉ V2 chuẩn DRIFT_REST, nguyên tắc chuyển ảnh
+ *  2026-11-11 15:15, MOVE + ZOOM cùng lúc như nổi lơ lửng). Lúc đổi
+ *  cảnh, ảnh mới trôi về phía người xem (scale 1,05 → 1 + trôi lên
+ *  8px trong 0,8s, khớp pha mờ qua trắng). */
 const PHOTO_ZOOM = 1.1; // zoom 1,00 → 1,10 trong 12s
 const PAN_X = 12; // lia ngang ±12px (đổi hướng theo cảnh)
 const PAN_Y = 2; // lia dọc ∓2px
-const WIGGLE_S = 6; // chu kỳ drift nghỉ 6s (chuẩn drift chung DRIFT_REST)
 const FADE_IN_S = 0.8; // ảnh mờ dần vào trong 0,8s đầu cảnh
 const CLUSTER_PAN_X = 6; // collage: cả cụm lia chậm ±6px
 const CLUSTER_PAN_Y = 3; // collage: cả cụm lia chậm ∓3px
@@ -191,15 +190,15 @@ function ConfessionFlourish() {
 /** Một khung ảnh trắng mỏng đều (kiểu mẫu: viền trắng mỏng, không đáy dày
  *  như Polaroid). Ảnh bên trong opacity 1 luôn ở trạng thái nghỉ.
  *  photoMotion = true: ảnh chạy ZOOM + FADE + MOVE (zoom 1,00 → 1,10
- *  trong 12s + lia ±12px, đổi hướng theo panSign) + DRIFT NGHỈ vô hạn
- *  khi dừng (dao động ±3px + xoay ±0,5°, chu kỳ 6s — đúng chuẩn drift
- *  chung DRIFT_REST, chỉnh từ nhúc nhích cũ ±2px/5s) + DRIFT CHUYỂN
- *  lúc đổi cảnh (trôi về phía người xem: scale 1,05 → 1 + trôi lên
- *  8px trong 0,8s, khớp pha mờ qua trắng — nguyên tắc chuyển ảnh,
- *  Nancy 2026-11-11). Chuyển động chính đặt TRỰC TIẾP lên <img>
- *  (motion.img — bài học QA19: đặt lên div bọc thì mắt thấy ảnh đứng
- *  yên); lớp drift nghỉ là DriftRest bọc ngoài khung; cú trôi chuyển
- *  là DriftSurge bọc trong, key theo ảnh. Giảm chuyển động: ảnh tĩnh
+ *  trong 12s + lia ±12px, đổi hướng theo panSign) + DRIFT NGHỈ V2 vô
+ *  hạn khi dừng (DriftRest bọc NGOÀI KHUNG: ±8px/±6px + xoay ±1° +
+ *  scale 1,00 → 1,04, 6s — MOVE + ZOOM cùng lúc, cả khung trắng + ảnh
+ *  trôi cùng nhau) + DRIFT CHUYỂN lúc đổi cảnh (trôi về phía người
+ *  xem: scale 1,05 → 1 + trôi lên 8px trong 0,8s, khớp pha mờ qua
+ *  trắng — nguyên tắc chuyển ảnh, Nancy 2026-11-11 15:15). Chuyển
+ *  động chính đặt TRỰC TIẾP lên <img> (motion.img — bài học QA19:
+ *  đặt lên div bọc thì mắt thấy ảnh đứng yên); cú trôi chuyển là
+ *  DriftSurge bọc trong, key theo ảnh. Giảm chuyển động: ảnh tĩnh
  *  hoàn toàn. */
 function PhotoFrame({
   src,
@@ -222,32 +221,24 @@ function PhotoFrame({
     e.currentTarget.style.display = "none";
   };
   return (
+    <DriftRest
+      disabled={reduce}
+      className={`relative overflow-hidden rounded-[3px] bg-white p-2 shadow-[0_12px_35px_rgba(0,0,0,0.18)] ${className}`}
+    >
     <div
       aria-hidden="true"
-      className={`relative overflow-hidden rounded-[3px] bg-white p-2 shadow-[0_12px_35px_rgba(0,0,0,0.18)] ${className}`}
+      className="relative h-full w-full"
       style={{ transform: tilt ? `rotate(${tilt}deg)` : undefined }}
     >
-      <DriftRest disabled={reduce}>
-      <div className={`relative w-full overflow-hidden rounded-[2px] ${aspect}`}>
+      <div data-testid="photo-frame" className={`relative w-full overflow-hidden rounded-[2px] ${aspect}`}>
         {photoMotion && !reduce ? (
-          <motion.div
-            data-testid="warm-photo-wiggle"
-            className="h-full w-full will-change-transform"
-            animate={{
-              scale: [1, 1.008, 1],
-              x: [0, 3, 0, -3, 0],
-              y: [0, -2, 0, 2, 0],
-              rotate: [0, 0.5, 0, -0.5, 0],
-            }}
-            transition={{ duration: WIGGLE_S, repeat: Infinity, ease: "easeInOut" }}
+          <DriftSurge
+            sceneKey={src}
+            offset={{ scale: 1.05, y: 8 }}
+            durationS={FADE_IN_S}
+            disabled={reduce}
+            className="h-full w-full"
           >
-            <DriftSurge
-              sceneKey={src}
-              offset={{ scale: 1.05, y: 8 }}
-              durationS={FADE_IN_S}
-              disabled={reduce}
-              className="h-full w-full"
-            >
             <motion.img
               src={src}
               alt=""
@@ -269,8 +260,7 @@ function PhotoFrame({
                 opacity: { duration: FADE_IN_S, ease: "easeOut" },
               }}
             />
-            </DriftSurge>
-          </motion.div>
+          </DriftSurge>
         ) : (
           <DriftSurge
             sceneKey={src}
@@ -290,8 +280,8 @@ function PhotoFrame({
           </DriftSurge>
         )}
       </div>
-      </DriftRest>
     </div>
+    </DriftRest>
   );
 }
 
