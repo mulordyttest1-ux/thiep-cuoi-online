@@ -55,6 +55,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns } from "@/components/effects";
+import { DriftRest } from "@/components/effects/Drift";
 import { FinaleWipe, PageFlip } from "@/components/transitions";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
@@ -211,12 +212,16 @@ function PanelEnter({
 
 /** Máy quay LIA NHẸ qua trang trong suốt 12s — như mẫu: camera không
  *  bao giờ đứng yên (zoom chậm + lia ngang). Chỉ chạy lúc nghỉ; lúc
- *  chuyển trang thì transform của trang cha lo. */
+ *  chuyển trang thì transform của trang cha lo. LƯU Ý (bài học QA
+ *  drift 2026-11-11): KHÔNG đặt initial={false} — framer-motion 11
+ *  với initial={false} + animate keyframes thì KHÔNG tạo animation
+ *  nào (đo được 0 animation, transform "none" — camera thực ra chưa
+ *  bao giờ lia từ lúc làm tới giờ); không truyền initial thì nó lấy
+ *  keyframe đầu làm điểm bắt đầu rồi chạy 12s như thiết kế. */
 function PageDrift({ reduce, children }: { reduce: boolean; children: React.ReactNode }) {
   return (
     <motion.div
       className="flex w-full flex-col items-center justify-center gap-6"
-      initial={false}
       animate={reduce ? { scale: 1, x: 0 } : { scale: [1, 1.05], x: [0, -10] }}
       transition={reduce ? { duration: 0 } : { duration: 12, ease: "linear" }}
     >
@@ -226,7 +231,12 @@ function PageDrift({ reduce, children }: { reduce: boolean; children: React.Reac
 }
 
 /** Một panel ảnh kiểu truyện tranh: viền dày, hơi nghiêng, ảnh
- *  posterize nhẹ + tông ấm hồng-đỏ + halftone + vignette. */
+ *  posterize nhẹ + tông ấm hồng-đỏ + halftone + vignette. DRIFT
+ *  (nguyên tắc chuyển ảnh, Nancy 2026-11-11): lúc nghỉ ảnh trôi nhẹ
+ *  liên tục (DriftRest ±3px/±0,5°, 7s — bọc trong panel nên không
+ *  đụng góc nghiêng/viền panel); lúc chuyển trang, panel TRÔI MẠNH
+ *  theo hướng riêng của nó (PanelEnter trượt ±70/60px từ trái/phải/
+ *  dưới trong 0,65s) rồi mới ổn định. */
 function ComicPanel({
   src,
   index,
@@ -247,6 +257,7 @@ function ComicPanel({
       className={`relative overflow-hidden ${ratioClass} border-[3px] bg-white shadow-[5px_5px_0_rgba(0,0,0,0.85)]`}
       style={{ transform: `rotate(${rotate}deg)`, borderColor }}
     >
+      <DriftRest disabled={reduce} className="h-full w-full">
       <KenBurns duration={6} scale={1.06} direction="in" disabled={reduce}>
         <img
           src={src}
@@ -260,6 +271,7 @@ function ComicPanel({
           }}
         />
       </KenBurns>
+      </DriftRest>
       {/* Tông ấm hồng-đỏ phủ lên ảnh (kiểu in truyện tranh). */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#ff5a5a]/10 mix-blend-multiply" />
       {/* Lớp chấm halftone. */}

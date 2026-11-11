@@ -30,6 +30,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns } from "@/components/effects";
+import { DriftRest, DriftSurge } from "@/components/effects/Drift";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
 import {
@@ -304,11 +305,17 @@ export function RomanticBrochureSlideshow({
                 <motion.div
                   key={currentPhoto}
                   className="absolute inset-0"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  // DRIFT lúc chuyển (nguyên tắc chuyển ảnh, Nancy
+                  // 2026-11-11): ảnh mới trôi về phía người xem —
+                  // bắt đầu to hơn 5% + lệch xuống 8px rồi lùi về
+                  // cỡ thật trong 0,9s, cùng lúc với mờ vào; lúc
+                  // nghỉ ảnh trôi nhẹ liên tục (DriftRest trong).
+                  initial={{ opacity: 0, scale: 1.05, y: 8 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.9 }}
                 >
+                  <DriftRest disabled={!!reduce} className="h-full w-full">
                   <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
                     <img
                       src={currentPhoto}
@@ -321,6 +328,7 @@ export function RomanticBrochureSlideshow({
                       }}
                     />
                   </KenBurns>
+                  </DriftRest>
                 </motion.div>
               </AnimatePresence>
             )}
@@ -335,12 +343,13 @@ export function RomanticBrochureSlideshow({
                 className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.18]"
               />
             )}
-            {/* Trái tim nhỏ: ảnh kế tiếp. */}
+            {/* Trái tim nhỏ: ảnh kế tiếp — trôi nhẹ lúc nghỉ như ảnh chính. */}
             {nextPhoto && (
               <div
                 className="relative h-28 w-32 shrink-0 overflow-hidden"
                 style={{ clipPath: `url(#${heartId})` }}
               >
+                <DriftRest disabled={!!reduce} className="h-full w-full">
                 <img
                   src={nextPhoto}
                   alt=""
@@ -351,6 +360,7 @@ export function RomanticBrochureSlideshow({
                     e.currentTarget.style.display = "none";
                   }}
                 />
+                </DriftRest>
               </div>
             )}
             <div className="relative w-full max-w-sm">{textCard()}</div>
@@ -368,10 +378,18 @@ export function RomanticBrochureSlideshow({
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.14]"
               />
+              <DriftSurge
+                sceneKey={currentPhoto}
+                offset={{ scale: 1.05, y: 8 }}
+                durationS={0.9}
+                disabled={!!reduce}
+                className="relative h-[38dvh] w-[min(76vw,360px)] shrink-0"
+              >
               <div
-                className="relative h-[38dvh] w-[min(76vw,360px)] shrink-0 overflow-hidden"
+                className="relative h-full w-full overflow-hidden"
                 style={{ clipPath: `url(#${heartId})` }}
               >
+                <DriftRest disabled={!!reduce} className="h-full w-full">
                 <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
                   <img
                     src={currentPhoto}
@@ -384,7 +402,9 @@ export function RomanticBrochureSlideshow({
                     }}
                   />
                 </KenBurns>
+                </DriftRest>
               </div>
+              </DriftSurge>
             </>
           )}
           <div className="relative w-full max-w-md">{textCard()}</div>
