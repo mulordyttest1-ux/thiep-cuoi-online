@@ -6,11 +6,25 @@
 // ảnh tràn một bên + panel kem một bên với trái tim nhỏ + thẻ chữ viền
 // vàng; ảnh cắt trái tim; ảnh mờ sau chữ; đường chéo mảnh (mẫu Pikbest
 // 10085011 "Romantic Confession Valentine's Day Wedding Brochure", làm
-// 2026-11-10). Kiểu mới là kiểu RIÊNG trong thư viện, không thay mặc định.
+// 2026-11-10). "peach-heart": trái tim pha lê nhiều mặt cắt chứa ảnh
+// cưới, nền low-poly sáng, cánh hoa trôi, chuyển cảnh tim vỡ thành mảnh
+// rồi lắp lại (mẫu Pikbest 237637, làm 2026-11-11). "warm-confession":
+// thẻ ghi chú tỏ tình viền đỏ đè lên góc ảnh, khung ảnh ngang rộng,
+// collage 2–3 ảnh, chuyển cảnh mờ qua trắng trên nền kem ấm (mẫu Pikbest
+// 10077037, làm 2026-11-11 — khác slideshow Polaroid dù cùng nguồn cảm
+// hứng). "comic-diary": trang truyện tranh — panel viền dày nghiêng +
+// ghi chú vàng + chấm halftone, màn kết đỏ (mẫu Pikbest 10082742, làm
+// 2026-11-11; đẹp nhất khi thiệp có từ 3 ảnh trở lên). Kiểu mới là kiểu
+// RIÊNG trong thư viện, không thay mặc định.
 // Chọn qua ?slide=<id> trên trang khách; giá trị lạ → về "scrapbook".
 
 /** Kiểu slide ảnh của intro. */
-export type SlideStyleId = "scrapbook" | "romantic-brochure";
+export type SlideStyleId =
+  | "scrapbook"
+  | "romantic-brochure"
+  | "peach-heart"
+  | "warm-confession"
+  | "comic-diary";
 
 export interface SlideStyle {
   id: SlideStyleId;
@@ -33,10 +47,34 @@ export const SLIDE_STYLES: Record<SlideStyleId, SlideStyle> = {
     description:
       "Trang brochure: ảnh tràn một bên, panel kem một bên với trái tim nhỏ + thẻ chữ viền vàng; ảnh cắt trái tim.",
   },
+  "peach-heart": {
+    id: "peach-heart",
+    label: "Trái Tim Đào",
+    description:
+      "Trái tim pha lê nhiều mặt cắt chứa ảnh cưới, nền low-poly sáng, cánh hoa trôi; chuyển cảnh tim vỡ thành mảnh rồi lắp lại.",
+  },
+  "warm-confession": {
+    id: "warm-confession",
+    label: "Tỏ Tình Ấm Áp",
+    description:
+      "Thẻ ghi chú tỏ tình viền đỏ đè lên góc ảnh, khung ảnh ngang rộng, collage 2–3 ảnh, chuyển cảnh mờ qua trắng trên nền kem ấm.",
+  },
+  "comic-diary": {
+    id: "comic-diary",
+    label: "Nhật Ký Truyện Tranh",
+    description:
+      "Trang truyện tranh: panel viền dày nghiêng + ghi chú vàng + chấm halftone, màn kết đỏ; đẹp nhất khi thiệp có từ 3 ảnh trở lên.",
+  },
 };
 
 export function isSlideStyleId(v: string | null | undefined): v is SlideStyleId {
-  return v === "scrapbook" || v === "romantic-brochure";
+  return (
+    v === "scrapbook" ||
+    v === "romantic-brochure" ||
+    v === "peach-heart" ||
+    v === "warm-confession" ||
+    v === "comic-diary"
+  );
 }
 
 export function resolveSlideStyle(v: string | null | undefined): SlideStyleId {
