@@ -841,7 +841,7 @@ export default function LibraryPage() {
           <SectionHeading
             id="kieu-slide-anh"
             title="Kiểu slide ảnh"
-            desc="Ảnh dâu rể trong intro — 5 kiểu slide ảnh đã live: Polaroid scrapbook mặc định, Brochure lãng mạn, Trái Tim Đào, Tỏ Tình Ấm Áp và Nhật Ký Truyện Tranh. Demo chạy thật trong khung nhỏ; bấm xem demo đầy đủ để thấy cả intro của kiểu đó."
+            desc={`Ảnh dâu rể trong intro — ${Object.keys(SLIDE_STYLES).length} kiểu slide ảnh đã live: ${(Object.keys(SLIDE_STYLES) as SlideStyleId[]).map((id) => SLIDE_STYLES[id].label).join(", ")}. Demo chạy thật trong khung nhỏ; bấm xem demo đầy đủ để thấy cả intro của kiểu đó.`}
           />
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             {(Object.keys(SLIDE_STYLES) as SlideStyleId[]).map((id) => (
@@ -855,7 +855,7 @@ export default function LibraryPage() {
             <SectionHeading
               id="hieu-ung-chuyen-canh"
               title="Hiệu ứng chuyển cảnh"
-              desc="7 chuyển cảnh trong thư viện — mỗi món đặt tên riêng, dùng lại được cho mọi kiểu slide (món “Đã tách” đã thành component riêng trong src/components/transitions/). Demo chạy thật trong khung nhỏ với 3 ảnh để chuyển tự chạy 12 giây/lần; bấm xem demo đầy đủ để thấy cả intro với 6 ảnh."
+              desc={`${TRANSITION_IDS.length} chuyển cảnh trong thư viện — mỗi món đặt tên riêng, dùng lại được cho mọi kiểu slide (món “Đã tách” đã thành component riêng trong src/components/transitions/). Demo chạy thật trong khung nhỏ với 3 ảnh để chuyển tự chạy 12 giây/lần; bấm xem demo đầy đủ để thấy cả intro với 6 ảnh.`}
             />
             <div className="text-right">
               <button
