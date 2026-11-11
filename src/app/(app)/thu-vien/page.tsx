@@ -63,12 +63,12 @@ const TEXT_EFFECTS: { id: TextEffectId; name: string; desc: string; isDefault?: 
     id: "sand",
     name: "Hạt cát",
     desc: "Chữ vỡ thành hạt cát rơi nhẹ từ trên xuống, tụ lại thành chữ; lúc chuyển ảnh cát bay lên.",
-    isDefault: true,
   },
   {
     id: "scatter",
     name: "Scatter chậm",
     desc: "Từng chữ cái bay về ghép lại thành chữ, đáp đủ sau ~3 giây (nhịp chung với cát/giấy dán); lúc chuyển ảnh chữ vỡ vụn bay đi.",
+    isDefault: true,
   },
   {
     id: "paper",
@@ -793,7 +793,7 @@ export default function LibraryPage() {
             <SectionHeading
               id="hieu-ung-chu"
               title="Hiệu ứng chữ"
-              desc="Chữ chạy trong slideshow intro — demo chạy thật trên dòng mẫu Thu An & Minh Quân. Mặc định của app đang là Hạt cát."
+              desc="Chữ chạy trong slideshow intro — demo chạy thật trên dòng mẫu Thu An & Minh Quân. Mặc định của app đang là Scatter chậm."
             />
             <div className="text-right">
               <button
