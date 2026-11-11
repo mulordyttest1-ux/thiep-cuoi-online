@@ -24,8 +24,14 @@
 // nghỉ — chỉ trong lúc chuyển cảnh (0,8s) cả khung cảnh mới mờ về
 // trắng rồi hiện lại từ trắng (fade-through-white đúng mẫu).
 //
+// Chuyển động ảnh ZOOM + FADE + MOVE đúng mẫu (đo từ preview.mp4):
+// zoom 1,00 → 1,10 trong 12s + lia ngang ±12px đổi hướng theo cảnh +
+// mờ dần vào 0,8s đầu; khi dừng thì nhúc nhích nhẹ vô hạn (dao động
+// ±2px, chu kỳ 5s) — làm tại chỗ trong file này (motion.img + div bọc),
+// không dùng KenBurns chung nữa.
+//
 // Tái dùng đồ sẵn có: getSlideshowSlides (chia dòng theo số ảnh như
-// scrapbook), hiệu ứng chữ SandText/PaperText, KenBurns, AmbientLayer
+// scrapbook), hiệu ứng chữ SandText/PaperText, AmbientLayer
 // (lớp phủ theo biến thể — chỉ dùng, không sửa). Hiệu ứng scatter dùng
 // bản sao ShatterText tại chỗ (component gốc nằm trong IntroSlideshow,
 // không export) với cùng nhịp đáp chung (TEXT_PACE_*).
@@ -37,7 +43,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
-import { AmbientLayer, KenBurns } from "@/components/effects";
+import { AmbientLayer } from "@/components/effects";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
 import {
@@ -64,6 +70,26 @@ const TRANS_OUT_S = 0.35; // cảnh cũ mờ về trắng (easeIn — tăng tố
 const TRANS_HOLD_S = 0.1; // giữ trắng một nhịp ngắn (đỉnh trắng ~13,0s)
 const TRANS_IN_S = 0.35; // cảnh mới hiện dần từ trắng (easeOut — giảm tốc)
 const TRANS_TOTAL_S = TRANS_OUT_S + TRANS_HOLD_S + TRANS_IN_S; // 0,8s
+
+/** Chuyển động ảnh ZOOM + FADE + MOVE đúng mẫu 10077037 — đo trực tiếp
+ *  từ preview.mp4 bằng phase correlation (khung 960×540):
+ *  - Cảnh hoàng hôn 9,4–10,7s: ảnh lia sang phải, nhanh đầu (~7px/s)
+ *    rồi chậm dần (~1px/s) — ease-out, không dừng hẳn.
+ *  - Cảnh collage 11,6–12,7s (lúc "dừng"): ảnh vẫn trôi chậm ~0,6px/s
+ *    sang trái — không đứng yên hẳn, đó là cái "nhúc nhích nhẹ" chị thấy.
+ *  - Cảnh cuối 26,5–30,3s: gần như đứng yên (chỉ còn fade kết).
+ *  Đổi sang nhịp app 12s/cảnh: zoom 1,00 → 1,10 trong 12s (ease-out),
+ *  lia ngang ±12px + dọc ∓2px, đổi hướng xen kẽ theo cảnh; mờ dần vào
+ *  trong 0,8s đầu. Khi hết hành trình chính, ảnh dao động nhẹ vô hạn
+ *  (scale ±0,8%, x/y ±2px, chu kỳ 5s) — nhẹ tới mức gần như không nhận
+ *  ra nếu không nhìn kỹ, nhưng ảnh luôn "sống". */
+const PHOTO_ZOOM = 1.1; // zoom 1,00 → 1,10 trong 12s
+const PAN_X = 12; // lia ngang ±12px (đổi hướng theo cảnh)
+const PAN_Y = 2; // lia dọc ∓2px
+const WIGGLE_S = 5; // chu kỳ nhúc nhích nhẹ 5s
+const FADE_IN_S = 0.8; // ảnh mờ dần vào trong 0,8s đầu cảnh
+const CLUSTER_PAN_X = 6; // collage: cả cụm lia chậm ±6px
+const CLUSTER_PAN_Y = 3; // collage: cả cụm lia chậm ∓3px
 
 /** Nền kem ấm của mẫu (sáng, ấm — khác nền màu cảnh đậm của Polaroid). */
 const PAPER_BG = "#fdf9f3";
@@ -169,22 +195,33 @@ function ConfessionFlourish() {
 }
 
 /** Một khung ảnh trắng mỏng đều (kiểu mẫu: viền trắng mỏng, không đáy dày
- *  như Polaroid). Ảnh bên trong opacity 1 luôn. */
+ *  như Polaroid). Ảnh bên trong opacity 1 luôn ở trạng thái nghỉ.
+ *  photoMotion = true: ảnh chạy ZOOM + FADE + MOVE (zoom 1,00 → 1,10
+ *  trong 12s + lia ±12px, đổi hướng theo panSign) + NHÚC NHÍCH NHẸ vô
+ *  hạn khi dừng (dao động ±2px, chu kỳ 5s). Chuyển động chính đặt TRỰC
+ *  TIẾP lên <img> (motion.img — bài học QA19: đặt lên div bọc thì mắt
+ *  thấy ảnh đứng yên); lớp nhúc nhích là div bọc ngoài. Giảm chuyển
+ *  động: ảnh tĩnh hoàn toàn. */
 function PhotoFrame({
   src,
   className = "",
   aspect = "aspect-[16/10]",
   tilt = 0,
-  kenBurns = false,
+  photoMotion = false,
+  panSign = 1,
   reduce = false,
 }: {
   src: string;
   className?: string;
   aspect?: string;
   tilt?: number;
-  kenBurns?: boolean;
+  photoMotion?: boolean;
+  panSign?: 1 | -1;
   reduce?: boolean;
 }) {
+  const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.style.display = "none";
+  };
   return (
     <div
       aria-hidden="true"
@@ -192,19 +229,39 @@ function PhotoFrame({
       style={{ transform: tilt ? `rotate(${tilt}deg)` : undefined }}
     >
       <div className={`relative w-full overflow-hidden rounded-[2px] ${aspect}`}>
-        {kenBurns ? (
-          <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
-            <img
+        {photoMotion && !reduce ? (
+          <motion.div
+            data-testid="warm-photo-wiggle"
+            className="h-full w-full will-change-transform"
+            animate={{
+              scale: [1, 1.008, 1],
+              x: [0, 2, 0, -2, 0],
+              y: [0, -1.5, 0, 1.5, 0],
+            }}
+            transition={{ duration: WIGGLE_S, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <motion.img
               src={src}
               alt=""
               loading="eager"
               referrerPolicy="no-referrer"
-              className="h-full w-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
+              className="h-full w-full object-cover will-change-transform"
+              onError={onImgError}
+              initial={{ scale: 1, x: 0, y: 0, opacity: 0 }}
+              animate={{
+                scale: PHOTO_ZOOM,
+                x: PAN_X * panSign,
+                y: -PAN_Y * panSign,
+                opacity: 1,
+              }}
+              transition={{
+                scale: { duration: PHOTO_MS / 1000, ease: "easeOut" },
+                x: { duration: PHOTO_MS / 1000, ease: "easeOut" },
+                y: { duration: PHOTO_MS / 1000, ease: "easeOut" },
+                opacity: { duration: FADE_IN_S, ease: "easeOut" },
               }}
             />
-          </KenBurns>
+          </motion.div>
         ) : (
           <img
             src={src}
@@ -212,13 +269,35 @@ function PhotoFrame({
             loading="eager"
             referrerPolicy="no-referrer"
             className="h-full w-full object-cover"
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
+            onError={onImgError}
           />
         )}
       </div>
     </div>
+  );
+}
+
+/** Collage lia cả cụm chậm — bọc ngoài lưới collage, trôi ±6px trong
+ *  12s (ease-out, đổi hướng theo cảnh). Giảm chuyển động: tĩnh. */
+function ClusterDrift({
+  children,
+  panSign,
+  reduce,
+}: {
+  children: React.ReactNode;
+  panSign: 1 | -1;
+  reduce: boolean;
+}) {
+  if (reduce) return <>{children}</>;
+  return (
+    <motion.div
+      className="will-change-transform"
+      initial={{ x: 0, y: 0 }}
+      animate={{ x: -CLUSTER_PAN_X * panSign, y: CLUSTER_PAN_Y * panSign }}
+      transition={{ duration: PHOTO_MS / 1000, ease: "easeOut" }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -303,6 +382,9 @@ export function WarmConfessionSlideshow({
   // Thẻ ghi chú đè góc trái/phải xen kẽ theo cảnh; nghiêng ngược phía.
   const cardSide = index % 2 === 0 ? "left" : "right";
   const cardTilt = cardSide === "left" ? -2.5 : 2.5;
+  // Hướng lia đổi xen kẽ theo cảnh (chẵn lia phải, lẻ lia trái) cho đỡ
+  // đơn điệu — như mẫu lia đổi hướng qua các cảnh.
+  const panSign: 1 | -1 = index % 2 === 0 ? 1 : -1;
 
   const advance = () => {
     if (photos.length > 1) {
@@ -446,7 +528,8 @@ export function WarmConfessionSlideshow({
                   className="mx-auto w-[min(92vw,640px)]"
                   aspect="aspect-[16/10]"
                   tilt={index % 2 === 0 ? 1.5 : -1.5}
-                  kenBurns
+                  photoMotion
+                  panSign={panSign}
                   reduce={!!reduce}
                 />
                 <div
@@ -461,6 +544,7 @@ export function WarmConfessionSlideshow({
                  ảnh nhỏ xếp hàng dưới. Thẻ ghi chú đè giữa, ngay dưới chỗ
                  giao nhau của các khung. */
               <div>
+                <ClusterDrift panSign={panSign} reduce={!!reduce}>
                 <div
                   className={`grid grid-cols-1 gap-3 ${
                     collageSmalls.length === 2 ? "sm:grid-cols-5" : "sm:grid-cols-2"
@@ -476,7 +560,8 @@ export function WarmConfessionSlideshow({
                       className="h-full w-full"
                       aspect={collageSmalls.length === 2 ? "aspect-[16/10] sm:aspect-auto sm:h-full" : "aspect-[16/10]"}
                       tilt={0}
-                      kenBurns
+                      photoMotion
+                      panSign={panSign}
                       reduce={!!reduce}
                     />
                   </div>
@@ -499,6 +584,7 @@ export function WarmConfessionSlideshow({
                     ))}
                   </div>
                 </div>
+                </ClusterDrift>
                 <div className="-mt-10 flex justify-center px-2">{noteCard()}</div>
               </div>
             )}

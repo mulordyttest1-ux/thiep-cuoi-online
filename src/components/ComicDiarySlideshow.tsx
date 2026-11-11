@@ -19,15 +19,18 @@
 // hiệu ứng chữ sẵn có (sand/paper/scatter) với nhịp đáp chung
 // TEXT_PACE_*.
 //
-// CHUYỂN TRANG THEO ĐÚNG VIDEO (đã đối chiếu từng khung hình
-// preview.mp4 — t3.3/t3.7, t5.8/t6.0/t6.4, t9.5/t10.0, f_09): camera
-// LIA NHẸ liên tục (zoom chậm + lia ngang, không bao giờ đứng yên);
-// đổi trang = trang cũ XOAY CHÉO trượt đi + trang mới trượt vào,
-// chồng nhau trong cùng 0,9s (không mode="wait", không khoảng trống),
-// TRÁI TIM outline lớn + chữ "love" QUÉT NGANG làm màn chắn giữa lúc
-// chuyển; panel TRƯỢT VÀO từ các hướng khác nhau theo nhịp (stagger
-// 0,12s: lớn từ trái, nhỏ từ phải/dưới), ghi chú vàng pop-in sau khi
-// panel đáp; màn kết: nền đỏ TRÀN VÀO từ trái sau cú quét tim (wipe
+// CHUYỂN TRANG LẬT NHƯ LẬT TRANG SÁCH/PDF (đã đối chiếu khung f_03
+// lúc đổi trang ~6,0s — trang cũ PEEL/BONG theo đường chéo từ góc
+// trên-trái, lộ trang mới bên dưới; tim outline + chữ "love" nằm
+// giữa lúc lật): trang cũ xoay 3D quanh mép trái (rotateY 0 → −170°,
+// perspective 1100, nghiêng chéo −6° như đường peel trong video),
+// bóng nếp gấp tối dần ở mép lật, mặt sau mờ dần khi lật quá 90°;
+// trang mới nằm SẴN BÊN DƯỚI, đứng yên, lộ dần ra — không trượt vào
+// từ bên cạnh. Tổng 0,9s, easeInOut (chậm ở đầu/cuối như lật giấy
+// thật). Panel của trang mới stagger vào lúc lật xong (0,05/0,17/
+// 0,29s — trang mới trong f_05 đã đầy đủ panel ngay khi lật xong).
+// Camera LIA NHẸ liên tục (zoom chậm + lia ngang, không bao giờ
+// đứng yên); màn kết: nền đỏ TRÀN VÀO từ trái sau cú quét tim (wipe
 // clip-path 0,9s, không cắt cứng nền), chữ thư pháp hiện lên với nét
 // chữ LẤP ĐẦY BẰNG MẢNH ẢNH rồi chuyển trắng đặc sau 0,7s.
 //
@@ -173,11 +176,11 @@ function HeartDoodle({ className = "" }: { className?: string }) {
   );
 }
 
-/** Trái tim vẽ tay QUÉT NGANG giữa lúc chuyển trang — như mẫu lúc
- *  đổi cảnh (t≈6,0s): trái tim outline lớn + chữ "love" quét qua khung
- *  hình làm màn chắn, trang cũ xoay chéo trượt đi, trang mới trượt vào.
- *  Chạy đúng 0,9s chuyển trang: từ trái sang phải, vừa xoay nhẹ vừa
- *  phóng to, mờ dần ở cuối. Chỉ trang trí — không chặn bấm. */
+/** Trái tim vẽ tay QUÉT NGANG giữa lúc lật trang — như khung f_03
+ *  lúc đổi cảnh (t≈6,0s): tim outline lớn + chữ "love" nằm giữa lúc
+ *  trang cũ đang peel/bong đi, làm màn chắn. Chạy đúng 0,9s lật trang:
+ *  từ trái sang phải, vừa xoay nhẹ vừa phóng to, mờ dần ở cuối. Chỉ
+ *  trang trí — không chặn bấm. */
 function HeartSweep({ tone = "red" }: { tone?: "red" | "white" }) {
   const stroke = tone === "white" ? "rgba(255,255,255,0.9)" : "#e63946";
   return (
@@ -363,10 +366,16 @@ export function ComicDiarySlideshow({
   const sceneCount = pages.length + 1; // + màn kết
   const finaleIndex = pages.length;
   const [index, setIndex] = useState(0);
+  // Đã lật trang lần nào chưa — bóng trên trang mới lộ ra chỉ chạy từ
+  // lần lật đầu tiên (tránh nháy tối lúc mới mở thiệp).
+  const [hasFlipped, setHasFlipped] = useState(false);
 
   useEffect(() => {
     if (reduce || sceneCount <= 1) return;
-    const t = window.setInterval(() => setIndex((i) => (i + 1) % sceneCount), PHOTO_MS);
+    const t = window.setInterval(() => {
+      setHasFlipped(true);
+      setIndex((i) => (i + 1) % sceneCount);
+    }, PHOTO_MS);
     return () => window.clearInterval(t);
   }, [reduce, sceneCount]);
 
@@ -413,7 +422,10 @@ export function ComicDiarySlideshow({
   const firstPhoto = photos[0];
 
   const advance = () => {
-    if (sceneCount > 1) setIndex((i) => (i + 1) % sceneCount);
+    if (sceneCount > 1) {
+      setHasFlipped(true);
+      setIndex((i) => (i + 1) % sceneCount);
+    }
   };
 
   const lineClass = (kind: SlideshowLine["kind"]) =>
@@ -533,10 +545,16 @@ export function ComicDiarySlideshow({
         {guestName ? `Trân trọng kính mời ${guestName}` : "Trân trọng kính mời"}
       </motion.p>
 
-      {/* Trang truyện tranh — AnimatePresence ĐỒNG BỘ (không mode="wait"):
-          trang cũ và trang mới chồng nhau trong cùng 0,9s: trang cũ xoay
-          chéo trượt đi, trang mới trượt vào, tim quét ngang làm màn chắn
-          — như mẫu (t≈6,0s), không có khoảng trống giữa hai trang.
+      {/* Trang truyện tranh — LẬT TRANG NHƯ LẬT TRANG SÁCH/PDF (đúng
+          khung f_03 lúc đổi trang ~6,0s): trang cũ xoay 3D quanh mép
+          trái (rotateY 0 → −170°, perspective 1100, nghiêng chéo −6°
+          như đường peel trong video), bóng nếp gấp tối dần ở mép lật,
+          mặt sau mờ dần khi lật quá 90° (backface-visibility hidden);
+          trang mới nằm SẴN BÊN DƯỚI, đứng yên, lộ dần ra khi trang cũ
+          lật đi — không trượt vào từ bên cạnh. Tổng 0,9s, easeInOut
+          (chậm ở đầu/cuối như lật giấy thật). Trang cũ được đẩy lên
+          trên (zIndex 20 lúc thoát) để che trang mới trong lúc lật.
+          Giảm chuyển động: đổi trang tức thì, không lật, không bóng.
           Trang cuộn dọc bên trong khi nội dung cao hơn màn hình (trang
           3 panel trên điện thoại): ghi chú luôn ở đầu trang, không bị
           cắt như khi căn giữa trong khung cố định. */}
@@ -547,11 +565,59 @@ export function ComicDiarySlideshow({
             key={index}
             data-testid="comic-page"
             className="absolute inset-0 overflow-y-auto"
-            initial={reduce ? false : { opacity: 0, x: 120, rotate: 2.5 }}
-            animate={{ opacity: 1, x: 0, rotate: 0 }}
-            exit={reduce ? undefined : { opacity: 0, x: -120, rotate: -2.5, scale: 1.03 }}
+            style={{
+              transformPerspective: 1100,
+              transformOrigin: "left center",
+              backfaceVisibility: "hidden",
+            }}
+            initial={reduce ? false : { opacity: 1, x: 0, rotate: 0, rotateY: 0 }}
+            animate={{ opacity: 1, x: 0, rotate: 0, rotateY: 0 }}
+            exit={
+              reduce
+                ? undefined
+                : {
+                    rotateY: -170,
+                    rotate: -6,
+                    opacity: [1, 1, 0],
+                    zIndex: 20,
+                    transition: { duration: 0.9, times: [0, 0.55, 0.85], ease: "easeInOut" },
+                  }
+            }
             transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           >
+            {/* Bóng nếp gấp trên trang đang lật — tối dần ở mép lật
+                giữa lúc lật rồi tan khi trang khuất hẳn. Chỉ chạy lúc
+                trang này thoát (exit của con chạy cùng exit của cha). */}
+            <motion.div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 z-20"
+              style={{
+                background:
+                  "linear-gradient(to left, rgba(40,10,10,0.45), rgba(40,10,10,0) 45%)",
+              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0 }}
+              exit={{
+                opacity: [0, 0.85, 0.1],
+                transition: { duration: 0.9, times: [0, 0.5, 1], ease: "easeInOut" },
+              }}
+            />
+            {/* Bóng trên trang mới lộ ra — tối ở mép trái rồi sáng dần
+                khi lật xong. Chỉ từ lần lật đầu tiên (tránh nháy tối
+                lúc mới mở); giảm chuyển động thì không bóng. */}
+            {hasFlipped && (
+              <motion.div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 z-20"
+                style={{
+                  background:
+                    "linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0) 35%)",
+                }}
+                initial={reduce ? { opacity: 0 } : { opacity: 0.9 }}
+                animate={{ opacity: 0 }}
+                transition={reduce ? { duration: 0 } : { duration: 0.9, ease: "easeOut" }}
+              />
+            )}
             <div className="mx-auto flex min-h-full w-full flex-col items-center justify-center gap-6 px-5 py-6 sm:px-8">
           {isFinale ? (
             /* MÀN KẾT: nền đỏ vân giấy + chữ thư pháp lớn — nét chữ lấp
