@@ -22,7 +22,8 @@ export type TransitionId =
   | "lat-trang"
   | "man-ket-do"
   | "mo-dan"
-  | "truot-xep-chong";
+  | "truot-xep-chong"
+  | "hoa-cuon-man";
 
 export interface SlideTransition {
   id: TransitionId;
@@ -132,6 +133,18 @@ export const TRANSITIONS: Record<TransitionId, SlideTransition> = {
     extracted: false,
     note: "Chưa tách — gắn chặt vị trí chồng Polaroid.",
   },
+  "hoa-cuon-man": {
+    id: "hoa-cuon-man",
+    name: "Hoa Cuốn Màn",
+    description:
+      "Đám mây 25–40 cánh hoa hồng lớn quét ngang toàn khung như một bức màn chắn, che kín 70–90% lúc đỉnh rồi tan ra lộ ảnh mới — ảnh đổi ngay lúc che kín nhất, không thấy 2 ảnh chồng nhau; hướng quét xen kẽ trái/phải theo từng lần chuyển.",
+    durationMs: 1300,
+    source: "Pikbest 1440022 (Hoa Hồng Cuốn)",
+    slideStyle: "flowers-brochure",
+    demoHref: "/thiep/demo?slide=flowers-brochure&photos=6",
+    extracted: true,
+    component: "FlowerSweepOverlay",
+  },
 };
 
 export const TRANSITION_IDS: TransitionId[] = [
@@ -142,6 +155,7 @@ export const TRANSITION_IDS: TransitionId[] = [
   "man-ket-do",
   "mo-dan",
   "truot-xep-chong",
+  "hoa-cuon-man",
 ];
 
 export function isTransitionId(v: string | null | undefined): v is TransitionId {
@@ -152,7 +166,8 @@ export function isTransitionId(v: string | null | undefined): v is TransitionId 
     v === "lat-trang" ||
     v === "man-ket-do" ||
     v === "mo-dan" ||
-    v === "truot-xep-chong"
+    v === "truot-xep-chong" ||
+    v === "hoa-cuon-man"
   );
 }
 
@@ -184,4 +199,14 @@ export const PAGE_FLIP = {
   perspective: 1100,
   rotateY: -170, // trang cũ lật quanh mép trái
   tilt: -6, // nghiêng chéo như đường peel trong video
+} as const;
+
+/** Thời gian + mốc đổi ảnh của "Hoa Cuốn Màn" (xem FlowerSweep):
+ *  quét vào 0,3s → phủ kín 0,6s (đổi ảnh ở mốc 620ms, giấu sau đám
+ *  hoa) → tan ra 0,5s; tổng 1,3s — đo trực tiếp từ preview.mp4 mẫu
+ *  1440022 (3 lần chuyển ở 10fps giống hệt nhau). */
+export const FLOWER_SWEEP = {
+  durationS: 1.3,
+  swapAtMs: 620, // đổi ảnh lúc đám mây che kín nhất (0,46 × 1,3s)
+  petalCount: 34, // số cánh lớn trong đám mây lúc đỉnh (video: 25–40)
 } as const;
