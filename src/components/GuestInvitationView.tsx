@@ -25,6 +25,9 @@ import { BurstParticles, ScrollProgress, SmoothScroll } from "@/components/effec
 import { IntroCover } from "@/components/IntroCover";
 import { IntroSlideshow } from "@/components/IntroSlideshow";
 import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlideshow";
+import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
+import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
+import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
 import type { SlideStyleId } from "@/lib/slide-styles";
 import { vietQrUrl } from "@/lib/store";
 import { isBlockVisible } from "@/lib/blocks";
@@ -199,6 +202,12 @@ export default function GuestInvitationView({
           <IntroCover data={data} fx={fx} onDone={() => setCoverDone(true)} />
         ) : slideStyleOverride === "romantic-brochure" ? (
           <RomanticBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+        ) : slideStyleOverride === "peach-heart" ? (
+          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+        ) : slideStyleOverride === "warm-confession" ? (
+          <WarmConfessionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+        ) : slideStyleOverride === "comic-diary" ? (
+          <ComicDiarySlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
         ) : (
           <IntroSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
         )}
