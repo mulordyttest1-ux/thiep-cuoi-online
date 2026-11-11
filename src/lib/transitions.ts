@@ -23,7 +23,8 @@ export type TransitionId =
   | "man-ket-do"
   | "mo-dan"
   | "truot-xep-chong"
-  | "hoa-cuon-man";
+  | "hoa-cuon-man"
+  | "bao-hoa-duc-lo";
 
 export interface SlideTransition {
   id: TransitionId;
@@ -145,6 +146,18 @@ export const TRANSITIONS: Record<TransitionId, SlideTransition> = {
     extracted: true,
     component: "FlowerSweepOverlay",
   },
+  "bao-hoa-duc-lo": {
+    id: "bao-hoa-duc-lo",
+    name: "Bão Hoa Đục Lỗ",
+    description:
+      "Không phải bão cuốn ảnh cũ đi: ảnh mới nằm sẵn bên dưới, lớp ảnh cũ phủ trên bị đục thủng dần theo vệt bão chéo xoáy — chỗ lủng lộ ảnh mới ra, cánh hoa bay dọc đúng vệt đang đục; hướng bão xen kẽ trái/phải theo từng lần chuyển.",
+    durationMs: 1600,
+    source: "Pikbest 1526340 (Bão Hoa — cơ chế theo mô tả của chị chủ; video preview không tải được để đo khung hình)",
+    slideStyle: "layer-motion",
+    demoHref: "/thiep/demo?slide=layer-motion&photos=6",
+    extracted: true,
+    component: "StormPunchOverlay",
+  },
 };
 
 export const TRANSITION_IDS: TransitionId[] = [
@@ -156,6 +169,7 @@ export const TRANSITION_IDS: TransitionId[] = [
   "mo-dan",
   "truot-xep-chong",
   "hoa-cuon-man",
+  "bao-hoa-duc-lo",
 ];
 
 export function isTransitionId(v: string | null | undefined): v is TransitionId {
@@ -167,7 +181,8 @@ export function isTransitionId(v: string | null | undefined): v is TransitionId 
     v === "man-ket-do" ||
     v === "mo-dan" ||
     v === "truot-xep-chong" ||
-    v === "hoa-cuon-man"
+    v === "hoa-cuon-man" ||
+    v === "bao-hoa-duc-lo"
   );
 }
 
@@ -209,4 +224,17 @@ export const FLOWER_SWEEP = {
   durationS: 1.3,
   swapAtMs: 620, // đổi ảnh lúc đám mây che kín nhất (0,46 × 1,3s)
   petalCount: 34, // số cánh lớn trong đám mây lúc đỉnh (video: 25–40)
+} as const;
+
+/** Thời gian + số lỗ của "Bão Hoa Đục Lỗ" (xem StormPunch): ảnh mới
+ *  đổi NGAY lúc bắt đầu chuyển (nằm sẵn bên dưới), lớp ảnh cũ bị đục
+ *  thủng dần theo vệt bão — lỗ chính mọc dọc vệt (0,08–0,83s), lỗ lấp
+ *  đầy mọc muộn ở góc/mép (0,9–1,3s) để lộ hết ảnh mới lúc ~1,45s;
+ *  tổng 1,6s. Thông số theo mô tả của chị chủ (video preview 1526340
+ *  không tải được để đo khung hình — xem StormPunch.tsx). */
+export const STORM_PUNCH = {
+  durationS: 1.6,
+  holeCount: 26, // lỗ chính dọc vệt bão
+  fillCount: 10, // lỗ lấp đầy ở góc/mép
+  petalCount: 14, // cánh hoa bay dọc vệt bão
 } as const;
