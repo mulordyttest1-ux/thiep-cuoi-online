@@ -8,3 +8,4 @@ export { ShatterAssembleOverlay } from "./ShatterAssemble";
 export { PageFlip } from "./PageFlip";
 export { FinaleWipe } from "./FinaleWipe";
 export { FlowerSweepOverlay } from "./FlowerSweep";
+export { StormPunchOverlay } from "./StormPunch";
