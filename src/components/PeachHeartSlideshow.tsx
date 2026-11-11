@@ -3,6 +3,7 @@
 // Day Peach Heart Transition Electronic Brochure", AE template; làm
 // 2026-11-11).
 //
+//
 // Ngôn ngữ của mẫu: nền low-poly TRẮNG/BẠC sáng; TRÁI TIM PHA LÊ khổng
 // lồ nhiều mặt cắt (gradient hồng đào → tím, trong suốt, lõi sáng) ở
 // giữa; tim VỠ thành mảnh mặt cắt + cánh hoa bay ra, ảnh cưới lộ ra
