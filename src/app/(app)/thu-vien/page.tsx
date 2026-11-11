@@ -25,6 +25,7 @@ import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlidesho
 import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
 import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
 import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
+import { FlowersBrochureSlideshow } from "@/components/FlowersBrochureSlideshow";
 import { SLIDE_STYLES, type SlideStyle, type SlideStyleId } from "@/lib/slide-styles";
 import {
   TRANSITIONS,
@@ -129,8 +130,8 @@ function FlarePulse({ gradient }: { gradient: string }) {
  *  slideStyle "scrapbook" (mặc định) = IntroSlideshow Polaroid;
  *  "romantic-brochure" = RomanticBrochureSlideshow; "peach-heart" =
  *  PeachHeartSlideshow; "warm-confession" = WarmConfessionSlideshow;
- *  "comic-diary" = ComicDiarySlideshow. photos mặc định 1 ảnh (chỉ
- *  xem bố cục); muốn thấy chuyển cảnh chạy thì truyền nhiều ảnh
+ *  "comic-diary" = ComicDiarySlideshow; "flowers-brochure" =
+ *  FlowersBrochureSlideshow. photos mặc định 1 ảnh (chỉ xem bố cục); muốn thấy chuyển cảnh chạy thì truyền nhiều ảnh
  *  (thẻ chuyển cảnh truyền 3 ảnh để chuyển tự chạy 12s/lần). */
 function SlideshowStage({
   textEffect,
@@ -210,6 +211,15 @@ function SlideshowStage({
           />
         ) : slideStyle === "comic-diary" ? (
           <ComicDiarySlideshow
+            key={replayKey}
+            data={DEMO_DATA}
+            fx={fx}
+            photos={photos}
+            textEffect={textEffect}
+            onEnter={() => {}}
+          />
+        ) : slideStyle === "flowers-brochure" ? (
+          <FlowersBrochureSlideshow
             key={replayKey}
             data={DEMO_DATA}
             fx={fx}

@@ -14,8 +14,13 @@
 // 10077037, làm 2026-11-11 — khác slideshow Polaroid dù cùng nguồn cảm
 // hứng). "comic-diary": trang truyện tranh — panel viền dày nghiêng +
 // ghi chú vàng + chấm halftone, màn kết đỏ (mẫu Pikbest 10082742, làm
-// 2026-11-11; đẹp nhất khi thiệp có từ 3 ảnh trở lên). Kiểu mới là kiểu
-// RIÊNG trong thư viện, không thay mặc định.
+// 2026-11-11; đẹp nhất khi thiệp có từ 3 ảnh trở lên).
+// "flowers-brochure": Hoa Hồng Cuốn — 1 ảnh duy nhất viền trắng
+// nghiêng nhẹ trên nền hồng phấn, thẻ tiêu đề đỏ luân phiên vị trí,
+// ảnh đứng yên hoàn toàn; chuyển cảnh đám mây cánh hoa hồng lớn quét
+// ngang che kín màn hình ("Hoa Cuốn Màn", mẫu Pikbest 1440022, làm
+// 2026-11-11). Kiểu mới là kiểu RIÊNG trong thư viện, không thay
+// mặc định.
 // Chọn qua ?slide=<id> trên trang khách; giá trị lạ → về "scrapbook".
 
 /** Kiểu slide ảnh của intro. */
@@ -24,7 +29,8 @@ export type SlideStyleId =
   | "romantic-brochure"
   | "peach-heart"
   | "warm-confession"
-  | "comic-diary";
+  | "comic-diary"
+  | "flowers-brochure";
 
 export interface SlideStyle {
   id: SlideStyleId;
@@ -65,6 +71,12 @@ export const SLIDE_STYLES: Record<SlideStyleId, SlideStyle> = {
     description:
       "Trang truyện tranh: panel viền dày nghiêng + ghi chú vàng + chấm halftone, màn kết đỏ; đẹp nhất khi thiệp có từ 3 ảnh trở lên.",
   },
+  "flowers-brochure": {
+    id: "flowers-brochure",
+    label: "Hoa Hồng Cuốn",
+    description:
+      "1 ảnh duy nhất viền trắng nghiêng nhẹ trên nền hồng phấn, thẻ tiêu đề đỏ luân phiên vị trí, ảnh đứng yên; chuyển cảnh đám mây cánh hoa hồng lớn quét ngang che kín màn hình.",
+  },
 };
 
 export function isSlideStyleId(v: string | null | undefined): v is SlideStyleId {
@@ -73,7 +85,8 @@ export function isSlideStyleId(v: string | null | undefined): v is SlideStyleId 
     v === "romantic-brochure" ||
     v === "peach-heart" ||
     v === "warm-confession" ||
-    v === "comic-diary"
+    v === "comic-diary" ||
+    v === "flowers-brochure"
   );
 }
 

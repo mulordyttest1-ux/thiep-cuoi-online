@@ -28,6 +28,7 @@ import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlidesho
 import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
 import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
 import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
+import { FlowersBrochureSlideshow } from "@/components/FlowersBrochureSlideshow";
 import type { SlideStyleId } from "@/lib/slide-styles";
 import { vietQrUrl } from "@/lib/store";
 import { isBlockVisible } from "@/lib/blocks";
@@ -212,6 +213,8 @@ export default function GuestInvitationView({
           <WarmConfessionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : slideStyleOverride === "comic-diary" ? (
           <ComicDiarySlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
+        ) : slideStyleOverride === "flowers-brochure" ? (
+          <FlowersBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : (
           <IntroSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         )}
