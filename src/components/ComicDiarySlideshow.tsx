@@ -301,7 +301,7 @@ export function ComicDiarySlideshow({
   guestName,
   onEnter,
   photos: photosProp,
-  textEffect = "sand",
+  textEffect = "scatter",
 }: {
   data: InvitationData;
   fx: TemplateEffects;
@@ -313,7 +313,7 @@ export function ComicDiarySlideshow({
   onEnter: () => void;
   /** Danh sách ảnh — mặc định chỉ ảnh thật của thiệp (data.photoUrl). */
   photos?: string[];
-  /** Hiệu ứng chữ — "sand" (mặc định), "scatter", "paper" (nhịp chung
+  /** Hiệu ứng chữ — "scatter" (mặc định), "sand", "paper" (nhịp chung
    *  TEXT_PACE_* như slideshow Polaroid). Chọn qua ?tx=; không truyền
    *  = cát. */
   textEffect?: TextEffectId;

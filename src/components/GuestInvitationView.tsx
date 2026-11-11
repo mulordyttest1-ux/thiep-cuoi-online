@@ -61,7 +61,7 @@ export default function GuestInvitationView({
    *  thử, không đổi dữ liệu thiệp). Không truyền = preset của mẫu. */
   effectsOverride?: TemplateEffects;
   /** Ghi đè hiệu ứng chữ trong slideshow (vd ?tx=sand|scatter — chỉ để
-   *  thử, không đổi dữ liệu thiệp). Không truyền = cát ("sand"). */
+   *  thử, không đổi dữ liệu thiệp). Không truyền = scatter ("scatter"). */
   textEffectOverride?: TextEffectId;
   /** Ghi đè kiểu slide ảnh trong intro (vd ?slide=romantic-brochure —
    *  chỉ để thử, không đổi dữ liệu thiệp). Không truyền = slideshow

@@ -17,10 +17,11 @@
 // là ảnh minh họa Unsplash, KHÔNG dùng ở đây (không để thông tin sẵn).
 // Không có ảnh khách: chỉ chữ trên nền cover theo biến thể.
 //
-// CHỮ: ba hiệu ứng có tên (chị chủ chốt 2026-11-10) — "sand" (mặc
-// định): hạt cát rơi nhẹ từ trên xuống tụ lại thành chữ, lúc chuyển ảnh
-// thì chữ vỡ thành cát bay lên; "scatter": Scatter & Reform đã lưu
-// (PR #28, giữ nguyên hình thức); "paper": giấy dán — từng chữ rơi từ
+// CHỮ: ba hiệu ứng có tên (chị chủ chốt 2026-11-10) — "scatter" (mặc
+// định từ 2026-11-11, chị chọn scatter): từng chữ cái bay về ghép lại
+// thành chữ, lúc chuyển ảnh thì chữ vỡ vụn bay đi; "sand": hạt cát rơi
+// nhẹ từ trên xuống tụ lại thành chữ, lúc chuyển ảnh thì chữ vỡ thành
+// cát bay lên; "paper": giấy dán — từng chữ rơi từ
 // trên xuống, lật (rotateX −90° về 0, cú lật làm chữ hiện ra) rồi dán
 // phẳng như tờ giấy. NHỊP CHUNG (chị chốt 2026-11-10 16:24): cả 3
 // dùng 1 nhịp đáp (TEXT_PACE_* trong src/lib/intro.ts) — cùng gia tốc
@@ -208,14 +209,15 @@ export function IntroSlideshow({
    *  trong AmbientLayer nên ["bokeh", "sparkle"] chỉ hiện bokeh +
    *  sao 4 cánh, không hiện tia vàng. */
   overlay,
-  /** Hiệu ứng chữ — "sand" (mặc định): hạt cát rơi nhẹ từ trên xuống
-   *  tụ lại thành chữ, lúc chuyển ảnh thì cát bay lên; "scatter":
-   *  Scatter & Reform đã lưu (PR #28, giữ nguyên hình thức); "paper":
+  /** Hiệu ứng chữ — "scatter" (mặc định): từng chữ cái bay về ghép
+   *  lại thành chữ, lúc chuyển ảnh thì chữ vỡ vụn bay đi; "sand":
+   *  hạt cát rơi nhẹ từ trên xuống tụ lại thành chữ, lúc chuyển ảnh
+   *  thì cát bay lên; "paper":
    *  giấy dán — từng chữ rơi từ trên xuống, lật rồi dán phẳng. Cả 3
    *  dùng CHUNG nhịp đáp (TEXT_PACE_*, intro.ts): cùng gia tốc
    *  (K = 2,5), vận tốc ban đầu gấp đôi paper cũ, cả dòng đáp xong
-   *  ~2,95s. Chọn qua ?tx= trên trang khách; không truyền = cát. */
-  textEffect = "sand",
+   *  ~2,95s. Chọn qua ?tx= trên trang khách; không truyền = scatter. */
+  textEffect = "scatter",
 }: {
   data: InvitationData;
   fx: TemplateEffects;
