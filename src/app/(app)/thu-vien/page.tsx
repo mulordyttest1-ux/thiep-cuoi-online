@@ -2,11 +2,13 @@
 //
 // QUY TẮC DEMO TRƯỚC KHI SỬA: trước khi sửa gì phải demo cho chị xem
 // trước — trang này là chỗ chị xem + quản lý toàn bộ thư viện: hiệu ứng
-// chữ (3), nền (5 nhóm), biến thể effect (6), lớp phủ (4). Mỗi mục đều
-// demo CHẠY THẬT bằng đúng component của app (không viết lại hiệu ứng
-// giả): SandText/PaperText trực tiếp, IntroSlideshow thật cho scatter
-// (ShatterText nằm trong file đó, không export riêng), AmbientLayer
-// thật cho hạt bay/lớp phủ, TemplateMotif thật cho họa tiết mẫu.
+// chữ (3), kiểu slide ảnh (2), nền (5 nhóm), biến thể effect (6), lớp
+// phủ (4). Mỗi mục đều demo CHẠY THẬT bằng đúng component của app
+// (không viết lại hiệu ứng giả): SandText/PaperText trực tiếp,
+// IntroSlideshow thật cho scatter (ShatterText nằm trong file đó, không
+// export riêng) và cho kiểu Scrapbook Polaroid, RomanticBrochureSlideshow
+// thật cho kiểu Brochure lãng mạn, AmbientLayer thật cho hạt bay/lớp phủ,
+// TemplateMotif thật cho họa tiết mẫu.
 // Trang CHỈ ĐỂ XEM + DEMO + mở link demo — không đổi mặc định thật của
 // app (đổi mặc định là việc riêng, chưa được duyệt).
 "use client";
@@ -18,6 +20,8 @@ import AdminGate from "@/components/AdminGate";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
 import { IntroSlideshow } from "@/components/IntroSlideshow";
+import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlideshow";
+import { SLIDE_STYLES, type SlideStyle, type SlideStyleId } from "@/lib/slide-styles";
 import TemplateMotif from "@/components/TemplateMotif";
 import { AmbientLayer } from "@/components/effects";
 import { defaultInvitation, formatDateVi } from "@/lib/types";
@@ -108,18 +112,22 @@ function FlarePulse({ gradient }: { gradient: string }) {
   );
 }
 
-/** Khung điện thoại thu nhỏ chứa slideshow thật (IntroSlideshow cao tối
- *  thiểu 100dvh nên không nhét trực tiếp vào thẻ được): render slideshow
- *  ở khổ 390px rồi co lại vừa chiều rộng thẻ, chiều cao đo thật sau khi
- *  render để không cắt chữ. */
+/** Khung điện thoại thu nhỏ chứa slideshow thật (cả IntroSlideshow và
+ *  RomanticBrochureSlideshow đều cao tối thiểu 100dvh nên không nhét
+ *  trực tiếp vào thẻ được): render slideshow ở khổ 390px rồi co lại vừa
+ *  chiều rộng thẻ, chiều cao đo thật sau khi render để không cắt chữ.
+ *  slideStyle "scrapbook" (mặc định) = IntroSlideshow Polaroid;
+ *  "romantic-brochure" = RomanticBrochureSlideshow. */
 function SlideshowStage({
   textEffect,
   fx,
   replayKey,
+  slideStyle = "scrapbook",
 }: {
   textEffect: TextEffectId;
   fx: TemplateEffects;
   replayKey: number;
+  slideStyle?: SlideStyleId;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -157,14 +165,25 @@ function SlideshowStage({
         data-stage-inner
         style={{ width: 390, transform: `scale(${scale})`, transformOrigin: "top left" }}
       >
-        <IntroSlideshow
-          key={replayKey}
-          data={DEMO_DATA}
-          fx={fx}
-          photos={[DEMO_PHOTO]}
-          textEffect={textEffect}
-          onEnter={() => {}}
-        />
+        {slideStyle === "romantic-brochure" ? (
+          <RomanticBrochureSlideshow
+            key={replayKey}
+            data={DEMO_DATA}
+            fx={fx}
+            photos={[DEMO_PHOTO]}
+            textEffect={textEffect}
+            onEnter={() => {}}
+          />
+        ) : (
+          <IntroSlideshow
+            key={replayKey}
+            data={DEMO_DATA}
+            fx={fx}
+            photos={[DEMO_PHOTO]}
+            textEffect={textEffect}
+            onEnter={() => {}}
+          />
+        )}
       </div>
     </div>
   );
@@ -330,6 +349,41 @@ function TextEffectCard({ effect }: { effect: (typeof TEXT_EFFECTS)[number] }) {
           )}
         </div>
       )}
+    </CardShell>
+  );
+}
+
+/** Thẻ kiểu slide ảnh — demo chạy thật bằng đúng component slideshow
+ *  của kiểu đó trong khung điện thoại thu nhỏ (SlideshowStage): Scrapbook
+ *  Polaroid = IntroSlideshow thật, Brochure lãng mạn =
+ *  RomanticBrochureSlideshow thật. Cả hai đều dùng đúng dữ liệu mẫu +
+ *  đúng biến thể le-nghi của thiệp demo (mẫu Song Phụng Đỏ) nên demo
+ *  trong thẻ khớp với link "Xem demo đầy đủ". Chạy lại = remount (key).
+ *  Chỉ 2 kiểu đã live — KHÔNG thêm comic-diary (chưa được duyệt). */
+function SlideStyleCard({ style }: { style: SlideStyle }) {
+  const [run, setRun] = useState(0);
+  const isDefault = style.id === "scrapbook";
+  const href = isDefault ? "/thiep/demo" : `/thiep/demo?slide=${style.id}`;
+  return (
+    <CardShell
+      testId={`slide-style-${style.id}`}
+      title={style.label}
+      code={style.id}
+      desc={style.description}
+      badge={isDefault ? "Mặc định" : undefined}
+      footer={
+        <>
+          <ReplayButton onClick={() => setRun((r) => r + 1)} />
+          <DemoLink href={href} label="Xem demo đầy đủ →" />
+        </>
+      }
+    >
+      <SlideshowStage
+        slideStyle={style.id}
+        textEffect="sand"
+        fx={VARIANT_PRESETS["le-nghi"]}
+        replayKey={run}
+      />
     </CardShell>
   );
 }
@@ -672,6 +726,19 @@ export default function LibraryPage() {
           </div>
         </section>
 
+        <section className="mt-12" data-testid="section-slide-styles">
+          <SectionHeading
+            id="kieu-slide-anh"
+            title="Kiểu slide ảnh"
+            desc="Ảnh dâu rể trong intro — 2 kiểu slide ảnh đã live: Polaroid scrapbook mặc định và Brochure lãng mạn. Demo chạy thật trong khung nhỏ; bấm xem demo đầy đủ để thấy cả intro của kiểu đó."
+          />
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {(Object.keys(SLIDE_STYLES) as SlideStyleId[]).map((id) => (
+              <SlideStyleCard key={id} style={SLIDE_STYLES[id]} />
+            ))}
+          </div>
+        </section>
+
         <section className="mt-12" data-testid="section-backgrounds">
           <SectionHeading
             id="nen"
@@ -712,8 +779,8 @@ export default function LibraryPage() {
         </section>
 
         <p className="mt-10 rounded-xl bg-[#f3e8d8] px-4 py-3 text-sm text-[#5a4a48]">
-          Muốn đổi mặc định hiệu ứng chữ hay nền của app, hoặc bốc ngẫu nhiên cho mẫu mới — nói
-          em, em làm riêng. Trang này không tự đổi gì cả.
+          Muốn đổi mặc định hiệu ứng chữ, nền hay kiểu slide ảnh của app, hoặc bốc ngẫu nhiên cho
+          mẫu mới — nói em, em làm riêng. Trang này không tự đổi gì cả.
         </p>
       </div>
     </AdminGate>
