@@ -2,13 +2,14 @@
 //
 // QUY TẮC DEMO TRƯỚC KHI SỬA: trước khi sửa gì phải demo cho chị xem
 // trước — trang này là chỗ chị xem + quản lý toàn bộ thư viện: hiệu ứng
-// chữ (3), kiểu slide ảnh (2), nền (5 nhóm), biến thể effect (6), lớp
-// phủ (4). Mỗi mục đều demo CHẠY THẬT bằng đúng component của app
-// (không viết lại hiệu ứng giả): SandText/PaperText trực tiếp,
-// IntroSlideshow thật cho scatter (ShatterText nằm trong file đó, không
-// export riêng) và cho kiểu Scrapbook Polaroid, RomanticBrochureSlideshow
-// thật cho kiểu Brochure lãng mạn, AmbientLayer thật cho hạt bay/lớp phủ,
-// TemplateMotif thật cho họa tiết mẫu.
+// chữ (3), kiểu slide ảnh (5), hiệu ứng chuyển cảnh (7), nền (5 nhóm),
+// biến thể effect (6), lớp phủ (4). Mỗi mục đều demo CHẠY THẬT bằng
+// đúng component của app (không viết lại hiệu ứng giả): SandText/
+// PaperText trực tiếp, IntroSlideshow thật cho scatter (ShatterText nằm
+// trong file đó, không export riêng) và cho kiểu Scrapbook Polaroid,
+// RomanticBrochureSlideshow thật cho kiểu Brochure lãng mạn, các
+// slideshow thật cho từng chuyển cảnh, AmbientLayer thật cho hạt bay/
+// lớp phủ, TemplateMotif thật cho họa tiết mẫu.
 // Trang CHỈ ĐỂ XEM + DEMO + mở link demo — không đổi mặc định thật của
 // app (đổi mặc định là việc riêng, chưa được duyệt).
 "use client";
@@ -21,7 +22,16 @@ import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
 import { IntroSlideshow } from "@/components/IntroSlideshow";
 import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlideshow";
+import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
+import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
+import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
 import { SLIDE_STYLES, type SlideStyle, type SlideStyleId } from "@/lib/slide-styles";
+import {
+  TRANSITIONS,
+  TRANSITION_IDS,
+  type SlideTransition,
+  type TransitionId,
+} from "@/lib/transitions";
 import TemplateMotif from "@/components/TemplateMotif";
 import { AmbientLayer } from "@/components/effects";
 import { defaultInvitation, formatDateVi } from "@/lib/types";
@@ -117,17 +127,23 @@ function FlarePulse({ gradient }: { gradient: string }) {
  *  trực tiếp vào thẻ được): render slideshow ở khổ 390px rồi co lại vừa
  *  chiều rộng thẻ, chiều cao đo thật sau khi render để không cắt chữ.
  *  slideStyle "scrapbook" (mặc định) = IntroSlideshow Polaroid;
- *  "romantic-brochure" = RomanticBrochureSlideshow. */
+ *  "romantic-brochure" = RomanticBrochureSlideshow; "peach-heart" =
+ *  PeachHeartSlideshow; "warm-confession" = WarmConfessionSlideshow;
+ *  "comic-diary" = ComicDiarySlideshow. photos mặc định 1 ảnh (chỉ
+ *  xem bố cục); muốn thấy chuyển cảnh chạy thì truyền nhiều ảnh
+ *  (thẻ chuyển cảnh truyền 3 ảnh để chuyển tự chạy 12s/lần). */
 function SlideshowStage({
   textEffect,
   fx,
   replayKey,
   slideStyle = "scrapbook",
+  photos = [DEMO_PHOTO],
 }: {
   textEffect: TextEffectId;
   fx: TemplateEffects;
   replayKey: number;
   slideStyle?: SlideStyleId;
+  photos?: string[];
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
@@ -170,7 +186,34 @@ function SlideshowStage({
             key={replayKey}
             data={DEMO_DATA}
             fx={fx}
-            photos={[DEMO_PHOTO]}
+            photos={photos}
+            textEffect={textEffect}
+            onEnter={() => {}}
+          />
+        ) : slideStyle === "peach-heart" ? (
+          <PeachHeartSlideshow
+            key={replayKey}
+            data={DEMO_DATA}
+            fx={fx}
+            photos={photos}
+            textEffect={textEffect}
+            onEnter={() => {}}
+          />
+        ) : slideStyle === "warm-confession" ? (
+          <WarmConfessionSlideshow
+            key={replayKey}
+            data={DEMO_DATA}
+            fx={fx}
+            photos={photos}
+            textEffect={textEffect}
+            onEnter={() => {}}
+          />
+        ) : slideStyle === "comic-diary" ? (
+          <ComicDiarySlideshow
+            key={replayKey}
+            data={DEMO_DATA}
+            fx={fx}
+            photos={photos}
             textEffect={textEffect}
             onEnter={() => {}}
           />
@@ -179,7 +222,7 @@ function SlideshowStage({
             key={replayKey}
             data={DEMO_DATA}
             fx={fx}
-            photos={[DEMO_PHOTO]}
+            photos={photos}
             textEffect={textEffect}
             onEnter={() => {}}
           />
@@ -385,6 +428,46 @@ function SlideStyleCard({ style }: { style: SlideStyle }) {
         fx={VARIANT_PRESETS["le-nghi"]}
         replayKey={run}
       />
+    </CardShell>
+  );
+}
+
+/** Thẻ hiệu ứng chuyển cảnh — demo chạy thật bằng đúng slideshow của
+ *  kiểu đang dùng chuyển đó, trong khung điện thoại thu nhỏ
+ *  (SlideshowStage). Thẻ truyền 3 ảnh để chuyển cảnh tự chạy 12s/lần
+ *  (1 ảnh thì không bao giờ chuyển); link "Xem demo đầy đủ" mở với 6
+ *  ảnh để thấy hết các hướng của chuyển (vỡ + lắp, trang + màn kết).
+ *  Tên/mô tả/thời gian/nguồn đọc từ registry TRANSITIONS. Chạy lại =
+ *  remount (key). */
+function TransitionCard({ transition }: { transition: SlideTransition }) {
+  const [run, setRun] = useState(0);
+  const cardPhotos = PRESET_PHOTOS.slice(0, 3).map((p) => p.url);
+  return (
+    <CardShell
+      testId={`transition-${transition.id}`}
+      title={transition.name}
+      code={transition.id}
+      desc={transition.description}
+      badge={transition.extracted ? "Đã tách" : "Chưa tách"}
+      footer={
+        <>
+          <ReplayButton onClick={() => setRun((r) => r + 1)} />
+          <DemoLink href={transition.demoHref} label="Xem demo đầy đủ →" />
+        </>
+      }
+    >
+      <SlideshowStage
+        slideStyle={transition.slideStyle}
+        textEffect="sand"
+        fx={VARIANT_PRESETS["le-nghi"]}
+        replayKey={run}
+        photos={cardPhotos}
+      />
+      <p className="mt-3 text-xs leading-relaxed text-[#7a6a68]">
+        {transition.durationMs / 1000} giây · {transition.source}
+        {transition.component ? ` · Component: ${transition.component}` : ""}
+        {transition.note ? ` · ${transition.note}` : ""}
+      </p>
     </CardShell>
   );
 }
@@ -665,6 +748,13 @@ export default function LibraryPage() {
     window.open(`/thiep/demo?tx=${id}`, "_blank", "noopener,noreferrer");
   };
   const pickedName = picked ? (TEXT_EFFECTS.find((t) => t.id === picked)?.name ?? picked) : null;
+  const [pickedTransition, setPickedTransition] = useState<TransitionId | null>(null);
+  const pickRandomTransition = () => {
+    const id = TRANSITION_IDS[Math.floor(Math.random() * TRANSITION_IDS.length)];
+    setPickedTransition(id);
+    window.open(TRANSITIONS[id].demoHref, "_blank", "noopener,noreferrer");
+  };
+  const pickedTransitionName = pickedTransition ? TRANSITIONS[pickedTransition].name : null;
   return (
     <AdminGate>
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -740,6 +830,45 @@ export default function LibraryPage() {
           </div>
         </section>
 
+        <section className="mt-12" data-testid="section-transitions">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <SectionHeading
+              id="hieu-ung-chuyen-canh"
+              title="Hiệu ứng chuyển cảnh"
+              desc="7 chuyển cảnh trong thư viện — mỗi món đặt tên riêng, dùng lại được cho mọi kiểu slide (món “Đã tách” đã thành component riêng trong src/components/transitions/). Demo chạy thật trong khung nhỏ với 3 ảnh để chuyển tự chạy 12 giây/lần; bấm xem demo đầy đủ để thấy cả intro với 6 ảnh."
+            />
+            <div className="text-right">
+              <button
+                type="button"
+                onClick={pickRandomTransition}
+                data-testid="random-transition"
+                className="rounded-full bg-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#5e1620]"
+              >
+                🎲 Bốc ngẫu nhiên
+              </button>
+              {pickedTransition && (
+                <p className="mt-2 text-sm text-[#5a4a48]" data-testid="random-transition-picked">
+                  Đã bốc: <strong className="text-[#7a1f2b]">{pickedTransitionName}</strong> (
+                  {pickedTransition}) — đang mở trang demo…{" "}
+                  <Link
+                    href={TRANSITIONS[pickedTransition].demoHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-[#7a1f2b] underline"
+                  >
+                    Mở lại
+                  </Link>
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {TRANSITION_IDS.map((id) => (
+              <TransitionCard key={id} transition={TRANSITIONS[id]} />
+            ))}
+          </div>
+        </section>
+
         <section className="mt-12" data-testid="section-backgrounds">
           <SectionHeading
             id="nen"
@@ -780,8 +909,8 @@ export default function LibraryPage() {
         </section>
 
         <p className="mt-10 rounded-xl bg-[#f3e8d8] px-4 py-3 text-sm text-[#5a4a48]">
-          Muốn đổi mặc định hiệu ứng chữ, nền hay kiểu slide ảnh của app, hoặc bốc ngẫu nhiên cho
-          mẫu mới — nói em, em làm riêng. Trang này không tự đổi gì cả.
+          Muốn đổi mặc định hiệu ứng chữ, nền, kiểu slide ảnh hay chuyển cảnh của app, hoặc bốc
+          ngẫu nhiên cho mẫu mới — nói em, em làm riêng. Trang này không tự đổi gì cả.
         </p>
       </div>
     </AdminGate>
