@@ -208,7 +208,9 @@ export default function GuestInvitationView({
         ) : slideStyleOverride === "romantic-brochure" ? (
           <RomanticBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : slideStyleOverride === "peach-heart" ? (
-          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
+          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} heartVariant="giant" />
+        ) : slideStyleOverride === "peach-heart-full" ? (
+          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} heartVariant="full" />
         ) : slideStyleOverride === "warm-confession" ? (
           <WarmConfessionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : slideStyleOverride === "comic-diary" ? (

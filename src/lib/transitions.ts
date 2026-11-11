@@ -53,8 +53,8 @@ export const TRANSITIONS: Record<TransitionId, SlideTransition> = {
     id: "tung-hoa-xe-mo",
     name: "Tung Hoa Xé Mở",
     description:
-      "Tim pha lê vỡ ra: dải mảnh chéo quét từ góc trên-trái, mép xé sáng chạy theo, hoa tung bùng ra mọi hướng, tấm pha lê lớn kéo giãn rồi tan — ảnh mới nở ra từ trong tim.",
-    durationMs: 1000,
+      "Tim pha lê vỡ ra: dải mảnh tối đặc quét chéo từ góc trên-trái, hoa tung bùng ra mọi hướng, tấm pha lê lớn kéo giãn rồi tan — ảnh mới nở ra từ trong tim.",
+    durationMs: 2000,
     source: "Pikbest 237637 (Trái Tim Đào)",
     slideStyle: "peach-heart",
     demoHref: "/thiep/demo?slide=peach-heart&photos=6",
@@ -66,7 +66,7 @@ export const TRANSITIONS: Record<TransitionId, SlideTransition> = {
     name: "Hoa Tụ Về Tim",
     description:
       "Ngược lại lúc vỡ: cánh hoa tụ về thành dòng, dải mảnh bay vào ráp lại quanh tim, tấm pha lê hiện ra xếp thành tim, ảnh mới hiện dần trong tim trên nền mờ tiêu cự.",
-    durationMs: 1200,
+    durationMs: 2500,
     source: "Pikbest 237637 (Trái Tim Đào)",
     slideStyle: "peach-heart",
     demoHref: "/thiep/demo?slide=peach-heart&photos=6",

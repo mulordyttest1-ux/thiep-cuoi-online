@@ -1,86 +1,79 @@
 // Bộ sưu tập kiểu TRÁI TIM ĐÀO — kiểu slide ảnh riêng trong thư viện
 // (id "peach-heart", mẫu Pikbest 237637 "Romantic Tanabata Valentine's
-// Day Peach Heart Transition Electronic Brochure", AE template; làm
-// 2026-11-11). TÊN GỌI PHONG CÁCH: "PHA LÊ ĐÀO HOA" — tim pha lê +
-// hoa đào bay + tiêu cự điện ảnh.
+// Day Peach Heart Transition Electronic Brochure", AE template).
+// TÊN GỌI PHONG CÁCH: "PHA LÊ ĐÀO HOA" — tim pha lê + hoa đào bay +
+// tiêu cự điện ảnh.
 //
-// BẢN LIỆT KÊ ĐẦY ĐỦ các lớp hiệu ứng trong video gốc (đo từ 62 khung
-// trích mỗi 0,5s + đường cong độ nét Laplacian, video 30,88s,
-// frames-dense/):
+// CẤU TRÚC ĐÚNG VIDEO (so sánh side-by-side 2026-11-11,
+// research_notes/pikbest-237637-peach-heart/so-sanh-vs-app-20261111.md).
+// Bản cũ "đẹp nhưng không giống" vì khác ở CẤU TRÚC, không phải chi
+// tiết hiệu ứng — sửa theo đúng 5 điểm (2026-11-11):
+//  1. TIM PHA LÊ ĐẶC KHỔNG LỒ, TRÀN KHUNG: cao ~96dvh, rộng theo tỷ
+//     lệ 100/65 (≈1,54, khía nông — như video 1104×715 ở 1280×720),
+//     tràn hai bên; lúc nghỉ KHÔNG thấy ảnh trong tim (ảnh chỉ lộ ra
+//     khi vỡ, trong cửa sổ hình tim rồi nở ra tràn khung). Tim cũ
+//     nhỏ (cao 34%, diện tích 18,1%) + clip ảnh bên trong là sai
+//     cấu trúc.
+//  2. CHỮ TRẮNG nằm TRÊN tim, mờ vào rồi đứng yên (video); KHÔNG
+//     thẻ trắng; cảnh ảnh tràn KHÔNG hiện chữ/thẻ gì.
+//  3. CÚ MỞ ĐẦU: tim bắt đầu nhỏ ~30% + mờ mềm, trong ~2s phóng tới
+//     ~99% và nét dần (video 0–2s); áp dụng lúc mở mỗi cảnh tim.
+//     Lúc lắp ghép tim chưa hiện tới ~1,5s.
+//  4. VỠ ~2s (xem ShatterAssemble.tsx): ~135 mảnh TỐI li ti
+//     (2–4px) thành dải ĐẶC chéo; KHÔNG mép xé sáng trắng (video
+//     không có); 6 tấm pha lê TO (155–200px) mở bung ra; hoa tung
+//     nhỏ lại (8–18px).
+//  5. LẮP GHÉP ~2,5s: hoa tụ thành MỘT dải cong từ góc dưới-trái về
+//     tâm tim; tim lắp muộn (~1,5–2s); nền mờ blur 22px giữ nguyên.
+//
+// HAI BIẾN THỂ CỠ TIM (chị chốt 2026-11-11 14:33 — "làm 2 kiểu tôi
+// xem luôn"): video gốc quay NGANG nên tim vừa to vừa trọn hình;
+// điện thoại dựng đứng thì không thể có cả hai.
+//  - "giant" (mặc định, id "peach-heart"): tim cao ~96dvh, tràn hai
+//    bên, chỉ thấy lát cắt giữa tim (khía lõm trên + mũi nhọn dưới),
+//    diện tích ~65% — đúng 5 điểm trên.
+//  - "full" (id "peach-heart-full"): tim rộng 92vw (~359px ở 390px),
+//    cao ~233px (~28% viewport), thấy TRỌN hình tim nhưng nhỏ hơn
+//    hẳn. Giữ nguyên 4 điểm cấu trúc còn lại (tim đặc, chữ trắng
+//    trên tim, mở đầu phóng to ~2s, vỡ dải mảnh đặc + lắp dải cong).
+//    Chuyển cảnh VỠ/LẮP bám theo hộp tim của từng biến thể (xem
+//    ShatterAssemble.tsx — tham số heartVariant).
+//
+// Các lớp hiệu ứng trong video gốc (đo từ 62 khung mỗi 0,5s + độ nét
+// Laplacian, video 30,88s, frames-dense/):
 //  1. Tim pha lê (0–31s): tim khổng lồ nhiều mặt cắt, gradient hồng
-//     đào→tím, glow — dấu ấn chính. [ĐÃ CÓ]
-//  2. Camera push-in vào tim (0–5s): tim to dần từ ~55% khung tới
-//     lấp đầy khung. [MỚI: push-in 1→1,14 trong 12s, chỉ cảnh tim]
-//  3. Tiêu cự MỜ→NÉT lúc mở cảnh (0–5s): độ nét 21→780 trong khi
-//     camera đẩy vào — cả khung mở đầu mờ mơ rồi nét dần. [MỚI:
-//     blur 6px→0 trong 2s đầu mỗi cảnh]
-//  4. Tiêu cự NỀN MỜ + TIM NÉT lúc lắp ghép (12–14,5s): độ nét
-//     sụp 2185→263 (nền lối đi lễ đường mờ hẳn) rồi leo lại 263→
-//     1013 khi tim lắp xong và nét dần. [MỚI: nền ảnh mờ blur 22px
-//     hiện lúc lắp ghép, mờ dần biến mất sau khi tim đáp]
+//     đào→tím, glow — dấu ấn chính. [ĐÃ CÓ, nay ĐẶC + KHỔNG LỒ]
+//  2. Camera push-in vào tim (0–5s): tim to dần từ ~30% tới lấp đầy
+//     khung trong ~2s. [MỚI: intro scale 0,3→1 trong 2s + mờ 6px→0]
+//  3. Tiêu cự MỜ→NÉT lúc mở cảnh (0–5s): độ nét 21→780 — CẢ KHUNG
+//     mở đầu mờ mơ rồi nét dần. [MỚI: blur tim 6px→0 trong 2s]
+//  4. Tiêu cự NỀN MỜ + TIM NÉT lúc lắp ghép (12–14,5s): độ nét sụp
+//     2185→263 rồi leo lại →1013. [ĐÃ CÓ: nền ảnh mờ blur 22px]
 //  5. Hoa bay (xuyên suốt, từ ~1,5s): cánh hoa nhỏ hồng/tím/trắng
-//     RƠI chậm từ trên xuống, đu đưa ngang, xoay chậm — thưa, ~15–
-//     25 cánh cùng lúc. [ĐÃ CÓ 12 cánh dao động tại chỗ → ĐỔI thành
-//     18 cánh RƠI (12 cánh giọt nước + 6 TIM NHỎ hồng/tím)]
-//  6. Tim nhỏ bay (6,5s, 19–27s): tim hồng/tím bay lơ lửng, có lúc
-//     to bằng bàn tay (khung 6,5s). [MỚI: 6 tim nhỏ trong lớp hoa bay]
-//  7. Bokeh (9,5s): đốm tròn mềm trắng/hồng/tím rải trên nền ảnh.
-//     [MỚI: 8 đốm bokeh trôi chậm + nhấp nhẹ]
-//  8. Vệt sáng chéo / mặt cắt pha lê (8s, 19–27s): dải sáng trắng
-//     mờ chéo qua khung, mép chéo sắc. [MỚI: dải sáng quét 1 lần
-//     mỗi cảnh, ~4,5s]
+//     RƠI chậm từ trên xuống, đu đưa, xoay chậm, ~15–25 cánh.
+//     [ĐÃ CÓ: 18 cánh RƠI (12 giọt nước + 6 TIM NHỎ)]
+//  6. Tim nhỏ bay (6,5s, 19–27s): tim hồng/tím bay lơ lửng. [ĐÃ CÓ]
+//  7. Bokeh (9,5s): đốm tròn mềm trắng/hồng/tím. [ĐÃ CÓ: 8 đốm]
+//  8. Vệt sáng chéo / mặt cắt pha lê (8s, 19–27s): dải sáng trắng mờ
+//     chéo qua khung. [ĐÃ CÓ: quét 1 lần mỗi cảnh, ~4,5s]
 //  9. Vignette trắng mềm trên ảnh tràn (8–11s). [ĐÃ CÓ]
 // 10. Glow hồng quanh tim. [ĐÃ CÓ]
 // 11. Tim phập phồng (thở) 6s. [ĐÃ CÓ]
-// 12. VỠ 1,0s + LẮP GHÉP 1,2s (5–7s, 11–14,5s) — hiệu ứng chuyển
-//     cảnh "TUNG HOA XÉ MỞ" (xem kỹ từng khung 10fps ở frames-shatter/
-//     frames-assemble/, đã đối chiếu khung s_021/s_026/s_031):
-//     - VỠ: vết XÉ CHÉO quét từ góc trên-trái xuống (dải mảnh ĐẬM
-//       chạy CHÉO ~25°, không ngang — khung s_021: dải mảnh đen dài
-//       từ mép trái ~20% cao xuống giữa khung ~55%); tim sáng trắng
-//       dần rồi tan; HOA TUNG BÙNG RA (khung s_026: tim hồng/tím TO
-//       20–60px + cánh nhỏ bắn ra MỌI HƯỚNG khắp khung, đúng khoảnh
-//       khắc tim bung); 6 tấm lớn bong ra + KÉO GIÃN ngang (như bị
-//       kéo xé ra hai phía); ảnh mới lộ ra TỪ TRONG TIM (khung s_031:
-//       ảnh nằm trong cửa sổ hình tim, viền là các tấm mặt cắt) rồi
-//       nở ra tràn khung.
-//     - LẮP GHÉP: ngược lại — HOA TỤ VỀ: cánh hoa chảy thành DÒNG
-//       cong từ rìa về giữa tim (khung a_031: dòng cánh tím/hồng từ
-//       góc dưới-trái về tâm), dải mảnh quét chéo bay VÀO tụ quanh
-//       tim; tấm lớn hiện ra xếp thành tim; ảnh mới hiện dần TRONG
-//       tim; nền ảnh mờ (tiêu cự). [ĐÃ CÓ, PR #43 + TINH CHỈNH
-//       2026-11-11: dải mảnh nghiêng chéo + tung hoa bùng ra/tụ về
-//       + mép xé sáng + tấm lớn kéo giãn + ảnh mới nở ra từ trong]
-// 13. Tim nở thành ảnh tràn (14,5→16,5s): ảnh trong tim phóng to
-//     lấp đầy khung. [ĐÃ ĐƯỢC BAO BỞI chuyển VỠ, không làm thêm]
-// 14. Chữ mờ vào/chồng mờ trên tim (0–5s). [Video có; app dùng hệ
-//     chữ riêng (Sand/Paper/scatter) — không đụng]
-// 15. Thẻ kết (19–27s): chữ lớn trên ảnh mờ + hoa + vệt sáng —
-//     thẻ kết của video, không phải cảnh slideshow. [KHÔNG LÀM]
+// 12. VỠ 2,0s + LẮP GHÉP 2,5s — "TUNG HOA XÉ MỞ" / "HOA TỤ VỀ
+//     TIM" (xem kỹ từng khung 10fps ở frames-shatter/,
+//     frames-assemble/): VỠ = dải mảnh tối ĐẶC quét chéo + 6 tấm lớn
+//     mở bung + hoa tung + ảnh lộ trong cửa sổ tim rồi nở tràn khung;
+//     LẮP = hoa tụ thành dải cong + dải mảnh bay vào + tấm lớn xếp
+//     thành tim + nền mờ.
+// 13. Tim nở thành ảnh tràn (14,5→16,5s). [ĐÃ ĐƯỢC BAO BỞI chuyển VỠ]
+// 14. Chữ mờ vào trên tim (0–5s). [App dùng hệ chữ riêng
+//     (Sand/Paper/scatter) — trắng, trên tim, không thẻ]
+// 15. Thẻ kết (19–27s): thẻ kết của video, không phải cảnh
+//     slideshow. [KHÔNG LÀM]
 //
-// Ngôn ngữ của mẫu: nền low-poly TRẮNG/BẠC sáng; TRÁI TIM PHA LÊ khổng
-// lồ nhiều mặt cắt (gradient hồng đào → tím, trong suốt, lõi sáng) ở
-// giữa; tim VỠ thành mảnh mặt cắt + cánh hoa bay ra, ảnh cưới lộ ra
-// bên trong hình tim; ảnh tràn khung với mảnh/cánh hoa trôi lơ lửng;
-// chữ trắng trên tim, hiện sau, đứng yên để đọc (không bay nhảy).
-//
-// KHÁC slideshow Polaroid mặc định: không chồng Polaroid nghiêng,
-// không nền màu cảnh/blur tối; chữ màu mận đậm trên nền sáng (thay vì
-// chữ trắng trên nền tối). KHÁC brochure lãng mạn: nền low-poly trắng/
-// bạc (không giấy kem), tim PHA LÊ nhiều mặt cắt (không tim đặc),
-// chuyển cảnh VỠ + LẮP GHÉP bằng mảnh (không đường chéo mảnh) —
-// ĐÚNG NHƯ VIDEO GỐC (xem kỹ từng khung hình 4–8s và 12–16s):
-// VỠ (tim → ảnh tràn): tim sáng trắng dần (wash) rồi tan; một DẢI
-// mảnh NHỎ (hàng chục mảnh 3–12px, xám đậm/hồng/tím/trắng) quét NGANG
-// từ trái sang phải như vệt nứt lan ra, kèm vài TẤM LỚN trong mờ
-// (mặt cắt pha lê) bong ra + mờ dần; ảnh mới lộ ra SAU lớp wash.
-// LẮP GHÉP (ảnh tràn → tim): dải mảnh nhỏ quét ngang bay VÀO, tụ lại
-// quanh hình tim; các tấm lớn mờ dần hiện ra xếp thành tim; ảnh mới
-// hiện dần TRONG hình tim. Chuyển theo hướng (target layout), không
-// phải nổ tròn tỏa ra từ tâm như bản cũ.
 // Chạy được với 1 ảnh (luôn tim pha lê); nhiều ảnh thì bố cục xen kẽ
-// theo chỉ số cảnh (chẵn: tim pha lê chứa ảnh + thẻ chữ; lẻ: ảnh tràn
-// khung + mảnh trôi + thẻ chữ). Nhịp theo chuẩn app: mỗi ảnh giữ 12
+// theo chỉ số cảnh (chẵn: tim pha lê ĐẶC + chữ trắng trên tim; lẻ:
+// ảnh tràn khung, KHÔNG chữ). Nhịp theo chuẩn app: mỗi ảnh giữ 12
 // giây (PHOTO_MS), không bê nhịp nhanh của video gốc.
 //
 // Tái dùng đồ sẵn có: getSlideshowSlides (chia dòng theo số ảnh như
@@ -116,8 +109,6 @@ const PAPER_BG = "#f6f3f7";
 const INK = "#5e2a52";
 /** Màu chữ phụ trên nền sáng. */
 const INK_MUTED = "rgba(94,42,82,0.72)";
-/** Hồng viền thẻ chữ. */
-const ROSE = "#d9a0c8";
 /** Màu cánh hoa trôi (hồng đào, tím, trắng — như mẫu). */
 const PETAL_COLORS = ["#f6c6e8", "#d9a0c8", "#ffffff", "#e8b4e0"];
 /** Màu tim nhỏ bay (hồng/tím đậm hơn để đọc được trên nền sáng). */
@@ -202,23 +193,28 @@ function PeachShatterText({
 const HEART_PATH =
   "M50 88 C20 65 5 45 5 28 C5 14 16 5 28 5 C38 5 46 11 50 18 C54 11 62 5 72 5 C84 5 95 14 95 28 C95 45 80 65 50 88 Z";
 
-/** Các tam giác mặt cắt của tim pha lê (tọa độ viewBox 0–100) — clip
- *  theo hình tim nên phần thừa tự ẩn; trắng/tím trong suốt tạo cảm
- *  giác pha lê nhiều mặt cắt như mẫu. */
-const FACETS: { points: string; fill: string; opacity: number }[] = [
-  { points: "50,6 28,5 38,22", fill: "#ffffff", opacity: 0.38 },
-  { points: "50,6 72,5 62,22", fill: "#ffffff", opacity: 0.26 },
-  { points: "28,5 50,18 38,40", fill: "#a55fd0", opacity: 0.2 },
-  { points: "72,5 50,18 62,40", fill: "#ffffff", opacity: 0.22 },
-  { points: "38,40 62,40 50,60", fill: "#ffffff", opacity: 0.32 },
-  { points: "38,40 50,60 30,62", fill: "#a55fd0", opacity: 0.16 },
-  { points: "62,40 50,60 70,62", fill: "#ffffff", opacity: 0.13 },
-  { points: "30,62 50,60 50,88", fill: "#ffffff", opacity: 0.24 },
-  { points: "70,62 50,60 50,88", fill: "#a55fd0", opacity: 0.22 },
-  { points: "5,28 28,5 38,40", fill: "#ffffff", opacity: 0.16 },
-  { points: "95,28 72,5 62,40", fill: "#ffffff", opacity: 0.16 },
-  { points: "5,45 30,62 20,70", fill: "#f6c6e8", opacity: 0.28 },
-  { points: "95,45 70,62 80,70", fill: "#f6c6e8", opacity: 0.24 },
+/** Đường trái tim RỘNG, BẸT (viewBox 0 0 100 65, w/h ≈ 1,54, khía
+ *  nông) — đúng hình tim video gốc (1104×715 ở 1280×720). Tim video
+ *  rộng bẹt, khía nông; tim cũ (HEART_PATH 90×83, w/h 1,09) hẹp +
+ *  khía sâu hơn. */
+const WIDE_HEART_PATH =
+  "M50 62 C25 46 4 33 4 18 C4 8 12 3 21 3 C30 3 38 7 43 12 C45 13 48 13 50 12 C52 13 55 13 57 12 C62 7 70 3 79 3 C88 3 96 8 96 18 C96 33 75 46 50 62 Z";
+
+/** Các tam giác mặt cắt của tim pha lê RỘNG (tọa độ viewBox 0–100
+ *  × 0–65) — ÍT, TO, highlight trắng mạnh, lõi sáng (video chỉ có
+ *  vài tam giác lớn, không phải 13 tam giác nhỏ nhạt như bản cũ).
+ *  Vẽ trong <g clipPath> theo hình tim nên phần thừa tự ẩn. */
+const WIDE_FACETS: { points: string; fill: string; opacity: number }[] = [
+  { points: "50,12 21,3 79,3", fill: "#ffffff", opacity: 0.45 },
+  { points: "21,3 4,18 43,12", fill: "#ffffff", opacity: 0.35 },
+  { points: "79,3 96,18 57,12", fill: "#ffffff", opacity: 0.3 },
+  { points: "43,12 57,12 50,32", fill: "#ffffff", opacity: 0.5 },
+  { points: "4,18 43,12 50,32", fill: "#a55fd0", opacity: 0.28 },
+  { points: "96,18 57,12 50,32", fill: "#ffffff", opacity: 0.28 },
+  { points: "4,33 50,32 50,62", fill: "#ffffff", opacity: 0.3 },
+  { points: "96,33 50,32 50,62", fill: "#a55fd0", opacity: 0.3 },
+  { points: "4,18 4,33 50,32", fill: "#f6c6e8", opacity: 0.3 },
+  { points: "96,18 96,33 50,32", fill: "#f6c6e8", opacity: 0.28 },
 ];
 
 export function PeachHeartSlideshow({
@@ -229,6 +225,7 @@ export function PeachHeartSlideshow({
   onEnter,
   photos: photosProp,
   textEffect = "sand",
+  heartVariant = "giant",
 }: {
   data: InvitationData;
   fx: TemplateEffects;
@@ -244,11 +241,15 @@ export function PeachHeartSlideshow({
    *  TEXT_PACE_* như slideshow Polaroid). Chọn qua ?tx=; không truyền
    *  = cát. */
   textEffect?: TextEffectId;
+  /** Cỡ tim: "giant" (mặc định) = tim khổng lồ cao 96dvh tràn hai
+   *  bên, chỉ thấy lát cắt giữa; "full" = tim rộng 92vw thấy trọn
+   *  hình, cao ~28% viewport. */
+  heartVariant?: "giant" | "full";
 }) {
   const reduce = useReducedMotion();
   const tpl = getTemplate(data.templateId);
   const blurCls = blurred ? "blur-[7px] select-none" : "";
-  const heartId = useId();
+  const wideHeartId = useId();
   const facetId = useId();
 
   const photos = useMemo(
@@ -298,9 +299,9 @@ export function PeachHeartSlideshow({
   const currentLines = photos.length === 0 ? allCoreLines : (slides[index] ?? []);
   const currentPhoto = photos[index];
 
-  // Bố cục xen kẽ theo cảnh: 1 ảnh → luôn tim pha lê (dấu ấn của mẫu);
-  // nhiều ảnh → chẵn: tim pha lê chứa ảnh + thẻ chữ, lẻ: ảnh tràn khung
-  // + mảnh trôi + thẻ chữ.
+  // Bố cục xen kẽ theo cảnh: 1 ảnh → luôn tim pha lê ĐẶC (dấu ấn của
+  // mẫu); nhiều ảnh → chẵn: tim pha lê ĐẶC + chữ trắng trên tim, lẻ:
+  // ảnh tràn khung, KHÔNG chữ.
   const layout: "heart" | "full" = photos.length > 1 && index % 2 === 1 ? "full" : "heart";
 
   const advance = () => {
@@ -315,8 +316,13 @@ export function PeachHeartSlideshow({
         : kind === "date"
           ? "mt-2 block text-base"
           : "mt-1 block text-sm";
-  const lineColor = (kind: SlideshowLine["kind"]) =>
-    kind === "date" || kind === "venue" ? INK_MUTED : INK;
+  // Chữ TRẮNG nằm TRÊN tim (như video: chữ trắng trên tim pha lê,
+  // mờ vào rồi đứng yên để đọc) — có bóng mờ để đọc được trên nền
+  // pha lê sáng; dòng ngày/địa điểm trắng hơi trong hơn.
+  const lineStyle = (kind: SlideshowLine["kind"]): React.CSSProperties => ({
+    color: kind === "date" || kind === "venue" ? "rgba(255,255,255,0.88)" : "#ffffff",
+    textShadow: "0 2px 16px rgba(94,42,82,0.45), 0 1px 4px rgba(94,42,82,0.35)",
+  });
 
   const renderLines = (keyPrefix: string) => (
     <AnimatePresence>
@@ -329,7 +335,7 @@ export function PeachHeartSlideshow({
               slideKey={photos.length === 0 ? 0 : index}
               reduce={!!reduce}
               className={`${lineClass(line.kind)} ${blurCls}`}
-              style={{ color: lineColor(line.kind) }}
+              style={lineStyle(line.kind)}
             />
           ) : textEffect === "paper" ? (
             <PaperText
@@ -338,7 +344,7 @@ export function PeachHeartSlideshow({
               slideKey={photos.length === 0 ? 0 : index}
               reduce={!!reduce}
               className={`${lineClass(line.kind)} ${blurCls}`}
-              style={{ color: lineColor(line.kind) }}
+              style={lineStyle(line.kind)}
             />
           ) : (
             <PeachShatterText
@@ -347,7 +353,7 @@ export function PeachHeartSlideshow({
               slideKey={photos.length === 0 ? 0 : index}
               reduce={!!reduce}
               className={`${lineClass(line.kind)} ${blurCls}`}
-              style={{ color: lineColor(line.kind) }}
+              style={lineStyle(line.kind)}
             />
           )
         )}
@@ -355,15 +361,7 @@ export function PeachHeartSlideshow({
     </AnimatePresence>
   );
 
-  // Thẻ chữ trắng viền hồng mảnh (kiểu brochure trong mẫu, tông đào).
-  const textCard = (extraClass = "") => (
-    <div
-      className={`rounded-md border bg-white/95 p-5 shadow-[0_10px_30px_rgba(94,42,82,0.10)] ${extraClass}`}
-      style={{ borderColor: `${ROSE}99` }}
-    >
-      {renderLines("card")}
-    </div>
-  );
+  // (Không còn thẻ chữ trắng — chữ trắng nằm TRÊN tim, xem điểm 2.)
 
   // Lớp chuyển cảnh VỠ / LẮP GHÉP ("Tung Hoa Xé Mở" + "Hoa Tụ Về Tim")
   // nằm trong thư viện chuyển cảnh — ShatterAssembleOverlay.
@@ -460,81 +458,55 @@ export function PeachHeartSlideshow({
     />
   );
 
-  // Tim pha lê chứa ảnh: ảnh clip theo hình tim + lớp phủ mặt cắt
-  // (gradient hồng→tím nhạt + tam giác facet + viền sáng) + glow mờ
-  // phía sau; tim phập phồng nhẹ như mẫu (tắt khi giảm chuyển động).
-  // Ảnh trong tim crossfade theo key (vào muộn 0,65s khi LẮP GHÉP —
-  // tim hiện dần sau khi dải mảnh tụ lại, như video gốc; lúc mới mở
-  // thì hiện ngay, không delay).
-  const crystalHeart = (heartClass: string) =>
-    currentPhoto ? (
-      <motion.div
-        className={`relative shrink-0 ${heartClass}`}
-        animate={reduce ? undefined : { scale: [1, 1.03, 1] }}
-        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-      >
-        <AnimatePresence>
-          <motion.div
-            key={currentPhoto}
-            className="absolute inset-0"
-            initial={reduce ? false : { opacity: 0, scale: 1.07 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.03, transition: { duration: reduce ? 0 : 0.6, ease: "easeIn" } }}
-            transition={{ duration: reduce ? 0 : 0.7, delay: reduce || burstKey === 0 ? 0 : 0.65, ease: "easeOut" }}
-          >
-            {/* Glow hồng mờ sau tim. */}
-            <div
-              aria-hidden="true"
-              className="absolute inset-[-8%] rounded-full"
-              style={{
-                background: "radial-gradient(closest-side, rgba(232,143,208,0.45), rgba(165,95,208,0.12) 60%, transparent 75%)",
-                filter: "blur(10px)",
-              }}
-            />
-            <div className="relative h-full w-full overflow-hidden" style={{ clipPath: `url(#${heartId})` }}>
-              {/* Tiêu cự lúc mở cảnh: ảnh trong tim mở đầu hơi mờ rồi nét
-                  dần trong 2s (độ nét video 21→780 ở 0–5s); lúc LẮP
-                  GHÉP thì mờ vào muộn 0,65s cùng tim, nét dần sau đó
-                  (video 12–14,5s). Giảm chuyển động: nét ngay. */}
-              <motion.div
-                className="h-full w-full"
-                initial={reduce ? false : { filter: "blur(6px)" }}
-                animate={{ filter: "blur(0px)" }}
-                transition={{ duration: 2, delay: reduce || burstKey === 0 ? 0 : 0.65, ease: "easeOut" }}
-              >
-                <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
-                  <img
-                    src={currentPhoto}
-                    alt=""
-                    loading="eager"
-                    referrerPolicy="no-referrer"
-                    className="h-full w-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                </KenBurns>
-              </motion.div>
-              {/* Lớp pha lê phủ lên ảnh: gradient hồng→tím nhạt + mặt cắt. */}
-              <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id={`${facetId}-grad`} x1="0" y1="0" x2="1" y2="1">
-                    <stop offset="0%" stopColor="#f7b8e4" stopOpacity="0.34" />
-                    <stop offset="45%" stopColor="#ec8fd6" stopOpacity="0.22" />
-                    <stop offset="100%" stopColor="#a55fd0" stopOpacity="0.3" />
-                  </linearGradient>
-                </defs>
-                <path d={HEART_PATH} fill={`url(#${facetId}-grad)`} />
-                {FACETS.map((f, i) => (
-                  <polygon key={i} points={f.points} fill={f.fill} opacity={f.opacity} />
-                ))}
-                <path d={HEART_PATH} fill="none" stroke="#ffffff" strokeOpacity="0.55" strokeWidth="0.7" />
-              </svg>
-            </div>
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
-    ) : null;
+  // Tim pha lê ĐẶC khổng lồ — dấu ấn của mẫu: gradient hồng đào→tím
+  // ĐẶC (không clip ảnh bên trong — ảnh chỉ lộ ra khi vỡ, trong cửa
+  // sổ hình tim rồi nở ra tràn khung), vài mặt cắt TO highlight
+  // trắng mạnh + lõi sáng, viền sáng, glow hồng mờ phía sau; tim thở
+  // nhẹ 6s như mẫu (tắt khi giảm chuyển động). Kích thước do wrapper
+  // ngoài quyết (h-[96dvh], aspect 100/65) — tim tràn trên/dưới
+  // như video.
+  const solidHeart = () => (
+    <motion.div
+      className="relative h-full w-full"
+      animate={reduce ? undefined : { scale: [1, 1.03, 1] }}
+      transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+    >
+      {/* Glow hồng mờ sau tim. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-[-8%] rounded-full"
+        style={{
+          background: "radial-gradient(closest-side, rgba(232,143,208,0.45), rgba(165,95,208,0.12) 60%, transparent 75%)",
+          filter: "blur(10px)",
+        }}
+      />
+      <svg aria-hidden="true" className="relative h-full w-full" viewBox="0 0 100 65">
+        <defs>
+          <linearGradient id={`${facetId}-grad`} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#f7b8e4" stopOpacity="0.96" />
+            <stop offset="45%" stopColor="#ec8fd6" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#a55fd0" stopOpacity="0.95" />
+          </linearGradient>
+          <radialGradient id={`${facetId}-core`} cx="0.5" cy="0.42" r="0.45">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.5" />
+            <stop offset="60%" stopColor="#ffffff" stopOpacity="0.12" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </radialGradient>
+          <clipPath id={`${facetId}-clip`}>
+            <path d={WIDE_HEART_PATH} />
+          </clipPath>
+        </defs>
+        <path d={WIDE_HEART_PATH} fill={`url(#${facetId}-grad)`} />
+        <ellipse cx="50" cy="26" rx="26" ry="16" fill={`url(#${facetId}-core)`} />
+        <g clipPath={`url(#${facetId}-clip)`}>
+          {WIDE_FACETS.map((f, i) => (
+            <polygon key={i} points={f.points} fill={f.fill} opacity={f.opacity} />
+          ))}
+        </g>
+        <path d={WIDE_HEART_PATH} fill="none" stroke="#ffffff" strokeOpacity="0.6" strokeWidth="0.8" />
+      </svg>
+    </motion.div>
+  );
 
   return (
     <div
@@ -550,11 +522,13 @@ export function PeachHeartSlideshow({
       }}
       onClick={advance}
     >
-      {/* clipPath trái tim (id riêng từng instance để không đụng nhau). */}
+      {/* clipPath trái tim RỘNG (id riêng từng instance để không đụng
+          nhau) — dùng cho cửa sổ hình tim lúc VỠ (ảnh lộ trong tim
+          rồi nở ra tràn khung). Path 100×65 nên scale y = 1/65. */}
       <svg aria-hidden="true" width="0" height="0" className="absolute">
         <defs>
-          <clipPath id={heartId} clipPathUnits="objectBoundingBox">
-            <path d={HEART_PATH} transform="scale(0.01,0.01)" />
+          <clipPath id={wideHeartId} clipPathUnits="objectBoundingBox">
+            <path d={WIDE_HEART_PATH} transform="scale(0.01,0.0153846)" />
           </clipPath>
         </defs>
       </svg>
@@ -599,38 +573,67 @@ export function PeachHeartSlideshow({
       {bokeh}
       {lightSweep}
 
-      {/* Dòng mời — giữ như slideshow Polaroid. */}
+      {/* Dòng mời — giữ như slideshow Polaroid; cảnh tim thì chữ
+          trắng trên nền pha lê, cảnh ảnh tràn thì màu mận như cũ. */}
       <motion.p
         initial={reduce ? false : { opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.2 }}
         className="relative z-10 pt-7 text-center text-xs uppercase tracking-[0.35em]"
-        style={{ color: INK_MUTED }}
+        style={{
+          color: layout === "heart" ? "rgba(255,255,255,0.92)" : INK_MUTED,
+          textShadow: layout === "heart" ? "0 1px 8px rgba(94,42,82,0.4)" : undefined,
+        }}
       >
         {guestName ? `Trân trọng kính mời ${guestName}` : "Trân trọng kính mời"}
       </motion.p>
 
       {layout === "heart" ? (
-        /* Bố cục tim pha lê: tim chứa ảnh + thẻ chữ bên dưới (mobile xếp
-           dọc, desktop tim trái + thẻ phải). */
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6 py-6 sm:flex-row sm:gap-10">
-          {/* Camera push-in vào tim: tim to dần 1→1,14 trong 12s như
-              video 0–5s (tim từ ~55% khung tới lấp đầy khung); chỉ
-              zoom tim, không zoom thẻ chữ. */}
+        /* Bố cục tim pha lê ĐẶC khổng lồ: tim tràn khung (cao ~96dvh,
+           rộng theo tỷ lệ 100/65, tràn hai bên như video) + chữ trắng
+           nằm TRÊN tim. Nhánh này không định vị (không relative) nên
+           các lớp absolute bên trong căn theo gốc slideshow (căn
+           giữa khung hình); bản thân nhánh chỉ chiếm chỗ flex-1 để
+           đẩy chấm/nút xuống dưới. */
+        <div className="flex-1">
+          {/* Cú mở đầu: tim bắt đầu nhỏ ~30% + mờ mềm, trong ~2s
+              phóng tới ~99% và nét dần (video 0–2s); áp dụng lúc mở
+              mỗi cảnh tim (key theo index nên chạy lại mỗi cảnh).
+              Lúc lắp ghép tim chưa hiện tới ~1,5s (delay 1,5s) rồi
+              mới lao vào — đúng nhịp lắp ~2,5s của video. Giảm chuyển
+              động: hiện ngay cỡ đầy, không mờ. */}
+          <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
+            <motion.div
+              key={`heart-intro-${index}`}
+              className={
+                heartVariant === "full"
+                  ? "w-[min(92vw,130dvh)] aspect-[100/65]"
+                  : "h-[96dvh] aspect-[100/65]"
+              }
+              style={{ transformOrigin: "50% 50%" }}
+              initial={reduce ? false : { scale: 0.3, opacity: 0, filter: "blur(6px)" }}
+              animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+              transition={{ duration: 2, delay: reduce ? 0 : burstKey === 0 ? 0 : 1.5, ease: "easeOut" }}
+            >
+              {solidHeart()}
+            </motion.div>
+          </div>
+          {/* Chữ trắng trên tim — mờ vào sau khi tim đã lao vào
+              (video: chữ hiện sau, đứng yên để đọc). */}
           <motion.div
-            key={`push-${index}`}
-            className="shrink-0"
-            initial={{ scale: 1 }}
-            animate={{ scale: reduce ? 1 : 1.14 }}
-            transition={{ duration: 12, ease: "linear" }}
+            key={`heart-text-${index}`}
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6"
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: reduce ? 0 : burstKey === 0 ? 0.6 : 1.8 }}
           >
-            {crystalHeart("h-[36dvh] w-[min(78vw,340px)] sm:h-[54dvh] sm:w-[min(42vw,440px)]")}
+            {renderLines("heart")}
           </motion.div>
-          <div className="relative w-full max-w-md sm:w-[42%]">{textCard()}</div>
         </div>
       ) : (
-        /* Bố cục ảnh tràn khung: ảnh tràn + vignette trắng mềm + mảnh
-           trôi + thẻ chữ ở dưới. */
+        /* Bố cục ảnh tràn khung: ảnh tràn + vignette trắng mềm. KHÔNG
+           hiện chữ/thẻ gì (video 8–11s không có chữ). Ảnh mới lộ ra
+           trong cửa sổ hình tim rồi nở ra tràn khung (khung s_031). */
         <div className="relative z-10 flex flex-1 flex-col justify-end">
           {currentPhoto && (
             <div className="absolute inset-0">
@@ -641,16 +644,15 @@ export function PeachHeartSlideshow({
                   initial={{ opacity: 0, scale: 0.94 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 1.03 }}
-                  transition={{ duration: reduce ? 0 : 0.8, delay: reduce || burstKey === 0 ? 0 : 0.45 }}
+                  transition={{ duration: reduce ? 0 : 0.8, delay: reduce || burstKey === 0 ? 0 : 1.2 }}
                 >
-                  {/* Tiêu cự lúc mở cảnh: ảnh tràn mở đầu hơi mờ rồi nét
-                      dần trong 2s (như tim); lúc VỠ thì mờ vào muộn
-                      0,45s sau lớp wash. Giảm chuyển động: nét ngay. */}
+                  {/* Ảnh tràn mờ vào muộn (sau khi cửa sổ tim đã nở),
+                      nét dần trong 1s. Giảm chuyển động: nét ngay. */}
                   <motion.div
                     className="h-full w-full"
                     initial={reduce ? false : { filter: "blur(6px)" }}
                     animate={{ filter: "blur(0px)" }}
-                    transition={{ duration: 2, delay: reduce || burstKey === 0 ? 0 : 0.45, ease: "easeOut" }}
+                    transition={{ duration: 1, delay: reduce || burstKey === 0 ? 0 : 1.2, ease: "easeOut" }}
                   >
                     <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
                       <img
@@ -666,8 +668,42 @@ export function PeachHeartSlideshow({
                     </KenBurns>
                   </motion.div>
                 </motion.div>
+                {/* Cửa sổ hình tim — lúc VỠ, ảnh mới hiện trong cửa sổ
+                    hình tim (như khung s_031: ảnh nằm trong tim, viền
+                    là tấm mặt cắt) rồi NỞ RA tràn khung (bloom):
+                    cửa sổ bắt đầu cỡ tim nhỏ (~30dvh), phóng to tới
+                    phủ kín khung rồi tan vào ảnh tràn bên dưới. Chỉ
+                    lúc chuyển sang ảnh tràn (burstKey > 0). */}
+                {!reduce && burstKey > 0 && (
+                  <motion.div
+                    key={`heartwin-${currentPhoto}`}
+                    className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    <motion.div
+                      className="h-[30dvh] aspect-[100/65]"
+                      style={{ clipPath: `url(#${wideHeartId})`, transformOrigin: "50% 50%" }}
+                      initial={{ opacity: 0, scale: 1 }}
+                      animate={{ opacity: [0, 1, 1, 0], scale: [1, 1, 1.15, 3.4] }}
+                      transition={{ duration: 1.6, delay: 0.6, times: [0, 0.25, 0.6, 1], ease: "easeOut" }}
+                    >
+                      <img
+                        src={currentPhoto}
+                        alt=""
+                        loading="eager"
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    </motion.div>
+                  </motion.div>
+                )}
               </AnimatePresence>
-              {/* Vignette trắng mềm + dải sáng dưới cho chữ đọc rõ. */}
+              {/* Vignette trắng mềm. */}
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0"
@@ -678,12 +714,13 @@ export function PeachHeartSlideshow({
               />
             </div>
           )}
-          <div className="relative mx-auto w-full max-w-md px-6 pb-2">{textCard()}</div>
         </div>
       )}
 
-      {/* Lớp chuyển cảnh VỠ / LẮP GHÉP — phủ toàn slide mỗi khi đổi ảnh. */}
-      <ShatterAssembleOverlay key={burstKey} burstKey={burstKey} assemble={isAssemble} reduce={!!reduce} />
+      {/* Lớp chuyển cảnh VỠ / LẮP GHÉP — phủ toàn slide mỗi khi đổi ảnh.
+          heartVariant để dải mảnh / tấm pha lê / đường cong lắp ghép
+          bám đúng hộp tim của từng biến thể. */}
+      <ShatterAssembleOverlay key={burstKey} burstKey={burstKey} assemble={isAssemble} reduce={!!reduce} heartVariant={heartVariant} />
 
       {/* Chấm trang — chỉ khi có nhiều ảnh. */}
       {photos.length > 1 && (
@@ -692,7 +729,7 @@ export function PeachHeartSlideshow({
             <span
               key={p}
               className={`h-1.5 rounded-full transition-all ${i === index ? "w-6" : "w-1.5 opacity-50"}`}
-              style={{ background: INK }}
+              style={{ background: layout === "heart" ? "#ffffff" : INK }}
             />
           ))}
         </div>
