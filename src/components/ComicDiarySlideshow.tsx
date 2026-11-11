@@ -55,6 +55,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns } from "@/components/effects";
+import { FinaleWipe, PageFlip } from "@/components/transitions";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
 import {
@@ -75,8 +76,6 @@ const INK = "#1a1a1a";
 const DARK_RED = "#7a1f2b";
 /** Vàng giấy ghi chú. */
 const NOTE_YELLOW = "#ffeb3b";
-/** Đỏ nền màn kết (giấy đỏ). */
-const FINALE_RED = "#b3122e";
 
 /** Số panel tối đa trên một trang truyện tranh (theo mẫu: 2–4 panel). */
 const PANELS_PER_PAGE = 3;
@@ -173,44 +172,6 @@ function HeartDoodle({ className = "" }: { className?: string }) {
         strokeLinecap="round"
       />
     </svg>
-  );
-}
-
-/** Trái tim vẽ tay QUÉT NGANG giữa lúc lật trang — như khung f_03
- *  lúc đổi cảnh (t≈6,0s): tim outline lớn + chữ "love" nằm giữa lúc
- *  trang cũ đang peel/bong đi, làm màn chắn. Chạy đúng 0,9s lật trang:
- *  từ trái sang phải, vừa xoay nhẹ vừa phóng to, mờ dần ở cuối. Chỉ
- *  trang trí — không chặn bấm. */
-function HeartSweep({ tone = "red" }: { tone?: "red" | "white" }) {
-  const stroke = tone === "white" ? "rgba(255,255,255,0.9)" : "#e63946";
-  return (
-    <motion.div
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{
-        opacity: [0, 0.9, 0.9, 0],
-        x: ["-32%", "0%", "12%", "38%"],
-        rotate: [-8, -2, 2, 8],
-        scale: [0.7, 1, 1.15, 1.3],
-      }}
-      transition={{ duration: 0.9, times: [0, 0.25, 0.6, 1], ease: "easeInOut" }}
-    >
-      <svg viewBox="0 0 100 100" className="h-[62vmin] w-[62vmin]">
-        <path d={HEART_PATH} fill="none" stroke={stroke} strokeWidth="3.5" strokeLinejoin="round" />
-        <path
-          d="M28 30 C24 34 22 40 24 46"
-          fill="none"
-          stroke={stroke}
-          strokeWidth="3"
-          strokeLinecap="round"
-          opacity="0.6"
-        />
-      </svg>
-      <span className="absolute font-display text-3xl italic" style={{ color: stroke }}>
-        love
-      </span>
-    </motion.div>
   );
 }
 
@@ -512,27 +473,9 @@ export function ComicDiarySlideshow({
         <AmbientLayer fx={fx} templateId={data.templateId} />
       </div>
 
-      {/* Màn đỏ QUÉT VÀO lúc sang màn kết — như mẫu (t≈9,5–10,0s): nền
-          đỏ tràn vào từ trái sau cú quét tim, không cắt cứng nền. */}
-      <AnimatePresence>
-        {isFinale && (
-          <motion.div
-            key="finale-red"
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 z-[6]"
-            style={{
-              backgroundColor: FINALE_RED,
-              backgroundImage:
-                "radial-gradient(rgba(255,255,255,0.07) 1px, transparent 1.4px)",
-              backgroundSize: "9px 9px",
-            }}
-            initial={reduce ? false : { clipPath: "inset(0 100% 0 0)" }}
-            animate={{ clipPath: "inset(0 0% 0 0)" }}
-            exit={{ clipPath: "inset(0 0 0 100%)" }}
-            transition={{ duration: 0.9, ease: "easeInOut" }}
-          />
-        )}
-      </AnimatePresence>
+      {/* Màn đỏ QUÉT VÀO lúc sang màn kết — "MÀN KẾT ĐỎ" trong thư viện
+          chuyển cảnh (src/components/transitions/FinaleWipe). */}
+      <FinaleWipe active={isFinale} reduce={!!reduce} />
 
       {/* Dòng mời — giữ như slideshow Polaroid. */}
       <motion.p
@@ -545,80 +488,15 @@ export function ComicDiarySlideshow({
         {guestName ? `Trân trọng kính mời ${guestName}` : "Trân trọng kính mời"}
       </motion.p>
 
-      {/* Trang truyện tranh — LẬT TRANG NHƯ LẬT TRANG SÁCH/PDF (đúng
-          khung f_03 lúc đổi trang ~6,0s): trang cũ xoay 3D quanh mép
-          trái (rotateY 0 → −170°, perspective 1100, nghiêng chéo −6°
-          như đường peel trong video), bóng nếp gấp tối dần ở mép lật,
-          mặt sau mờ dần khi lật quá 90° (backface-visibility hidden);
-          trang mới nằm SẴN BÊN DƯỚI, đứng yên, lộ dần ra khi trang cũ
-          lật đi — không trượt vào từ bên cạnh. Tổng 0,9s, easeInOut
-          (chậm ở đầu/cuối như lật giấy thật). Trang cũ được đẩy lên
-          trên (zIndex 20 lúc thoát) để che trang mới trong lúc lật.
-          Giảm chuyển động: đổi trang tức thì, không lật, không bóng.
+      {/* Trang truyện tranh — "LẬT TRANG" trong thư viện chuyển cảnh
+          (src/components/transitions/PageFlip): trang cũ lật 3D quanh
+          mép trái như lật trang sách/PDF, trang mới nằm sẵn bên dưới.
           Trang cuộn dọc bên trong khi nội dung cao hơn màn hình (trang
           3 panel trên điện thoại): ghi chú luôn ở đầu trang, không bị
           cắt như khi căn giữa trong khung cố định. */}
       <div className="relative z-10 flex-1">
-        {!reduce && <HeartSweep key={`sweep-${index}`} tone={isFinale ? "white" : "red"} />}
-        <AnimatePresence>
-          <motion.div
-            key={index}
-            data-testid="comic-page"
-            className="absolute inset-0 overflow-y-auto"
-            style={{
-              transformPerspective: 1100,
-              transformOrigin: "left center",
-              backfaceVisibility: "hidden",
-            }}
-            initial={reduce ? false : { opacity: 1, x: 0, rotate: 0, rotateY: 0 }}
-            animate={{ opacity: 1, x: 0, rotate: 0, rotateY: 0 }}
-            exit={
-              reduce
-                ? undefined
-                : {
-                    rotateY: -170,
-                    rotate: -6,
-                    opacity: [1, 1, 0],
-                    zIndex: 20,
-                    transition: { duration: 0.9, times: [0, 0.55, 0.85], ease: "easeInOut" },
-                  }
-            }
-            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          >
-            {/* Bóng nếp gấp trên trang đang lật — tối dần ở mép lật
-                giữa lúc lật rồi tan khi trang khuất hẳn. Chỉ chạy lúc
-                trang này thoát (exit của con chạy cùng exit của cha). */}
-            <motion.div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-20"
-              style={{
-                background:
-                  "linear-gradient(to left, rgba(40,10,10,0.45), rgba(40,10,10,0) 45%)",
-              }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0 }}
-              exit={{
-                opacity: [0, 0.85, 0.1],
-                transition: { duration: 0.9, times: [0, 0.5, 1], ease: "easeInOut" },
-              }}
-            />
-            {/* Bóng trên trang mới lộ ra — tối ở mép trái rồi sáng dần
-                khi lật xong. Chỉ từ lần lật đầu tiên (tránh nháy tối
-                lúc mới mở); giảm chuyển động thì không bóng. */}
-            {hasFlipped && (
-              <motion.div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 z-20"
-                style={{
-                  background:
-                    "linear-gradient(to right, rgba(0,0,0,0.3), rgba(0,0,0,0) 35%)",
-                }}
-                initial={reduce ? { opacity: 0 } : { opacity: 0.9 }}
-                animate={{ opacity: 0 }}
-                transition={reduce ? { duration: 0 } : { duration: 0.9, ease: "easeOut" }}
-              />
-            )}
-            <div className="mx-auto flex min-h-full w-full flex-col items-center justify-center gap-6 px-5 py-6 sm:px-8">
+        <PageFlip pageKey={index} isFinale={isFinale} hasFlipped={hasFlipped} reduce={!!reduce}>
+          <div className="mx-auto flex min-h-full w-full flex-col items-center justify-center gap-6 px-5 py-6 sm:px-8">
           {isFinale ? (
             /* MÀN KẾT: nền đỏ vân giấy + chữ thư pháp lớn — nét chữ lấp
                đầy bằng mảnh ảnh rồi chuyển trắng đặc (như f_09 → f_11). */
@@ -752,9 +630,8 @@ export function ComicDiarySlideshow({
               {note}
             </PageDrift>
           )}
-            </div>
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        </PageFlip>
       </div>
 
       {/* Chấm trang — chỉ khi có nhiều cảnh. */}
