@@ -231,12 +231,13 @@ function PageDrift({ reduce, children }: { reduce: boolean; children: React.Reac
 }
 
 /** Một panel ảnh kiểu truyện tranh: viền dày, hơi nghiêng, ảnh
- *  posterize nhẹ + tông ấm hồng-đỏ + halftone + vignette. DRIFT
- *  (nguyên tắc chuyển ảnh, Nancy 2026-11-11): lúc nghỉ ảnh trôi nhẹ
- *  liên tục (DriftRest ±3px/±0,5°, 7s — bọc trong panel nên không
- *  đụng góc nghiêng/viền panel); lúc chuyển trang, panel TRÔI MẠNH
- *  theo hướng riêng của nó (PanelEnter trượt ±70/60px từ trái/phải/
- *  dưới trong 0,65s) rồi mới ổn định. */
+ *  posterize nhẹ + tông ấm hồng-đỏ + halftone + vignette. DRIFT V2
+ *  (nguyên tắc chuyển ảnh, Nancy 2026-11-11 15:15): lúc nghỉ CẢ
+ *  PANEL trôi + zoom nhẹ liên tục (DriftRest ±8px/±6px + xoay ±1° +
+ *  scale 1,00 → 1,04, 6s — bọc NGOÀI panel nên viền dày + ảnh + lớp
+ *  phủ trôi cùng nhau, không còn ảnh trượt trong viền đứng yên); lúc
+ *  chuyển trang, panel TRÔI MẠNH theo hướng riêng của nó (PanelEnter
+ *  trượt ±70/60px từ trái/phải/dưới trong 0,65s) rồi mới ổn định. */
 function ComicPanel({
   src,
   index,
@@ -252,12 +253,12 @@ function ComicPanel({
   const rotate = PANEL_ROTATES[index % PANEL_ROTATES.length];
   const borderColor = index % 3 === 1 ? DARK_RED : INK;
   return (
+    <DriftRest disabled={reduce}>
     <div
       data-testid="comic-panel"
       className={`relative overflow-hidden ${ratioClass} border-[3px] bg-white shadow-[5px_5px_0_rgba(0,0,0,0.85)]`}
       style={{ transform: `rotate(${rotate}deg)`, borderColor }}
     >
-      <DriftRest disabled={reduce} className="h-full w-full">
       <KenBurns duration={6} scale={1.06} direction="in" disabled={reduce}>
         <img
           src={src}
@@ -271,7 +272,6 @@ function ComicPanel({
           }}
         />
       </KenBurns>
-      </DriftRest>
       {/* Tông ấm hồng-đỏ phủ lên ảnh (kiểu in truyện tranh). */}
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[#ff5a5a]/10 mix-blend-multiply" />
       {/* Lớp chấm halftone. */}
@@ -290,6 +290,7 @@ function ComicPanel({
         style={{ boxShadow: "inset 0 0 60px rgba(0,0,0,0.35)" }}
       />
     </div>
+    </DriftRest>
   );
 }
 

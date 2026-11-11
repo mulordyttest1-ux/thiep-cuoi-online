@@ -487,10 +487,12 @@ export function IntroSlideshow({
       {/* Xếp ảnh scrapbook: ảnh hiện tại ở trên cùng, các ảnh trước nằm
           nghiêng phía dưới như chồng Polaroid; ảnh sắp tới đỗ sẵn dưới
           khung hình rồi trượt/xoay vào. Ảnh không mờ dần (opacity 1).
-          DRIFT (nguyên tắc chuyển ảnh, Nancy 2026-11-11): lúc nghỉ mỗi
-          Polaroid bồng bềnh dập dìu nhẹ liên tục (DriftRest ±3px/
-          ±0,5°, 7s — bọc trong khung slot nên không đụng transform
-          trượt/xoay của chồng ảnh); lúc chuyển, ảnh mới TRÔI MẠNH
+          DRIFT V2 (nguyên tắc chuyển ảnh, Nancy 2026-11-11 15:15):
+          lúc nghỉ mỗi Polaroid bồng bềnh — DriftRest (±8px/±6px +
+          xoay ±1° + scale 1,00 → 1,04, 6s — MOVE + ZOOM cùng lúc,
+          giống nổi lơ lửng) bọc NGOÀI CẢ TẤM POLAROID (khung trắng +
+          ảnh trôi cùng nhau) trong khung slot nên không đụng transform
+          trượt/xoay của chồng ảnh; lúc chuyển, ảnh mới TRÔI MẠNH
           theo hướng chuyển mặc định — trượt từ dưới lên + xoay vào
           chồng trong 0,9s (chính cú trượt/xoay của slot). */}
       <div className="relative z-10 min-h-[52dvh] flex-1">
@@ -522,7 +524,7 @@ export function IntroSlideshow({
               style={{ transform, zIndex: z, transition: "transform 0.9s cubic-bezier(0.22,1,0.36,1)" }}
             >
               <DriftRest disabled={!!reduce}>
-              <div className="rounded-[4px] bg-white p-2 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+              <div data-testid="photo-frame" className="rounded-[4px] bg-white p-2 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
                 <div className="aspect-[4/5] w-full overflow-hidden rounded-[2px]">
                   <KenBurns duration={5.5} scale={1.08} direction={direction} disabled={!!reduce}>
                     <img

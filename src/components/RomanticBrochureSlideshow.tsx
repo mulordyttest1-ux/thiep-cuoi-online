@@ -297,25 +297,26 @@ export function RomanticBrochureSlideshow({
 
       {layout === "split" ? (
         /* Bố cục chia đôi: ảnh tràn bên trái, panel kem bên phải với trái
-           tim nhỏ + thẻ chữ. Mobile xếp dọc (ảnh trên, panel dưới). */
+           tim nhỏ + thẻ chữ. Mobile xếp dọc (ảnh trên, panel dưới).
+           DRIFT V2: DriftRest bọc NGOÀI CẢ CỘT ẢNH nên toàn bộ ảnh tràn
+           trôi + zoom cùng nhau, không còn ảnh trượt trong khung đứng yên. */
         <div className="relative z-10 flex flex-1 flex-col sm:flex-row">
-          <div className="relative min-h-[46dvh] flex-1 overflow-hidden">
+          <DriftRest disabled={!!reduce} className="relative min-h-[46dvh] flex-1 overflow-hidden">
             {currentPhoto && (
               <AnimatePresence>
                 <motion.div
                   key={currentPhoto}
+                  data-testid="romantic-photo-frame"
                   className="absolute inset-0"
                   // DRIFT lúc chuyển (nguyên tắc chuyển ảnh, Nancy
                   // 2026-11-11): ảnh mới trôi về phía người xem —
                   // bắt đầu to hơn 5% + lệch xuống 8px rồi lùi về
-                  // cỡ thật trong 0,9s, cùng lúc với mờ vào; lúc
-                  // nghỉ ảnh trôi nhẹ liên tục (DriftRest trong).
+                  // cỡ thật trong 0,9s, cùng lúc với mờ vào.
                   initial={{ opacity: 0, scale: 1.05, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.9 }}
                 >
-                  <DriftRest disabled={!!reduce} className="h-full w-full">
                   <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
                     <img
                       src={currentPhoto}
@@ -328,11 +329,10 @@ export function RomanticBrochureSlideshow({
                       }}
                     />
                   </KenBurns>
-                  </DriftRest>
                 </motion.div>
               </AnimatePresence>
             )}
-          </div>
+          </DriftRest>
           <div className="relative flex flex-col items-center justify-center gap-4 px-6 py-8 sm:w-[45%]">
             {/* Ảnh mờ sau chữ — chính ảnh đang hiện, rất nhạt. */}
             {currentPhoto && (
@@ -343,13 +343,14 @@ export function RomanticBrochureSlideshow({
                 className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.18]"
               />
             )}
-            {/* Trái tim nhỏ: ảnh kế tiếp — trôi nhẹ lúc nghỉ như ảnh chính. */}
+            {/* Trái tim nhỏ: ảnh kế tiếp — DRIFT V2: DriftRest bọc NGOÀI
+                cả hình tim (khung cắt + ảnh trôi cùng nhau). */}
             {nextPhoto && (
+              <DriftRest disabled={!!reduce} className="relative h-28 w-32 shrink-0">
               <div
-                className="relative h-28 w-32 shrink-0 overflow-hidden"
+                className="relative h-full w-full overflow-hidden"
                 style={{ clipPath: `url(#${heartId})` }}
               >
-                <DriftRest disabled={!!reduce} className="h-full w-full">
                 <img
                   src={nextPhoto}
                   alt=""
@@ -360,8 +361,8 @@ export function RomanticBrochureSlideshow({
                     e.currentTarget.style.display = "none";
                   }}
                 />
-                </DriftRest>
               </div>
+              </DriftRest>
             )}
             <div className="relative w-full max-w-sm">{textCard()}</div>
           </div>
@@ -378,18 +379,21 @@ export function RomanticBrochureSlideshow({
                 aria-hidden="true"
                 className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-[0.14]"
               />
+              {/* DRIFT V2: DriftRest bọc NGOÀI DriftSurge nên cả hình tim
+                  (khung cắt + ảnh) trôi + zoom cùng nhau lúc nghỉ. */}
+              <DriftRest disabled={!!reduce} className="relative h-[38dvh] w-[min(76vw,360px)] shrink-0">
               <DriftSurge
                 sceneKey={currentPhoto}
                 offset={{ scale: 1.05, y: 8 }}
                 durationS={0.9}
                 disabled={!!reduce}
-                className="relative h-[38dvh] w-[min(76vw,360px)] shrink-0"
+                className="relative h-full w-full"
               >
               <div
+                data-testid="photo-frame"
                 className="relative h-full w-full overflow-hidden"
                 style={{ clipPath: `url(#${heartId})` }}
               >
-                <DriftRest disabled={!!reduce} className="h-full w-full">
                 <KenBurns duration={6} scale={1.06} direction="in" disabled={!!reduce}>
                   <img
                     src={currentPhoto}
@@ -402,9 +406,9 @@ export function RomanticBrochureSlideshow({
                     }}
                   />
                 </KenBurns>
-                </DriftRest>
               </div>
               </DriftSurge>
+              </DriftRest>
             </>
           )}
           <div className="relative w-full max-w-md">{textCard()}</div>
