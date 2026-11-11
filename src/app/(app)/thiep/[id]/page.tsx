@@ -31,9 +31,9 @@ function CardInner() {
   // le-hoi — xem docs/effect-variants-research.md): ghi đè preset của mẫu
   // CHỈ khi xem, không đổi dữ liệu thiệp. Giá trị lạ → bỏ qua.
   const fxOverride = fxParam && isEffectVariant(fxParam) ? getVariantEffects(fxParam) : undefined;
-  // Thử nhanh hiệu ứng chữ (?tx=sand|scatter — sand = hạt cát mặc định,
-  // scatter = Scatter & Reform chậm đã lưu): ghi đè CHỈ khi xem, không
-  // đổi dữ liệu thiệp. Giá trị lạ → về "sand".
+  // Thử nhanh hiệu ứng chữ (?tx=sand|scatter — scatter = Scatter & Reform mặc định,
+  // sand = hạt cát): ghi đè CHỈ khi xem, không
+  // đổi dữ liệu thiệp. Giá trị lạ → về "scatter".
   const textEffectOverride = resolveTextEffect(search.get("tx"));
   // Thử nhanh kiểu slide ảnh (?slide=romantic-brochure — kiểu brochure
   // lãng mạn; không truyền = slideshow Polaroid scrapbook mặc định):
