@@ -5,9 +5,9 @@ import { useSearchParams } from "next/navigation";
 import type { InvitationData, StdEditField } from "@/lib/types";
 import { emptyInvitation } from "@/lib/types";
 import { getTemplate, PRESET_PHOTOS, TEMPLATES } from "@/lib/templates";
-import { DEFAULT_PHYSICAL_FORM_ID, getPhysicalForm } from "@/lib/physical-forms";
+import { DEFAULT_PHYSICAL_FORM_ID } from "@/lib/physical-forms";
 import { buildCustomerEditUrl, buildShareUrl, copyText, decodeCustomTexts, decodeShare, mergeImportedData, saveInvitation } from "@/lib/store";
-import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, effectiveCeremonyDate, parseCepGhostTextWithPlainFallback, parseCepPlainText } from "@/lib/cep";
+import { buildCepMetadataJson, buildCepPlainText, buildCepTextBlock, effectiveCeremonyDate, parseCepGhostTextWithPlainFallback } from "@/lib/cep";
 import { getDateParts } from "@/lib/lunar";
 import { customTextDef, customTextValue, isCustomTextEdited, stdFieldLabel } from "@/lib/custom-texts";
 import { compressImage } from "@/lib/image";
@@ -30,6 +30,45 @@ function Field({ label, id, children }: { label: string; id: string; children: R
     <div>
       <label htmlFor={id} className="text-sm font-semibold">{label}</label>
       <div className="mt-1">{children}</div>
+    </div>
+  );
+}
+
+/** Mục thu gọn (2026-11-11): các mục ít dùng trên /tao-thiep mặc định đóng,
+ *  bấm tiêu đề mới mở. Nội dung vẫn mount sẵn (chỉ ẩn bằng CSS) nên mọi
+ *  nút/ô bên trong vẫn hoạt động khi mở ra, không mất state. `bare` dùng
+ *  cho khối con bên trong một khung lớn (không thêm thẻ trắng ngoài). */
+function Collapsible({
+  title,
+  hint,
+  defaultOpen = false,
+  bare = false,
+  testId,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  defaultOpen?: boolean;
+  bare?: boolean;
+  testId?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={bare ? "mt-3" : "mt-6 rounded-2xl border bg-white p-5 shadow-sm"} data-testid={testId}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className={bare ? "text-sm font-bold text-[#7a1f2b]" : "text-base font-bold text-[#7a1f2b]"}>{title}</span>
+        <span aria-hidden className="shrink-0 rounded-full border px-2 py-0.5 text-xs font-bold text-[#7a1f2b]">
+          {open ? "▾ Thu lại" : "▸ Mở"}
+        </span>
+      </button>
+      {hint ? <p className="mt-1 text-sm text-[#5a4a48]">{hint}</p> : null}
+      <div className={open ? "mt-3" : "hidden"}>{children}</div>
     </div>
   );
 }
@@ -170,7 +209,6 @@ function EditorInner() {
   const [cepCopyNotice, setCepCopyNotice] = useState("");
   const [importText, setImportText] = useState("");
   const [importMeta, setImportMeta] = useState("");
-  const [plainImportText, setPlainImportText] = useState("");
   // Link khách chốt xong gửi lại (?d= dạng mẫu SVG): dữ liệu áp vào form,
   // mẫu SVG thì mục "Mẫu thiệp SVG" tự chọn.
   const [svgPayload, setSvgPayload] = useState<SvgSharePayload | null>(null);
@@ -654,7 +692,6 @@ function EditorInner() {
     setCepCopyNotice("");
     setImportText("");
     setImportMeta("");
-    setPlainImportText("");
     setSvgPayload(null);
     setPanelNotice("");
     setReconcileRef("");
@@ -946,26 +983,10 @@ function EditorInner() {
     setCepWarning(missingPlaceWarning(missingVenue, missingCeremony));
   };
 
-  const onImportPlain = () => {
-    const res = parseCepPlainText(plainImportText);
-    if (!res.ok) {
-      setCepNotice(res.error);
-      setCepWarning("");
-      return;
-    }
-    const merged = mergeImportedData(data, res.data);
-    const missingVenue = !merged.venue?.trim() || !merged.address?.trim();
-    const missingCeremony = !merged.ceremonyVenue?.trim();
-    setData({
-      ...merged,
-      physicalFormId: data.physicalFormId ?? DEFAULT_PHYSICAL_FORM_ID,
-    });
-    setMode("physical");
-    setCepNotice(
-      "Đã điền dữ liệu từ khối chữ thường — form vật lý Mẫu in chuẩn #1 đã được chọn, kiểm tra lại rồi bấm Lưu thiệp."
-    );
-    setCepWarning(missingPlaceWarning(missingVenue, missingCeremony));
-  };
+  // (Ô "Điền từ khối chữ thường" đã bỏ 2026-11-11: dán khối chữ thường vào
+  // ô ghost ở trên cho kết quả tương đương nhờ fallback trong
+  // parseCepGhostTextWithPlainFallback — xem cep.ts:527. Hàm parseCepPlainText
+  // vẫn dùng trong fallback đó, chỉ UI riêng bị bỏ.)
 
   // Chọn mẫu ONLINE — chỉ dùng ở đường online. Đường vật lý KHÔNG chọn
   // mẫu online, chỉ chọn form vật lý (mục "Form vật lý" bên dưới).
@@ -1127,25 +1148,20 @@ function EditorInner() {
         </div>
       </fieldset>
 
+      {/* Hàng nút đã gọn (2026-11-11): "Lưu thiệp" + "Sao chép link cho
+          khách sửa" + ô link ?t= + toast chỉ còn ở hộp "Link cho khách sửa"
+          (customerLinkBox) ngay dưới form — trước đây toolbar này và hộp
+          đó trùng y hệt nhau. */}
       <div className="flex flex-wrap gap-2 pt-2">
-        <button type="button" onClick={onSave} className="rounded-full bg-[#7a1f2b] px-5 py-3 font-semibold text-white hover:bg-[#5e1620]">{d.saveCard}</button>
         <button type="button" onClick={onNewInvitation} data-testid="new-invitation" className="rounded-full border px-5 py-3 font-semibold">＋ Thiệp mới</button>
         <button type="button" onClick={onCopy} className="rounded-full border-2 border-[#7a1f2b] px-5 py-3 font-semibold text-[#7a1f2b]">{d.copyLink}</button>
         <button type="button" onClick={onOpenCard} className="rounded-full border px-5 py-3 font-semibold">{d.openCard}</button>
-        <button type="button" onClick={onCopyEditLink} className="rounded-full border px-5 py-3 font-semibold">Sao chép link cho khách sửa</button>
       </div>
-      {notice && <p className="rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{notice}</p>}
       {shareLink && (
-        <div>
+        <Collapsible bare title="Link chia sẻ (?d=)" hint="Kèm dữ liệu trong link, mở được trên máy khác." testId="share-link-box">
           <label htmlFor="share-link" className="text-sm font-semibold">Link chia sẻ (kèm dữ liệu trong ?d=, mở được trên máy khác)</label>
           <input id="share-link" readOnly value={shareLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-[#fdf8f1]`} />
-        </div>
-      )}
-      {editLink && (
-        <div>
-          <label htmlFor="edit-link" className="text-sm font-semibold">Link cho khách sửa (qua máy chủ — đã sao chép)</label>
-          <input id="edit-link" readOnly value={editLink} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-[#fdf8f1]`} />
-        </div>
+        </Collapsible>
       )}
 
     </div>
@@ -1155,7 +1171,11 @@ function EditorInner() {
   // Mở khóa / Đối soát tay / Lấy QR vẫn phải bấm được (fieldset disabled
   // sẽ khóa hết nút con bên trong nó).
   const serverPanel = (
-    <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
+    <Collapsible
+      title="Gửi khách duyệt in & bán thiệp online"
+      hint="Đồng bộ lên máy chủ, chốt in, lấy QR trả tiền / link khách, đối soát tay — ít dùng hàng ngày."
+      testId="server-panel"
+    >
       {/* Gửi khách duyệt in + khóa + thanh toán (máy chủ quyết định).
           Luồng v3-final: Đồng bộ -> gửi link xem trước cho khách duyệt in ->
           Chốt in (chỉ đọc nội dung vật lý, demo online vẫn sửa được trường
@@ -1163,7 +1183,6 @@ function EditorInner() {
           (chọn mẫu -> quét QR 100k -> nhận link xịn) -> link khách chính
           thức mở. Chưa trả tiền thì không bao giờ tạo được link khách. */}
       <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Gửi khách duyệt in và thanh toán">
-        <h2 className="text-base font-bold text-[#7a1f2b]">Gửi khách duyệt in &amp; bán thiệp online</h2>
         <p className="mt-1 text-sm text-[#5a4a48]">
           Trạng thái hiện tại: <strong>{serverStatus ? STATUS_LABEL[serverStatus as InvitationStatus] ?? serverStatus : "chưa đưa lên máy chủ"}</strong>
           {readOnly ? " — editor đang chỉ đọc, bấm “Mở khóa để sửa” mới sửa được." : ""}
@@ -1188,17 +1207,15 @@ function EditorInner() {
         )}
         {serverEditUrl && (
           <div className="mt-3">
-            <label htmlFor="server-edit-url" className="text-sm font-semibold">Link cho khách sửa (qua máy chủ, không lộ dữ liệu trong link)</label>
+            <label htmlFor="server-edit-url" className="text-sm font-semibold">Link mở lại trình sửa (dành cho Thiết kế)</label>
             <input id="server-edit-url" readOnly value={serverEditUrl} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
           </div>
         )}
-        {customerEditUrl && (
-          <div className="mt-3">
-            <label htmlFor="customer-edit-url" className="text-sm font-semibold">Link khách sửa mẫu chuẩn #1 (chỉ thấy thiệp — gửi link này cho khách)</label>
-            <input id="customer-edit-url" readOnly value={customerEditUrl} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
-            <button type="button" onClick={async () => { const r = await copyText(customerEditUrl); setPanelNotice(r.ok ? "Đã sao chép link khách sửa mẫu chuẩn." : "Không sao chép được."); }} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép link khách sửa</button>
-          </div>
-        )}
+        {/* Ô link khách sửa mẫu chuẩn đã bỏ (2026-11-11): cùng URL
+            /khach/<id>?t=… với ô duy nhất trong hộp "Link cho khách sửa"
+            (customerLinkBox) — giữ 1 ô trên toàn trang. Ô server-edit-url
+            bên trên được giữ: đó là link /tao-thiep?edit=… mở lại trình
+            sửa, URL khác hẳn link khách. */}
         {payInfo && (
           <div className="mt-4 rounded-xl border bg-white p-4 text-center">
             <p className="font-semibold text-[#7a1f2b]">QR mua thiệp online — {payInfo.amountText}</p>
@@ -1240,75 +1257,69 @@ function EditorInner() {
           {reconcileNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{reconcileNotice}</p>}
         </div>
       </section>
-    </div>
+    </Collapsible>
   );
 
-  // Mục CEP — cũng render ngoài fieldset chỉ-đọc để vẫn sao chép được khi đã chốt.
-  // Tách làm 2 khối: cepImport (dán ghost text → "Điền vào form") đặt lên
-  // đầu đường vật lý (bước 1); cepExport (3 ô sao chép về Illustrator) đặt
-  // xuống dưới, sau link khách. Đường online vẫn dùng cả 2 gộp lại
-  // (cepSection) như cũ.
-  const cepExport = (
+  // Mục CEP — MỘT khung chung "Trao đổi dữ liệu với Illustrator (CEP)":
+  // nhập (Illustrator → app, Bước 1, luôn mở) + xuất (app → Illustrator,
+  // Bước 3, gọn mặc định). Hai chiều của cùng một luồng in, không phải hai
+  // mục trùng nhau (phân tích 2026-11-11). Render NGOÀI fieldset chỉ-đọc
+  // để vẫn dán/sao chép được khi đã chốt.
+  const cepExchange = (
     <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
-      {/* Nối với Illustrator (CEP "Wedding Scripter") — chỉ phía app web.
-          Xuất: 3 ô sao chép từ dữ liệu đang nhập. */}
-      <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Xuất sang Illustrator">
-        <h2 className="text-base font-bold text-[#7a1f2b]">Lấy ghost text về Illustrator (CEP)</h2>
+      <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Trao đổi dữ liệu với Illustrator">
+        <h2 className="text-base font-bold text-[#7a1f2b]">Trao đổi dữ liệu với Illustrator (CEP)</h2>
         <p className="mt-1 text-sm text-[#5a4a48]">
-          Xuất dữ liệu sang Illustrator để in. Chữ bọc bằng ký tự ẩn U+200B theo đúng thứ tự 32 trường của CEP.
+          Một luồng hai chiều: đưa dữ liệu từ Illustrator vào form (nhập), rồi xuất ghost text ra Illustrator để in (xuất).
         </p>
 
-        <div className="mt-4 space-y-4">
-          <div>
-            <label htmlFor="cep-ghost" className="text-sm font-semibold">Chữ có mã ẩn — dán vào text frame trong Illustrator</label>
-            <textarea id="cep-ghost" readOnly rows={10} value={buildCepTextBlock(data)} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
-            <p className="mt-1 text-xs text-[#7a6a68]">Nhìn thì giống chữ thường, nhưng trong đó có ký tự ẩn U+200B bọc từng trường — script mới đọc được. Bấm sao chép rồi dán nguyên đoạn vào text frame.</p>
-            <button type="button" onClick={() => onCopyCep(buildCepTextBlock(data), "Đã sao chép chữ có mã ẩn.")} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép chữ có mã ẩn</button>
-          </div>
-          <div>
-            <label htmlFor="cep-meta" className="text-sm font-semibold">Metadata — dán vào thuộc tính (note) của text frame</label>
-            <input id="cep-meta" readOnly value={buildCepMetadataJson()} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
-            <button type="button" onClick={() => onCopyCep(buildCepMetadataJson(), "Đã sao chép metadata.")} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép metadata</button>
-          </div>
-          <div>
-            <label htmlFor="cep-plain" className="text-sm font-semibold">Chữ thường — dán vào ô nhập của panel CEP / để khách kiểm tra</label>
-            <textarea id="cep-plain" readOnly rows={10} value={buildCepPlainText(data)} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
-            <button type="button" onClick={() => onCopyCep(buildCepPlainText(data), "Đã sao chép chữ thường.")} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép chữ thường</button>
-          </div>
-        </div>
-        {cepCopyNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{cepCopyNotice}</p>}
-      </section>
-    </div>
-  );
-
-  // Bước 1 của đường vật lý: dán đoạn ghost text copy từ Illustrator để
-  // điền vào form (không tự lưu — chỉ lưu khi bấm "Lưu thiệp").
-  const cepImport = (
-    <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
-      <section className="rounded-2xl border bg-[#fdf8f1] p-4" aria-label="Nhập từ Illustrator">
-        <h2 className="text-base font-bold text-[#7a1f2b]">Bước 1 — Dán dữ liệu từ Illustrator</h2>
-        <p className="mt-1 text-sm text-[#5a4a48]">Sửa trong Illustrator xong thì copy cả đoạn trong text frame (kể cả chữ thường xen giữa, không cần xóa) rồi dán vào đây, bấm “Điền vào form” — dữ liệu đổ vào form vật lý bên dưới.</p>
+        {/* Khối NHẬP — luôn mở: đây là khung paste dùng liên tục. */}
+        <div className="mt-4" aria-label="Nhập từ Illustrator">
+          <h3 className="text-sm font-bold text-[#7a1f2b]">Bước 1 — Đưa dữ liệu từ Illustrator vào form <span className="font-semibold text-[#5a4a48]">(Illustrator → App)</span></h3>
+          <p className="mt-1 text-sm text-[#5a4a48]">Sửa trong Illustrator xong thì copy cả đoạn trong text frame rồi dán vào đây, bấm “Điền vào form” — dữ liệu đổ vào form vật lý bên dưới.</p>
           <label htmlFor="cep-import" className="mt-3 block text-sm font-semibold">Đoạn có mã ẩn (U+200B) copy từ Illustrator</label>
           <textarea id="cep-import" rows={6} value={importText} onChange={(e) => setImportText(e.target.value)} placeholder="Dán đoạn chữ có mã ẩn vào đây…" className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
-          <label htmlFor="cep-import-meta" className="mt-3 block text-sm font-semibold">Metadata (tùy chọn — nếu dán thì app dùng đúng thứ tự khóa trong đó)</label>
-          <input id="cep-import-meta" value={importMeta} onChange={(e) => setImportMeta(e.target.value)} placeholder='{"type":"stateful","keys":[...]}' className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+          <Collapsible bare title="Nâng cao — Metadata" hint="Chỉ cần khi file .ai dùng template có thứ tự khóa khác chuẩn: dán JSON metadata vào đây, app sẽ dùng đúng thứ tự khóa trong đó." testId="cep-import-meta-advanced">
+            <label htmlFor="cep-import-meta" className="block text-sm font-semibold">Metadata (tùy chọn)</label>
+            <input id="cep-import-meta" value={importMeta} onChange={(e) => setImportMeta(e.target.value)} placeholder='{"type":"stateful","keys":[...]}' className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+          </Collapsible>
           <button type="button" onClick={onImportGhost} className="mt-3 rounded-full bg-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#5e1620]">Điền vào form</button>
+          <p className="mt-2 text-xs text-[#7a6a68]">Dán cả khối chữ thường (không có mã ẩn) vào ô trên cũng được — app tự đọc bù.</p>
+          {cepWarning && <p className="mt-3 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900" role="alert">{cepWarning}</p>}
+          {cepNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{cepNotice}</p>}
+        </div>
 
-          <label htmlFor="cep-import-plain" className="mt-5 block text-sm font-semibold">Hoặc dán khối chữ thường (cùng bố cục trên)</label>
-          <textarea id="cep-import-plain" rows={6} value={plainImportText} onChange={(e) => setPlainImportText(e.target.value)} placeholder="Dán khối chữ thường vào đây…" className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
-          <button type="button" onClick={onImportPlain} className="mt-3 rounded-full border-2 border-[#7a1f2b] px-5 py-2.5 text-sm font-semibold text-[#7a1f2b]">Điền từ khối chữ thường</button>
-        {cepWarning && <p className="mt-3 rounded-xl border-2 border-amber-500 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900" role="alert">{cepWarning}</p>}
-        {cepNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{cepNotice}</p>}
+        {/* Khối XUẤT — gọn mặc định: chỉ mở khi cần lấy ghost text ra in. */}
+        <div className="mt-5 border-t border-[#e8dcc8] pt-4">
+          <Collapsible
+            bare
+            title="Bước 3 — Xuất ghost text ra Illustrator để in (App → Illustrator)"
+            hint="Xuất dữ liệu sang Illustrator để in. Chữ bọc bằng ký tự ẩn U+200B theo đúng thứ tự 32 trường của CEP."
+            testId="cep-export"
+          >
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="cep-ghost" className="text-sm font-semibold">Chữ có mã ẩn — dán vào text frame trong Illustrator</label>
+                <textarea id="cep-ghost" readOnly rows={10} value={buildCepTextBlock(data)} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+                <p className="mt-1 text-xs text-[#7a6a68]">Nhìn thì giống chữ thường, nhưng trong đó có ký tự ẩn U+200B bọc từng trường — script mới đọc được. Bấm sao chép rồi dán nguyên đoạn vào text frame.</p>
+                <button type="button" onClick={() => onCopyCep(buildCepTextBlock(data), "Đã sao chép chữ có mã ẩn.")} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép chữ có mã ẩn</button>
+              </div>
+              <Collapsible bare title="Nâng cao — Metadata" hint="Chuỗi JSON này giống nhau mọi lần (32 khóa chuẩn) — chỉ dán vào thuộc tính (note) của text frame khi cần giữ đúng thứ tự khóa của file này." testId="cep-export-meta-advanced">
+                <label htmlFor="cep-meta" className="block text-sm font-semibold">Metadata — dán vào thuộc tính (note) của text frame</label>
+                <input id="cep-meta" readOnly value={buildCepMetadataJson()} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+                <button type="button" onClick={() => onCopyCep(buildCepMetadataJson(), "Đã sao chép metadata.")} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép metadata</button>
+              </Collapsible>
+              <Collapsible bare title="Chữ thường — để kiểm tra chính tả" hint="Cùng bố cục với chữ có mã ẩn nhưng không có ký tự ẩn — để đọc/kiểm tra chính tả bằng mắt, hoặc dán vào ô nhập của panel CEP." testId="cep-export-plain">
+                <label htmlFor="cep-plain" className="block text-sm font-semibold">Chữ thường — dán vào ô nhập của panel CEP / để khách kiểm tra</label>
+                <textarea id="cep-plain" readOnly rows={10} value={buildCepPlainText(data)} onFocus={(e) => e.target.select()} className={`${inputCls} mt-1 bg-white font-mono text-xs`} />
+                <button type="button" onClick={() => onCopyCep(buildCepPlainText(data), "Đã sao chép chữ thường.")} className="mt-2 rounded-full border-2 border-[#7a1f2b] px-4 py-2 text-sm font-semibold text-[#7a1f2b]">Sao chép chữ thường</button>
+              </Collapsible>
+            </div>
+            {cepCopyNotice && <p className="mt-3 rounded-xl bg-green-50 px-4 py-3 text-sm text-green-800" role="status">{cepCopyNotice}</p>}
+          </Collapsible>
+        </div>
       </section>
     </div>
-  );
-
-  // Đường online vẫn dùng mục CEP gộp như cũ (xuất trước, nhập sau).
-  const cepSection = (
-    <>
-      {cepExport}
-      {cepImport}
-    </>
   );
 
   // Bước 2 của đường vật lý: CHỈ CÓ 1 form in chuẩn nên không chọn nữa —
@@ -1317,12 +1328,7 @@ function EditorInner() {
   const physicalFormSection = (
     <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
       <section aria-label="Form vật lý">
-        <h2 className="text-base font-bold text-[#7a1f2b]">Bước 2 — Form vật lý</h2>
-        <p className="mt-1 text-sm text-[#5a4a48]">
-          Thiệp vật lý không chọn mẫu online — dữ liệu đổ vào form in chuẩn bên dưới, rồi gửi link cho khách sửa đúng form đó.
-        </p>
-        <p className="mt-3 text-sm font-semibold">Form in: Mẫu in chuẩn #1 — form lễ/tiệc 2 cột</p>
-        <p className="mt-1 text-xs text-[#7a6a68]">{getPhysicalForm(data.physicalFormId).description}</p>
+        <h2 className="text-base font-bold text-[#7a1f2b]">Form in chuẩn #1 — form lễ/tiệc 2 cột</h2>
       </section>
     </div>
   );
@@ -1370,11 +1376,7 @@ function EditorInner() {
   // không còn lệch đỏ/trơn), bấm vào nội dung thì box sửa nổi ngay tại đó.
   const physicalPrintEditor = (
     <div className="mt-6 rounded-2xl border bg-white p-5 shadow-sm">
-      <h2 className="text-base font-bold text-[#7a1f2b]">Form in chuẩn #1 — bấm vào để sửa</h2>
-      <p className="mt-1 text-sm text-[#5a4a48]">
-        Đây là đúng mẫu form sẽ in. Bấm vào tên, ngày, địa điểm… để sửa ngay tại chỗ đó — sửa tới đâu form
-        đổi tới đó, chữ xuất sang Illustrator đổi theo.
-      </p>
+      <h2 className="text-base font-bold text-[#7a1f2b]">Form in chuẩn #1</h2>
       {readOnly && (
         <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900" role="note">
           Thiệp đã {serverStatus === "paid_online" ? "được mua online" : "chốt in"} — editor đang chỉ đọc. Bấm “Mở khóa để sửa” ở mục “Gửi khách duyệt in &amp; bán thiệp online” (cần token admin) mới sửa được.
@@ -1592,7 +1594,7 @@ function EditorInner() {
           hàng nút (trong `form`, chỉ còn phần online) đặt dưới form in. */}
       {mode === "physical" ? (
         <>
-          {cepImport}
+          {cepExchange}
           {physicalFormSection}
           {physicalPrintEditor}
           <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
@@ -1606,9 +1608,10 @@ function EditorInner() {
             <div className="mt-3">{form}</div>
           </fieldset>
           {customerLinkBox}
-          {cepExport}
           {serverPanel}
-          <SvgTemplateSection data={data} initialPayload={svgPayload} />
+          <Collapsible title="Mẫu thiệp SVG" hint="Tải file SVG xuất từ Illustrator lên — khách mở link sẽ thấy đúng mẫu này. Ít dùng hàng ngày." testId="svg-template-section">
+            <SvgTemplateSection data={data} initialPayload={svgPayload} />
+          </Collapsible>
         </>
       ) : (
         <>
@@ -1633,19 +1636,28 @@ function EditorInner() {
             </div>
           </div>
 
+          {/* Hộp "Link cho khách sửa" cũng hiện ở đường online (2026-11-11):
+              nút "Lưu thiệp" + "Sao chép link cho khách sửa" duy nhất của
+              trang nằm trong hộp này — đường online không có hộp riêng nên
+              phải render chung, nếu không sẽ mất luôn nút lưu. */}
+          {customerLinkBox}
           {/* Mục "Xem demo thiệp online" (v3-final): demo duy nhất đã đổ dữ liệu
               khách, blur tên/ngày/giờ/địa điểm, wizard 3 bước mua online. */}
           {serverPanel}
-          {cepSection}
-          <SvgTemplateSection data={data} initialPayload={svgPayload} />
-          <OnlineDemoWizard
-            data={data}
-            onPatch={(patch) => setData((prev) => ({ ...prev, ...patch }))}
-            serverId={serverId}
-            serverStatus={serverStatus}
-            adminToken={adminToken}
-            onServerChange={(id, status) => { setServerId(id); setSavedId(id); setServerStatus(status); }}
-          />
+          {cepExchange}
+          <Collapsible title="Mẫu thiệp SVG" hint="Tải file SVG xuất từ Illustrator lên — khách mở link sẽ thấy đúng mẫu này. Ít dùng hàng ngày." testId="svg-template-section-online">
+            <SvgTemplateSection data={data} initialPayload={svgPayload} />
+          </Collapsible>
+          <Collapsible title="Xem demo thiệp online" hint="Demo duy nhất đã đổ dữ liệu khách + wizard 3 bước mua online — bấm mới mở." testId="online-demo-wizard">
+            <OnlineDemoWizard
+              data={data}
+              onPatch={(patch) => setData((prev) => ({ ...prev, ...patch }))}
+              serverId={serverId}
+              serverStatus={serverStatus}
+              adminToken={adminToken}
+              onServerChange={(id, status) => { setServerId(id); setSavedId(id); setServerStatus(status); }}
+            />
+          </Collapsible>
         </>
       )}
     </div>
