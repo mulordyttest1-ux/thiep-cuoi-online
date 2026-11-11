@@ -26,6 +26,7 @@ import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
 import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
 import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
 import { FlowersBrochureSlideshow } from "@/components/FlowersBrochureSlideshow";
+import { LayerMotionSlideshow } from "@/components/LayerMotionSlideshow";
 import { SLIDE_STYLES, type SlideStyle, type SlideStyleId } from "@/lib/slide-styles";
 import {
   TRANSITIONS,
@@ -220,6 +221,15 @@ function SlideshowStage({
           />
         ) : slideStyle === "flowers-brochure" ? (
           <FlowersBrochureSlideshow
+            key={replayKey}
+            data={DEMO_DATA}
+            fx={fx}
+            photos={photos}
+            textEffect={textEffect}
+            onEnter={() => {}}
+          />
+        ) : slideStyle === "layer-motion" ? (
+          <LayerMotionSlideshow
             key={replayKey}
             data={DEMO_DATA}
             fx={fx}
