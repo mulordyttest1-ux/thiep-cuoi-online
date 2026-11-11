@@ -50,6 +50,7 @@ export default function GuestInvitationView({
   fromWizard,
   textEffectOverride,
   slideStyleOverride,
+  photosOverride,
 }: {
   data: InvitationData;
   guestName?: string;
@@ -65,6 +66,9 @@ export default function GuestInvitationView({
    *  chỉ để thử, không đổi dữ liệu thiệp). Không truyền = slideshow
    *  Polaroid scrapbook mặc định. */
   slideStyleOverride?: SlideStyleId;
+  /** Demo nhiều ảnh (?photos=N trên trang demo — chỉ để thử, không đổi
+   *  dữ liệu thiệp). Không truyền = chỉ ảnh thật của thiệp (data.photoUrl). */
+  photosOverride?: string[];
   /** Demo: mờ tên/ngày/giờ/địa điểm (cả phong bì lẫn thiệp). Trang demo
    *  chỉ để xem — không truyền onSensitiveClick nên bấm vào ô mờ không
    *  làm gì; việc sửa diễn ra ở wizard. */
@@ -201,15 +205,15 @@ export default function GuestInvitationView({
         {!coverDone ? (
           <IntroCover data={data} fx={fx} onDone={() => setCoverDone(true)} />
         ) : slideStyleOverride === "romantic-brochure" ? (
-          <RomanticBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+          <RomanticBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : slideStyleOverride === "peach-heart" ? (
-          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : slideStyleOverride === "warm-confession" ? (
-          <WarmConfessionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+          <WarmConfessionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : slideStyleOverride === "comic-diary" ? (
-          <ComicDiarySlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+          <ComicDiarySlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : (
-          <IntroSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} />
+          <IntroSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         )}
         {/* Hạt phim (C9): vân nhiễu phủ mờ lên toàn trang intro, như giấy
             ảnh cũ — vân tĩnh nên hiện cả khi giảm chuyển động. */}

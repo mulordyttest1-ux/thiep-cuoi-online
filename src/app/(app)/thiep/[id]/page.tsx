@@ -6,7 +6,7 @@ import Link from "next/link";
 import { MotionConfig } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation } from "@/lib/types";
-import { getVariantEffects, isEffectVariant } from "@/lib/templates";
+import { getVariantEffects, isEffectVariant, PRESET_PHOTOS } from "@/lib/templates";
 import { resolveTextEffect } from "@/lib/intro";
 import { resolveSlideStyle } from "@/lib/slide-styles";
 import { decodeShare, loadInvitationById } from "@/lib/store";
@@ -40,6 +40,16 @@ function CardInner() {
   // ghi đè CHỈ khi xem, không đổi dữ liệu thiệp. Giá trị lạ → về
   // "scrapbook".
   const slideStyleOverride = resolveSlideStyle(search.get("slide"));
+  // Demo nhiều ảnh (?photos=N — CHỈ trang demo /thiep/demo, không đụng
+  // thiệp thật): dùng N ảnh đầu trong 6 ảnh cưới mẫu để thử các kiểu
+  // slide cần nhiều ảnh (comic-diary panel 3 ảnh, warm-confession
+  // collage, peach-heart xen kẽ...). N ngoài 1..6 → kẹp về khoảng đó;
+  // không truyền hoặc N <= 1 = chỉ ảnh thật của thiệp.
+  const photosParam = Number(search.get("photos"));
+  const photosOverride =
+    id === "demo" && Number.isFinite(photosParam) && photosParam > 1
+      ? PRESET_PHOTOS.slice(0, Math.min(6, Math.floor(photosParam))).map((p) => p.url)
+      : undefined;
 
   useEffect(() => {
     let alive = true;
@@ -196,6 +206,7 @@ function CardInner() {
       effectsOverride={fxOverride}
       textEffectOverride={textEffectOverride}
       slideStyleOverride={slideStyleOverride}
+      photosOverride={photosOverride}
       blurred={search.get("blur") === "1"}
       fromWizard={search.get("from") === "wizard"}
     />

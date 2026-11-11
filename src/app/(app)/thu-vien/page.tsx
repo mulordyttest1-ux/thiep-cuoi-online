@@ -358,12 +358,13 @@ function TextEffectCard({ effect }: { effect: (typeof TEXT_EFFECTS)[number] }) {
  *  Polaroid = IntroSlideshow thật, Brochure lãng mạn =
  *  RomanticBrochureSlideshow thật. Cả hai đều dùng đúng dữ liệu mẫu +
  *  đúng biến thể le-nghi của thiệp demo (mẫu Song Phụng Đỏ) nên demo
- *  trong thẻ khớp với link "Xem demo đầy đủ". Chạy lại = remount (key).
- *  Chỉ 2 kiểu đã live — KHÔNG thêm comic-diary (chưa được duyệt). */
+ *  trong thẻ khớp với link "Xem demo đầy đủ" (link mở với 6 ảnh để
+ *  thấy hết các kiểu cần nhiều ảnh; demo thu nhỏ trong thẻ vẫn 1 ảnh).
+ *  Chạy lại = remount (key). */
 function SlideStyleCard({ style }: { style: SlideStyle }) {
   const [run, setRun] = useState(0);
   const isDefault = style.id === "scrapbook";
-  const href = isDefault ? "/thiep/demo" : `/thiep/demo?slide=${style.id}`;
+  const href = isDefault ? "/thiep/demo?photos=6" : `/thiep/demo?slide=${style.id}&photos=6`;
   return (
     <CardShell
       testId={`slide-style-${style.id}`}
@@ -730,7 +731,7 @@ export default function LibraryPage() {
           <SectionHeading
             id="kieu-slide-anh"
             title="Kiểu slide ảnh"
-            desc="Ảnh dâu rể trong intro — 2 kiểu slide ảnh đã live: Polaroid scrapbook mặc định và Brochure lãng mạn. Demo chạy thật trong khung nhỏ; bấm xem demo đầy đủ để thấy cả intro của kiểu đó."
+            desc="Ảnh dâu rể trong intro — 5 kiểu slide ảnh đã live: Polaroid scrapbook mặc định, Brochure lãng mạn, Trái Tim Đào, Tỏ Tình Ấm Áp và Nhật Ký Truyện Tranh. Demo chạy thật trong khung nhỏ; bấm xem demo đầy đủ để thấy cả intro của kiểu đó."
           />
           <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             {(Object.keys(SLIDE_STYLES) as SlideStyleId[]).map((id) => (
