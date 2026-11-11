@@ -29,6 +29,7 @@ import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
 import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
 import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
 import { FlowersBrochureSlideshow } from "@/components/FlowersBrochureSlideshow";
+import { LayerMotionSlideshow } from "@/components/LayerMotionSlideshow";
 import type { SlideStyleId } from "@/lib/slide-styles";
 import { vietQrUrl } from "@/lib/store";
 import { isBlockVisible } from "@/lib/blocks";
@@ -217,6 +218,8 @@ export default function GuestInvitationView({
           <ComicDiarySlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : slideStyleOverride === "flowers-brochure" ? (
           <FlowersBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
+        ) : slideStyleOverride === "layer-motion" ? (
+          <LayerMotionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : (
           <IntroSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         )}
