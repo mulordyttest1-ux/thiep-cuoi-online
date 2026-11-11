@@ -26,6 +26,13 @@
 // cong) nhưng tim nhỏ lại vừa trọn trong khung (rộng 92vw, cao ~28%
 // viewport) thay vì khổng lồ tràn hai bên; chị chọn giữa 2 cỡ tim
 // (2026-11-11).
+// "layer-motion": Đa Lớp Bồng Bềnh — port LayerMotionSlideshow của
+// Codrops (2026-11-11, chị chọn là đẹp nhất trong 12 mẫu slide cộng
+// đồng, "đẹp như file .aep"): nền hồng phấn + ảnh viền trắng nghiêng
+// nhẹ + thẻ tiêu đề đỏ như Hoa Hồng Cuốn, nhưng mỗi lớp (nền, bóng
+// mờ ảnh, ảnh chính, thẻ tiêu đề, hoa trang trí) trôi lệch nhịp TỰ
+// ĐỘNG theo sóng sin (lerp riêng từng lớp, không cần chuột); chuyển
+// cảnh giữ "Hoa Cuốn Màn".
 // Chọn qua ?slide=<id> trên trang khách; giá trị lạ → về "scrapbook".
 
 /** Kiểu slide ảnh của intro. */
@@ -36,7 +43,8 @@ export type SlideStyleId =
   | "peach-heart-full"
   | "warm-confession"
   | "comic-diary"
-  | "flowers-brochure";
+  | "flowers-brochure"
+  | "layer-motion";
 
 export interface SlideStyle {
   id: SlideStyleId;
@@ -89,6 +97,12 @@ export const SLIDE_STYLES: Record<SlideStyleId, SlideStyle> = {
     description:
       "1 ảnh duy nhất viền trắng nghiêng nhẹ trên nền hồng phấn, thẻ tiêu đề đỏ luân phiên vị trí, ảnh đứng yên; chuyển cảnh đám mây cánh hoa hồng lớn quét ngang che kín màn hình.",
   },
+  "layer-motion": {
+    id: "layer-motion",
+    label: "Đa Lớp Bồng Bềnh",
+    description:
+      "Nền hồng phấn + ảnh viền trắng nghiêng nhẹ + thẻ tiêu đề đỏ như Hoa Hồng Cuốn, nhưng mỗi lớp (nền, bóng mờ ảnh, ảnh chính, thẻ tiêu đề, hoa trang trí) trôi lệch nhịp tự động — không cần chuột; chuyển cảnh đám mây cánh hoa hồng quét ngang.",
+  },
 };
 
 export function isSlideStyleId(v: string | null | undefined): v is SlideStyleId {
@@ -99,7 +113,8 @@ export function isSlideStyleId(v: string | null | undefined): v is SlideStyleId 
     v === "peach-heart-full" ||
     v === "warm-confession" ||
     v === "comic-diary" ||
-    v === "flowers-brochure"
+    v === "flowers-brochure" ||
+    v === "layer-motion"
   );
 }
 
