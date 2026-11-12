@@ -309,6 +309,82 @@ function ClusterDrift({
   );
 }
 
+/** Đổi cảnh XOAY VÒNG 3 kiểu (đo từ video Pikbest 10077037, 2026-11-12):
+ *  sweep = cảnh mới quét ngang vào (hướng xen kẽ), dissolve = mờ dần
+ *  1,1s không lớp trắng, fade-white = mờ qua trắng trong thư viện
+ *  chuyển cảnh (giữ nguyên). Lớp trắng chỉ có ở fade-white; giảm
+ *  chuyển động: đổi cảnh tức thì ở cả 3 kiểu. */
+function WarmSceneTransition({
+  variant,
+  sweepDir,
+  sceneKey,
+  reduce,
+  active,
+  children,
+}: {
+  variant: "sweep" | "fade-white" | "dissolve";
+  sweepDir: 1 | -1;
+  sceneKey: string | number;
+  reduce: boolean;
+  /** Chỉ chạy lớp trắng từ lần đổi cảnh đầu tiên trở đi (như
+   *  FadeThroughWhiteScene). */
+  active: boolean;
+  children: React.ReactNode;
+}) {
+  if (variant === "fade-white") {
+    return (
+      <FadeThroughWhiteScene
+        sceneKey={sceneKey}
+        reduce={reduce}
+        active={active}
+        wrapperClassName="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6"
+        sceneClassName="relative w-full max-w-2xl"
+      >
+        {children}
+      </FadeThroughWhiteScene>
+    );
+  }
+  const isSweep = variant === "sweep";
+  return (
+    <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6">
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={sceneKey}
+          className="relative w-full max-w-2xl"
+          initial={
+            reduce
+              ? false
+              : isSweep
+                ? { opacity: 0, x: sweepDir * 90, scale: 1.05 }
+                : { opacity: 0 }
+          }
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          exit={
+            reduce
+              ? { opacity: 0, transition: { duration: 0 } }
+              : isSweep
+                ? {
+                    opacity: 0,
+                    x: sweepDir * -40,
+                    transition: { duration: 0.3, ease: "easeIn" },
+                  }
+                : { opacity: 0, transition: { duration: 0.55, ease: "easeInOut" } }
+          }
+          transition={
+            reduce
+              ? { duration: 0 }
+              : isSweep
+                ? { duration: 0.7, ease: "easeOut" }
+                : { duration: 1.1, ease: "easeInOut" }
+          }
+        >
+          {children}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export function WarmConfessionSlideshow({
   data,
   fx,
@@ -387,9 +463,51 @@ export function WarmConfessionSlideshow({
       : photos.length === 2
         ? [photos[(index + 1) % photos.length]]
         : [];
-  // Thẻ ghi chú đè góc trái/phải xen kẽ theo cảnh; nghiêng ngược phía.
-  const cardSide = index % 2 === 0 ? "left" : "right";
-  const cardTilt = cardSide === "left" ? -2.5 : 2.5;
+  // Thẻ ghi chú — MỖI CẢNH MỘT BỘ THAM SỐ RIÊNG (đo từ video Pikbest
+  // 10077037, 2026-11-12): collage → thẻ nhỏ ở giữa, nghiêng −2°; ảnh
+  // đơn → thẻ lớn tràn sát mép, trái/phải xen kẽ theo LẦN ẢNH ĐƠN
+  // (không theo chẵn/lẻ của index — vì bố cục đã xen kẽ chẵn/lẻ nên
+  // thẻ ảnh đơn trước đây lúc nào cũng bên trái), nghiêng −4° (trái) /
+  // +3° (phải). Bóng đổ đậm + lệch chéo theo hướng nghiêng (thẻ bay
+  // trên mặt ảnh), không phải bóng mờ thẳng đứng.
+  const wideOrdinal = Math.floor(index / 2);
+  const cardSpec =
+    layout === "collage"
+      ? {
+          side: "center" as const,
+          tilt: -2,
+          width: "w-[min(68vw,340px)]",
+          shadow:
+            "shadow-[0_18px_32px_rgba(0,0,0,0.26),0_4px_12px_rgba(0,0,0,0.10)]",
+          enterDir: -1 as const,
+        }
+      : wideOrdinal % 2 === 0
+        ? {
+            side: "left" as const,
+            tilt: -4,
+            width: "w-[min(82vw,420px)]",
+            shadow:
+              "shadow-[-12px_20px_32px_rgba(0,0,0,0.28),0_4px_12px_rgba(0,0,0,0.10)]",
+            enterDir: -1 as const,
+          }
+        : {
+            side: "right" as const,
+            tilt: 3,
+            width: "w-[min(82vw,420px)]",
+            shadow:
+              "shadow-[12px_20px_32px_rgba(0,0,0,0.28),0_4px_12px_rgba(0,0,0,0.10)]",
+            enterDir: 1 as const,
+          };
+
+  // Cách đổi cảnh THAY ĐỔI theo từng lần đổi (đo từ video 2026-11-12):
+  // lần 1 quét vào (8,5s), lần 2 mờ qua trắng (11s), lần 3 mờ dần
+  // (25,7s)… — không giống hệt nhau. Xoay vòng 3 kiểu theo cảnh đích:
+  // sweep (quét ngang) → fade-white (mờ qua trắng) → dissolve (mờ dần).
+  const TRANSITION_CYCLE = ["dissolve", "sweep", "fade-white"] as const;
+  type WarmTransition = (typeof TRANSITION_CYCLE)[number];
+  const transitionVariant: WarmTransition = TRANSITION_CYCLE[index % 3];
+  // Hướng quét xen kẽ theo lần quét (trái → phải → trái…).
+  const sweepDir: 1 | -1 = index % 2 === 1 ? -1 : 1;
   // Hướng lia đổi xen kẽ theo cảnh (chẵn lia phải, lẻ lia trái) cho đỡ
   // đơn điệu — như mẫu lia đổi hướng qua các cảnh.
   const panSign: 1 | -1 = index % 2 === 0 ? 1 : -1;
@@ -452,14 +570,57 @@ export function WarmConfessionSlideshow({
   // Thẻ ghi chú tỏ tình — dấu ấn của mẫu: thẻ trắng viền ĐỎ mỏng,
   // nghiêng nhẹ, đè lên góc ảnh; chứa dòng thông tin của cảnh hiện tại
   // + nét cọ đỏ và tim đỏ nhỏ dưới chữ.
+  //
+  // CHUYỂN ĐỘNG CỦA THẺ (đo từ video 2026-11-12): mỗi lần đổi cảnh, thẻ
+  // BAY VÀO từ phía nó sẽ đậu (trái/phải), bắt đầu TO HƠN (~1,18×) +
+  // lệch ~70px + xoay thêm ~5° rồi thu về trong 0,7s — như tờ giấy bay
+  // vào đặt xuống; trong cảnh, thẻ trôi riêng rất nhẹ (±3px, ±0,5°,
+  // 7s, khác nhịp với khung ảnh) nên nhìn như đang nổi trên mặt ảnh.
+  // Delay bay vào khớp kiểu đổi cảnh: mờ-qua-trắng thì đợi pha trắng
+  // xong (0,45s) mới bay; quét/mờ dần thì bay gần như ngay (0,1s).
+  // Giảm chuyển động: thẻ tĩnh, không bay vào, không trôi.
   const noteCard = (extraClass = "") => (
-    <div
-      className={`relative z-10 w-[min(86vw,400px)] rounded-[3px] border-2 bg-white px-5 py-4 shadow-[0_14px_35px_rgba(0,0,0,0.16)] ${extraClass}`}
-      style={{ borderColor: CARD_RED, transform: `rotate(${cardTilt}deg)` }}
+    <motion.div
+      key={`card-${index}`}
+      className={`relative z-10 ${cardSpec.width} ${extraClass}`}
+      initial={
+        reduce
+          ? false
+          : {
+              x: cardSpec.enterDir * 70,
+              y: 16,
+              scale: 1.18,
+              rotate: cardSpec.tilt + cardSpec.enterDir * 5,
+              opacity: 0,
+            }
+      }
+      animate={{ x: 0, y: 0, scale: 1, rotate: cardSpec.tilt, opacity: 1 }}
+      transition={{
+        duration: 0.7,
+        delay: reduce ? 0 : transitionVariant === "fade-white" ? 0.45 : 0.1,
+        ease: "easeOut",
+      }}
     >
-      {renderLines("card")}
-      <ConfessionFlourish />
-    </div>
+      <motion.div
+        className={`rounded-[3px] border-2 bg-white px-5 py-4 ${cardSpec.shadow}`}
+        style={{ borderColor: CARD_RED }}
+        animate={
+          reduce
+            ? undefined
+            : {
+                x: [0, 3, 0, -3, 0],
+                y: [0, -3, 0, 3, 0],
+                rotate: [0, 0.5, 0, -0.5, 0],
+              }
+        }
+        transition={
+          reduce ? undefined : { duration: 7, repeat: Infinity, ease: "easeInOut" }
+        }
+      >
+        {renderLines("card")}
+        <ConfessionFlourish />
+      </motion.div>
+    </motion.div>
   );
 
   return (
@@ -501,18 +662,18 @@ export function WarmConfessionSlideshow({
         {guestName ? `Trân trọng kính mời ${guestName}` : "Trân trọng kính mời"}
       </motion.p>
 
-      {/* Vùng cảnh: ảnh + thẻ ghi chú. Đổi cảnh = "MỜ QUA TRẮNG" trong
-          thư viện chuyển cảnh (src/components/transitions/
-          FadeThroughWhiteScene): cảnh cũ mờ hết về trắng rồi cảnh mới
-          mới hiện từ trắng — lớp trắng phủ toàn khung trong lúc chuyển
+      {/* Vùng cảnh: ảnh + thẻ ghi chú. Cách đổi cảnh XOAY VÒNG 3 kiểu
+          theo cảnh đích (sweep → fade-white → dissolve, đo từ video) —
+          xem WarmSceneTransition; lớp trắng chỉ có ở kiểu fade-white
           nên cả cú nhảy chiều cao (rộng ↔ collage) cũng được giấu
-          trong pha trắng. Giảm chuyển động: đổi cảnh tức thì. */}
-      <FadeThroughWhiteScene
+          trong pha trắng ở kiểu đó, còn kiểu sweep/dissolve giấu bằng
+          chính chuyển động mờ/trượt. Giảm chuyển động: đổi cảnh tức thì. */}
+      <WarmSceneTransition
+        variant={transitionVariant}
+        sweepDir={sweepDir}
         sceneKey={photos.length === 0 ? "empty" : index}
         reduce={!!reduce}
         active={everAdvanced}
-        wrapperClassName="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6"
-        sceneClassName="relative w-full max-w-2xl"
       >
             {photos.length === 0 ? (
               /* Không có ảnh: chỉ thẻ ghi chú với đủ dòng chính trên nền kem. */
@@ -531,7 +692,7 @@ export function WarmConfessionSlideshow({
                   reduce={!!reduce}
                 />
                 <div
-                  className={`-mt-10 flex ${cardSide === "left" ? "justify-start" : "justify-end"} px-2`}
+                  className={`-mt-10 flex ${cardSpec.side === "left" ? "justify-start" : "justify-end"} px-2`}
                 >
                   {noteCard()}
                 </div>
@@ -586,7 +747,7 @@ export function WarmConfessionSlideshow({
                 <div className="-mt-10 flex justify-center px-2">{noteCard()}</div>
               </div>
             )}
-      </FadeThroughWhiteScene>
+      </WarmSceneTransition>
 
       {/* Chấm trang — chỉ khi có nhiều ảnh. */}
       {photos.length > 1 && (
