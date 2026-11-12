@@ -205,6 +205,7 @@ function PhotoFrame({
   className = "",
   aspect = "aspect-[16/10]",
   tilt = 0,
+  tilt3d,
   photoMotion = false,
   panSign = 1,
   reduce = false,
@@ -213,6 +214,10 @@ function PhotoFrame({
   className?: string;
   aspect?: string;
   tilt?: number;
+  /** Nghiêng 3D nền (độ) + biên độ dao động quanh nó — ảnh collage
+   *  nghiêng ĐỐI NHAU (vd lớn {x:−2,y:+3}, nhỏ {x:+3,y:−3} /
+   *  {x:−3,y:+3}, như hai tấm ảnh mở ra như cuốn sách). */
+  tilt3d?: { x?: number; y?: number; amp?: number };
   photoMotion?: boolean;
   panSign?: 1 | -1;
   reduce?: boolean;
@@ -223,6 +228,9 @@ function PhotoFrame({
   return (
     <DriftRest
       disabled={reduce}
+      tiltX={tilt3d?.x ?? 0}
+      tiltY={tilt3d?.y ?? 0}
+      amp={tilt3d?.amp ?? 4}
       className={`relative overflow-hidden rounded-[3px] bg-white p-2 shadow-[0_12px_35px_rgba(0,0,0,0.18)] ${className}`}
     >
     <div
@@ -719,6 +727,9 @@ export function WarmConfessionSlideshow({
                       className="h-full w-full"
                       aspect={collageSmalls.length === 2 ? "aspect-[16/10] sm:aspect-auto sm:h-full" : "aspect-[16/10]"}
                       tilt={0}
+                      // Ảnh lớn nghiêng 3D ngược với hai ảnh nhỏ
+                      // (đối nhau như hai phía của cuốn sách mở).
+                      tilt3d={{ x: -2, y: 3, amp: 1.5 }}
                       photoMotion
                       panSign={panSign}
                       reduce={!!reduce}
@@ -738,6 +749,14 @@ export function WarmConfessionSlideshow({
                         className="w-full"
                         aspect="aspect-[16/10]"
                         tilt={i === 0 ? -2 : 2}
+                        // Hai ảnh nhỏ nghiêng 3D ĐỐI NHAU (trên/dưới
+                        // hoặc trái/phải tùy màn hình): ảnh này mép
+                        // trong chìm thì ảnh kia mép trong nổi.
+                        tilt3d={
+                          i === 0
+                            ? { x: 3, y: -3, amp: 1.5 }
+                            : { x: -3, y: 3, amp: 1.5 }
+                        }
                         reduce={!!reduce}
                       />
                     ))}

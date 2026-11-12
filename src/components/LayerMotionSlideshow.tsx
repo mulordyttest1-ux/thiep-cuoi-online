@@ -321,10 +321,14 @@ export function LayerMotionSlideshow({
         cur.x += (gx - cur.x) * f.lerp;
         cur.y += (gy - cur.y) * f.lerp;
         if (key === "photo") {
-          // Ảnh: trôi + xoay nhẹ ±0,5° + scale thở 1,00 → 1,03 (7s).
+          // Ảnh: trôi + xoay nhẹ ±0,5° + scale thở 1,00 → 1,03 (7s) +
+          // NGHIÊNG 3D V3: rotateX ±3° (7s) + rotateY ±3° (9s, lệch
+          // pha) — như tấm ảnh thật lơ lửng trong không gian.
           const wob = 0.5 * Math.sin((2 * Math.PI * t) / 7 + 2);
           const sc = 1 + 0.015 * (1 + Math.sin((2 * Math.PI * t) / 7)) / 2;
-          el.style.transform = `translate(${cur.x.toFixed(2)}px, ${cur.y.toFixed(2)}px) rotate(${(tiltRef.current + wob).toFixed(2)}deg) scale(${sc.toFixed(4)})`;
+          const rx = 3 * Math.sin((2 * Math.PI * t) / 7 + 1.1);
+          const ry = 3 * Math.sin((2 * Math.PI * t) / 9 + 0.4);
+          el.style.transform = `translate(${cur.x.toFixed(2)}px, ${cur.y.toFixed(2)}px) rotate(${(tiltRef.current + wob).toFixed(2)}deg) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${sc.toFixed(4)})`;
         } else if (key === "echo") {
           // Bóng mờ ảnh: trôi + scale thở 1,06 → 1,10 (8s).
           const sc = 1.08 + 0.02 * Math.sin((2 * Math.PI * t) / 8);
@@ -467,7 +471,12 @@ export function LayerMotionSlideshow({
   return (
     <div
       className="relative flex min-h-[100dvh] flex-col overflow-hidden"
-      style={{ background: `linear-gradient(180deg, ${BG_TOP} 0%, ${BG_BOTTOM} 100%)` }}
+      style={{
+        background: `linear-gradient(180deg, ${BG_TOP} 0%, ${BG_BOTTOM} 100%)`,
+        // Perspective cho lớp ảnh nghiêng 3D (V3) — các lớp rAF ghi
+        // rotateX/rotateY trực tiếp nên cần perspective ở tổ tiên.
+        perspective: "1000px",
+      }}
       onClick={advance}
     >
       {/* Lớp nền: 2 vệt hồng mềm trôi chậm nhất (±6px) — tạo chiều sâu
