@@ -301,7 +301,9 @@ export function RomanticBrochureSlideshow({
            DRIFT V2: DriftRest bọc NGOÀI CẢ CỘT ẢNH nên toàn bộ ảnh tràn
            trôi + zoom cùng nhau, không còn ảnh trượt trong khung đứng yên. */
         <div className="relative z-10 flex flex-1 flex-col sm:flex-row">
-          <DriftRest disabled={!!reduce} className="relative min-h-[46dvh] flex-1 overflow-hidden">
+          {/* Ảnh chính nghiêng 3D ngược với ảnh tim nhỏ (đối nhau như
+              hai phía của cuốn sách mở — V3 perspective). */}
+          <DriftRest disabled={!!reduce} tiltX={-2} tiltY={3} amp={1.5} className="relative min-h-[46dvh] flex-1 overflow-hidden">
             {currentPhoto && (
               <AnimatePresence>
                 <motion.div
@@ -346,7 +348,7 @@ export function RomanticBrochureSlideshow({
             {/* Trái tim nhỏ: ảnh kế tiếp — DRIFT V2: DriftRest bọc NGOÀI
                 cả hình tim (khung cắt + ảnh trôi cùng nhau). */}
             {nextPhoto && (
-              <DriftRest disabled={!!reduce} className="relative h-28 w-32 shrink-0">
+              <DriftRest disabled={!!reduce} tiltX={2} tiltY={-3} amp={1.5} className="relative h-28 w-32 shrink-0">
               <div
                 className="relative h-full w-full overflow-hidden"
                 style={{ clipPath: `url(#${heartId})` }}
