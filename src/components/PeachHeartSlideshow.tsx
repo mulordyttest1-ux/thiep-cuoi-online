@@ -90,6 +90,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer, KenBurns } from "@/components/effects";
+import { DriftRest, DriftSurge } from "@/components/effects/Drift";
 import { ShatterAssembleOverlay } from "@/components/transitions";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
@@ -594,41 +595,54 @@ export function PeachHeartSlideshow({
            nằm TRÊN tim. Nhánh này không định vị (không relative) nên
            các lớp absolute bên trong căn theo gốc slideshow (căn
            giữa khung hình); bản thân nhánh chỉ chiếm chỗ flex-1 để
-           đẩy chấm/nút xuống dưới. */
+           đẩy chấm/nút xuống dưới.
+           BỒNG BỀNH MẶC ĐỊNH (hệ thống, Nancy 2026-11-12): DriftSurge
+           + DriftRest bọc CẢ tim + chữ thành một khối nên tim và chữ
+           trôi cùng nhau (cùng block); wrapper absolute inset-0 giữ
+           nguyên hình học cũ (con absolute căn theo gốc như trước). */
         <div className="flex-1">
-          {/* Cú mở đầu: tim bắt đầu nhỏ ~30% + mờ mềm, trong ~2s
+          <DriftSurge
+            sceneKey={index}
+            offset={{ x: 50 * (index % 2 === 0 ? 1 : -1) }}
+            disabled={!!reduce || burstKey === 0}
+            className="absolute inset-0"
+          >
+            <DriftRest disabled={!!reduce} className="absolute inset-0">
+              {/* Cú mở đầu: tim bắt đầu nhỏ ~30% + mờ mềm, trong ~2s
               phóng tới ~99% và nét dần (video 0–2s); áp dụng lúc mở
               mỗi cảnh tim (key theo index nên chạy lại mỗi cảnh).
               Lúc lắp ghép tim chưa hiện tới ~1,5s (delay 1,5s) rồi
               mới lao vào — đúng nhịp lắp ~2,5s của video. Giảm chuyển
               động: hiện ngay cỡ đầy, không mờ. */}
-          <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
-            <motion.div
-              key={`heart-intro-${index}`}
-              className={
-                heartVariant === "full"
-                  ? "w-[min(92vw,130dvh)] aspect-[100/65]"
-                  : "h-[96dvh] aspect-[100/65]"
-              }
-              style={{ transformOrigin: "50% 50%" }}
-              initial={reduce ? false : { scale: 0.3, opacity: 0, filter: "blur(6px)" }}
-              animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
-              transition={{ duration: 2, delay: reduce ? 0 : burstKey === 0 ? 0 : 1.5, ease: "easeOut" }}
-            >
-              {solidHeart()}
-            </motion.div>
-          </div>
-          {/* Chữ trắng trên tim — mờ vào sau khi tim đã lao vào
+              <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
+                <motion.div
+                  key={`heart-intro-${index}`}
+                  className={
+                    heartVariant === "full"
+                      ? "w-[min(92vw,130dvh)] aspect-[100/65]"
+                      : "h-[96dvh] aspect-[100/65]"
+                  }
+                  style={{ transformOrigin: "50% 50%" }}
+                  initial={reduce ? false : { scale: 0.3, opacity: 0, filter: "blur(6px)" }}
+                  animate={{ scale: 1, opacity: 1, filter: "blur(0px)" }}
+                  transition={{ duration: 2, delay: reduce ? 0 : burstKey === 0 ? 0 : 1.5, ease: "easeOut" }}
+                >
+                  {solidHeart()}
+                </motion.div>
+              </div>
+              {/* Chữ trắng trên tim — mờ vào sau khi tim đã lao vào
               (video: chữ hiện sau, đứng yên để đọc). */}
-          <motion.div
-            key={`heart-text-${index}`}
-            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6"
-            initial={reduce ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: reduce ? 0 : burstKey === 0 ? 0.6 : 1.8 }}
-          >
-            {renderLines("heart")}
-          </motion.div>
+              <motion.div
+                key={`heart-text-${index}`}
+                className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-6"
+                initial={reduce ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.8, delay: reduce ? 0 : burstKey === 0 ? 0.6 : 1.8 }}
+              >
+                {renderLines("heart")}
+              </motion.div>
+            </DriftRest>
+          </DriftSurge>
         </div>
       ) : (
         /* Bố cục ảnh tràn khung: ảnh tràn + vignette trắng mềm. KHÔNG
@@ -636,7 +650,14 @@ export function PeachHeartSlideshow({
            trong cửa sổ hình tim rồi nở ra tràn khung (khung s_031). */
         <div className="relative z-10 flex flex-1 flex-col justify-end">
           {currentPhoto && (
-            <div className="absolute inset-0">
+            <DriftSurge
+              sceneKey={index}
+              offset={{ x: 50 * (index % 2 === 0 ? 1 : -1) }}
+              disabled={!!reduce || burstKey === 0}
+              className="absolute inset-0"
+            >
+              <DriftRest disabled={!!reduce} className="absolute inset-0">
+                <div className="absolute inset-0">
               <AnimatePresence>
                 <motion.div
                   key={currentPhoto}
@@ -712,7 +733,9 @@ export function PeachHeartSlideshow({
                     "radial-gradient(ellipse at center, transparent 55%, rgba(255,255,255,0.5) 100%), linear-gradient(to top, rgba(255,255,255,0.8), transparent 45%)",
                 }}
               />
-            </div>
+                </div>
+              </DriftRest>
+            </DriftSurge>
           )}
         </div>
       )}
