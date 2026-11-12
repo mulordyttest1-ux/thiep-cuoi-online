@@ -6,6 +6,13 @@
 // đổi opacity (quy tắc: ảnh album opacity 1 luôn). Giảm chuyển động:
 // tĩnh hoàn toàn, không drift.
 //
+// MẶC ĐỊNH HỆ THỐNG (Nancy 2026-11-12): bồng bềnh là mặc định — MỌI
+// kiểu slide trong thư viện đều phải có DriftRest + DriftSurge (gán
+// hết, không kiểu nào đứng yên); kiểu slide mới thêm vào cũng gán
+// luôn từ đầu. Ngoại lệ duy nhất: LayerMotion có động cơ trôi riêng
+// (rAF, nhiều lớp lệch nhịp) nên không dùng Drift.tsx — nhưng vẫn
+// phải trôi, và mọi thứ dính vào ảnh đều trôi cùng nhau (chung block).
+//
 // DRIFT V2 (Nancy 2026-11-11 15:15, chê sau khi xem live bản v1):
 // v1 quá nhẹ (±3px, không zoom) nên không thấy; drift đúng phải vừa
 // MOVE vừa ZOOM cùng lúc mới giống nổi lơ lửng trên không trung —
