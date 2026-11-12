@@ -646,4 +646,3 @@ export function LayerMotionSlideshow({
     </div>
   );
 }
-
