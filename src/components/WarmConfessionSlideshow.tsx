@@ -228,15 +228,19 @@ function PhotoFrame({
   return (
     <DriftRest
       disabled={reduce}
+      tilt={tilt}
       tiltX={tilt3d?.x ?? 0}
       tiltY={tilt3d?.y ?? 0}
       amp={tilt3d?.amp ?? 4}
       className={`relative overflow-hidden rounded-[3px] bg-white p-2 shadow-[0_12px_35px_rgba(0,0,0,0.18)] ${className}`}
     >
+    {/* KHUNG + ẢNH LÀ MỘT NHÓM (Nancy 2026-11-12 17:30): góc nghiêng
+        2D nằm trên DriftRest (cả khung trắng + ảnh nghiêng cùng
+        nhau) — KHÔNG đặt rotate riêng lên div trong nữa (lỗi cũ:
+        chỉ ảnh nghiêng, khung đứng yên, góc ảnh bị khung cắt). */}
     <div
       aria-hidden="true"
       className="relative h-full w-full"
-      style={{ transform: tilt ? `rotate(${tilt}deg)` : undefined }}
     >
       <div data-testid="photo-frame" className={`relative w-full overflow-hidden rounded-[2px] ${aspect}`}>
         {photoMotion && !reduce ? (
