@@ -30,18 +30,20 @@
 // + DriftSurge ±50px.
 // KHÁC Hoa Hồng Cuốn: ở đó cả khung trôi như MỘT khối (DriftRest);
 // ở đây mỗi lớp trôi RIÊNG với nhịp riêng — nền chậm nhất, ảnh vừa,
-// tiêu đề trôi đồng pha với ảnh (layout chữ + ảnh cùng nhịp, cùng
-// chiều — chị chốt 2026-11-12: layout chữ phải trôi đồng bộ với ảnh,
-// không được lệch pha ngược chiều), hoa trang trí nhanh nhất.
+// hoa trang trí nhanh nhất; riêng thẻ tiêu đề đỏ nằm CHUNG BLOCK với
+// ảnh nên dính cứng vào ảnh (chị chốt 2026-11-12: "cho nó chung
+// block đi" — trước đó thẻ trôi riêng, dù đã đồng pha vẫn không
+// dính hẳn vào ảnh).
 //
-// 5 LỚP TRÔI (mỗi lớp một duration/phase/biên độ/lerp riêng):
+// 4 LỚP TRÔI RIÊNG (mỗi lớp một duration/phase/biên độ/lerp riêng):
 //   nền (blobs hồng)  — biên độ ±6px,  lerp 0,020, pha 0
 //   echo (bóng mờ ảnh) — biên độ ±18px, lerp 0,030, pha 0,8 + scale thở
 //   ảnh chính          — biên độ ±12px, lerp 0,050, pha 1,6 + xoay ±0,5° + scale thở
-//   thẻ tiêu đề đỏ     — biên độ ±20px, lerp 0,050, pha 1,6 (ĐỒNG PHA ảnh —
-//     layout chữ trôi cùng nhịp, cùng chiều với ảnh; trước đây pha π
-//     ngược pha nên chị thấy layout chữ trôi lệch pha với ảnh)
 //   hoa trang trí      — biên độ ±4px,  lerp 0,015, pha 2,4
+// Thẻ tiêu đề đỏ KHÔNG còn là lớp trôi riêng: nó nằm CHUNG BLOCK với
+// ảnh (bên trong div lm-layer-photo) nên dính cứng vào ảnh — trôi,
+// nghiêng, thở cùng ảnh, không bao giờ lệch với ảnh nữa (chị chốt
+// 2026-11-12: "cho nó chung block đi").
 // Nhịp theo chuẩn app: mỗi ảnh giữ 12 giây (PHOTO_MS). 1 ảnh →
 // không tự chuyển cảnh nhưng các lớp vẫn trôi. Ảnh opacity 1 luôn
 // ở trạng thái nghỉ. Tái dùng đồ sẵn có: getSlideshowSlides, hiệu
@@ -166,12 +168,11 @@ const STRIP_POS = [
  *  lerp về mục tiêu với hệ số (lerp) + pha (phase) + biên độ
  *  (range) RIÊNG nên lệch nhịp nhau. Mục tiêu ảo bay theo sóng sin
  *  Lissajous Tx=9s / Ty=13s (không lặp y hệt). */
-type LayerKey = "bg" | "echo" | "photo" | "strip" | "petals";
+type LayerKey = "bg" | "echo" | "photo" | "petals";
 const LAYER_FORMULA: Record<LayerKey, { range: number; lerp: number; phase: number }> = {
   bg: { range: 6, lerp: 0.02, phase: 0 },
   echo: { range: 18, lerp: 0.03, phase: 0.8 },
   photo: { range: 12, lerp: 0.05, phase: 1.6 },
-  strip: { range: 20, lerp: 0.05, phase: 1.6 },
   petals: { range: 4, lerp: 0.015, phase: 2.4 },
 };
 
@@ -297,7 +298,6 @@ export function LayerMotionSlideshow({
     bg: { x: 0, y: 0 },
     echo: { x: 0, y: 0 },
     photo: { x: 0, y: 0 },
-    strip: { x: 0, y: 0 },
     petals: { x: 0, y: 0 },
   });
 
@@ -514,10 +514,10 @@ export function LayerMotionSlideshow({
 
       {/* Vùng cảnh: 1 ảnh duy nhất, chính giữa. Cú trôi chuyển cảnh
           (DriftSurge ±50px đúng chiều mây hoa quét, 1,3s) bọc NGOÀI
-          hộp định vị tĩnh; bên trong, 3 lớp ANH EM trôi độc lập theo
-          vòng lặp LayerMotion: echo (bóng mờ ảnh sau khung), photo
-          (khung trắng + ảnh), strip (thẻ tiêu đề đỏ — bọc ngoài để
-          transform rAF không phá class -translate-y-1/2 của vị trí). */}
+          hộp định vị tĩnh; bên trong, 2 lớp ANH EM trôi độc lập theo
+          vòng lặp LayerMotion: echo (bóng mờ ảnh sau khung) và photo
+          (khung trắng + ảnh, thẻ tiêu đề đỏ nằm CHUNG BLOCK bên trong
+          nên dính cứng vào ảnh). */}
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-5 py-6">
         {photos.length === 0 ? (
           /* Không có ảnh: chỉ thẻ tiêu đề đỏ với đủ dòng chính trên nền hồng. */
@@ -549,7 +549,10 @@ export function LayerMotionSlideshow({
               >
                 <img src={currentPhoto} alt="" loading="eager" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
               </div>
-              {/* Lớp ảnh chính: khung trắng ~10px + ảnh, nghiêng xen kẽ. */}
+              {/* Lớp ảnh chính: khung trắng ~10px + ảnh, nghiêng xen kẽ.
+                  Thẻ tiêu đề đỏ nằm CHUNG BLOCK với ảnh (bên trong div
+                  này) nên dính cứng vào ảnh: trôi, nghiêng, thở cùng
+                  ảnh — không còn trôi riêng lệch với ảnh nữa. */}
               <div
                 data-testid="lm-layer-photo"
                 ref={(el) => {
@@ -571,20 +574,17 @@ export function LayerMotionSlideshow({
                     />
                   </div>
                 </div>
-              </div>
-              {/* Lớp thẻ tiêu đề đỏ — dải đỏ mờ, chữ trắng, vị trí luân
-                  phiên theo cảnh; trôi đồng pha với ảnh (cùng nhịp,
-                  cùng chiều — layout chữ không lệch pha với ảnh). */}
-              <div className={`absolute z-10 max-w-[86%] ${STRIP_POS[index % 4]}`}>
-                <div
-                  data-testid="lm-layer-strip"
-                  ref={(el) => {
-                    layerEls.current.strip = el;
-                  }}
-                  className="rounded-[2px] px-3 py-1.5 will-change-transform"
-                  style={{ background: "rgba(195,0,47,0.88)" }}
-                >
-                  {renderLines("strip")}
+                {/* Thẻ tiêu đề đỏ — CHUNG BLOCK với ảnh: nằm trong div
+                    ảnh nên kế thừa transform của ảnh (trôi + nghiêng +
+                    thở), vị trí luân phiên theo cảnh, không trôi riêng. */}
+                <div className={`absolute z-10 max-w-[86%] ${STRIP_POS[index % 4]}`}>
+                  <div
+                    data-testid="lm-layer-strip"
+                    className="rounded-[2px] px-3 py-1.5"
+                    style={{ background: "rgba(195,0,47,0.88)" }}
+                  >
+                    {renderLines("strip")}
+                  </div>
                 </div>
               </div>
             </div>
