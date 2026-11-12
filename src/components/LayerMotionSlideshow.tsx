@@ -30,13 +30,17 @@
 // + DriftSurge ±50px.
 // KHÁC Hoa Hồng Cuốn: ở đó cả khung trôi như MỘT khối (DriftRest);
 // ở đây mỗi lớp trôi RIÊNG với nhịp riêng — nền chậm nhất, ảnh vừa,
-// tiêu đề nhanh + ngược pha, hoa trang trí nhanh nhất.
+// tiêu đề trôi đồng pha với ảnh (layout chữ + ảnh cùng nhịp, cùng
+// chiều — chị chốt 2026-11-12: layout chữ phải trôi đồng bộ với ảnh,
+// không được lệch pha ngược chiều), hoa trang trí nhanh nhất.
 //
 // 5 LỚP TRÔI (mỗi lớp một duration/phase/biên độ/lerp riêng):
 //   nền (blobs hồng)  — biên độ ±6px,  lerp 0,020, pha 0
 //   echo (bóng mờ ảnh) — biên độ ±18px, lerp 0,030, pha 0,8 + scale thở
 //   ảnh chính          — biên độ ±12px, lerp 0,050, pha 1,6 + xoay ±0,5° + scale thở
-//   thẻ tiêu đề đỏ     — biên độ ±20px, lerp 0,080, pha π (ngược pha ảnh)
+//   thẻ tiêu đề đỏ     — biên độ ±20px, lerp 0,050, pha 1,6 (ĐỒNG PHA ảnh —
+//     layout chữ trôi cùng nhịp, cùng chiều với ảnh; trước đây pha π
+//     ngược pha nên chị thấy layout chữ trôi lệch pha với ảnh)
 //   hoa trang trí      — biên độ ±4px,  lerp 0,015, pha 2,4
 // Nhịp theo chuẩn app: mỗi ảnh giữ 12 giây (PHOTO_MS). 1 ảnh →
 // không tự chuyển cảnh nhưng các lớp vẫn trôi. Ảnh opacity 1 luôn
@@ -167,7 +171,7 @@ const LAYER_FORMULA: Record<LayerKey, { range: number; lerp: number; phase: numb
   bg: { range: 6, lerp: 0.02, phase: 0 },
   echo: { range: 18, lerp: 0.03, phase: 0.8 },
   photo: { range: 12, lerp: 0.05, phase: 1.6 },
-  strip: { range: 20, lerp: 0.08, phase: Math.PI },
+  strip: { range: 20, lerp: 0.05, phase: 1.6 },
   petals: { range: 4, lerp: 0.015, phase: 2.4 },
 };
 
@@ -569,7 +573,8 @@ export function LayerMotionSlideshow({
                 </div>
               </div>
               {/* Lớp thẻ tiêu đề đỏ — dải đỏ mờ, chữ trắng, vị trí luân
-                  phiên theo cảnh; trôi nhanh nhất + ngược pha với ảnh. */}
+                  phiên theo cảnh; trôi đồng pha với ảnh (cùng nhịp,
+                  cùng chiều — layout chữ không lệch pha với ảnh). */}
               <div className={`absolute z-10 max-w-[86%] ${STRIP_POS[index % 4]}`}>
                 <div
                   data-testid="lm-layer-strip"
