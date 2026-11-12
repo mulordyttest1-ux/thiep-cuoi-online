@@ -23,13 +23,7 @@ import { getTemplate, getTemplateEffects, PRESET_PHOTOS, type TemplateEffects } 
 import { type TextEffectId } from "@/lib/intro";
 import { BurstParticles, ScrollProgress, SmoothScroll } from "@/components/effects";
 import { IntroCover } from "@/components/IntroCover";
-import { IntroSlideshow } from "@/components/IntroSlideshow";
-import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlideshow";
-import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
-import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
-import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
-import { FlowersBrochureSlideshow } from "@/components/FlowersBrochureSlideshow";
-import { LayerMotionSlideshow } from "@/components/LayerMotionSlideshow";
+import { resolveSlideStyleComponent } from "@/components/slide-style-render";
 import type { SlideStyleId } from "@/lib/slide-styles";
 import { vietQrUrl } from "@/lib/store";
 import { isBlockVisible } from "@/lib/blocks";
@@ -195,6 +189,10 @@ export default function GuestInvitationView({
     </button>
   ) : null;
 
+  // Kiểu slideshow render từ bản đồ chung (slide-style-render): thêm
+  // kiểu mới không cần sửa ở đây nữa — thư viện tự đồng bộ theo.
+  const Slideshow = resolveSlideStyleComponent(slideStyleOverride);
+
   // INTRO thay phong bì: cover (1 lần) → bộ sưu tập ảnh khách + chữ chạy
   // → bấm "Xem thiệp" thì vụ nổ + vào thiệp. Cover không chứa tên/ngày/
   // ảnh mẫu; bộ sưu tập chỉ dùng ảnh + chữ thật từ data (không có ảnh thì
@@ -206,22 +204,8 @@ export default function GuestInvitationView({
         {burstOverlay}
         {!coverDone ? (
           <IntroCover data={data} fx={fx} onDone={() => setCoverDone(true)} />
-        ) : slideStyleOverride === "romantic-brochure" ? (
-          <RomanticBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
-        ) : slideStyleOverride === "peach-heart" ? (
-          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} heartVariant="giant" />
-        ) : slideStyleOverride === "peach-heart-full" ? (
-          <PeachHeartSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} heartVariant="full" />
-        ) : slideStyleOverride === "warm-confession" ? (
-          <WarmConfessionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
-        ) : slideStyleOverride === "comic-diary" ? (
-          <ComicDiarySlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
-        ) : slideStyleOverride === "flowers-brochure" ? (
-          <FlowersBrochureSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
-        ) : slideStyleOverride === "layer-motion" ? (
-          <LayerMotionSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         ) : (
-          <IntroSlideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
+          <Slideshow data={data} fx={fx} blurred={blurred} guestName={guestName} onEnter={handleEnter} textEffect={textEffectOverride} photos={photosOverride} />
         )}
         {/* Hạt phim (C9): vân nhiễu phủ mờ lên toàn trang intro, như giấy
             ảnh cũ — vân tĩnh nên hiện cả khi giảm chuyển động. */}
