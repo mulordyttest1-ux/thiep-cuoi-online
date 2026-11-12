@@ -801,17 +801,29 @@ export default function CustomerStandardEditor({
         </div>
       )}
 
-      {/* Chốt */}
+      {/* Chốt — khách PHẢI bấm nút này thì Thiết kế mới nhận được thiệp
+          (báo Telegram): nút chỉ ghi "Chốt" trước đây khiến khách sửa
+          xong không bấm, Thiết kế không nhận được gì. Nhãn nút nói rõ
+          hành động gửi; dòng cảnh báo nói rõ chốt xong là khóa, không
+          sửa tiếp được. */}
       <div className="mt-6">
         {!confirmed ? (
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={confirmBusy}
-            className="w-full rounded-full bg-[#7a1f2b] px-5 py-3 font-semibold text-white hover:bg-[#5e1620] disabled:opacity-60"
-          >
-            {confirmBusy ? "Đang chốt…" : "Chốt"}
-          </button>
+          <>
+            <p className="mb-2 text-center text-sm text-[#5a4a48]">
+              Sửa xong, bấm nút dưới đây để báo cho Thiết kế biết bạn đã sửa xong.
+            </p>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={confirmBusy}
+              className="w-full rounded-full bg-[#7a1f2b] px-5 py-3 font-semibold text-white hover:bg-[#5e1620] disabled:opacity-60"
+            >
+              {confirmBusy ? "Đang gửi Thiết kế…" : "Chốt & gửi Thiết kế"}
+            </button>
+            <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-800" role="alert">
+              ⚠️ Sau khi chốt, thiệp sẽ được khóa lại và bạn không thể sửa tiếp — kiểm tra kỹ trước khi bấm.
+            </p>
+          </>
         ) : (
           <p className="rounded-xl bg-green-50 px-4 py-3 text-center text-sm font-semibold text-green-800" role="status">
             Đã chốt xong. Cảm ơn bạn! Thiết kế sẽ xem lại và liên hệ với bạn.
