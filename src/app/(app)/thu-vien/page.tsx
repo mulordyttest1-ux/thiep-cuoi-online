@@ -20,13 +20,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import AdminGate from "@/components/AdminGate";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
-import { IntroSlideshow } from "@/components/IntroSlideshow";
-import { RomanticBrochureSlideshow } from "@/components/RomanticBrochureSlideshow";
-import { PeachHeartSlideshow } from "@/components/PeachHeartSlideshow";
-import { WarmConfessionSlideshow } from "@/components/WarmConfessionSlideshow";
-import { ComicDiarySlideshow } from "@/components/ComicDiarySlideshow";
-import { FlowersBrochureSlideshow } from "@/components/FlowersBrochureSlideshow";
-import { LayerMotionSlideshow } from "@/components/LayerMotionSlideshow";
+import { resolveSlideStyleComponent } from "@/components/slide-style-render";
 import { SLIDE_STYLES, type SlideStyle, type SlideStyleId } from "@/lib/slide-styles";
 import {
   TRANSITIONS,
@@ -124,16 +118,16 @@ function FlarePulse({ gradient }: { gradient: string }) {
   );
 }
 
-/** Khung điện thoại thu nhỏ chứa slideshow thật (cả IntroSlideshow và
- *  RomanticBrochureSlideshow đều cao tối thiểu 100dvh nên không nhét
- *  trực tiếp vào thẻ được): render slideshow ở khổ 390px rồi co lại vừa
- *  chiều rộng thẻ, chiều cao đo thật sau khi render để không cắt chữ.
- *  slideStyle "scrapbook" (mặc định) = IntroSlideshow Polaroid;
- *  "romantic-brochure" = RomanticBrochureSlideshow; "peach-heart" =
- *  PeachHeartSlideshow; "warm-confession" = WarmConfessionSlideshow;
- *  "comic-diary" = ComicDiarySlideshow; "flowers-brochure" =
- *  FlowersBrochureSlideshow. photos mặc định 1 ảnh (chỉ xem bố cục); muốn thấy chuyển cảnh chạy thì truyền nhiều ảnh
- *  (thẻ chuyển cảnh truyền 3 ảnh để chuyển tự chạy 12s/lần). */
+/** Khung điện thoại thu nhỏ chứa slideshow thật (mọi slideshow đều cao
+ *  tối thiểu 100dvh nên không nhét trực tiếp vào thẻ được): render
+ *  slideshow ở khổ 390px rồi co lại vừa chiều rộng thẻ, chiều cao đo
+ *  thật sau khi render để không cắt chữ. Kiểu slide render từ bản đồ
+ *  chung (slide-style-render) — thêm kiểu mới vào registry là demo ở
+ *  đây tự hiện đúng kiểu đó, không cần thêm nhánh như trước (trước đây
+ *  thiếu nhánh "peach-heart-full" nên demo thẻ Tim Đào Trọn Hình rơi
+ *  về Scrapbook). photos mặc định 1 ảnh (chỉ xem bố cục); muốn thấy
+ *  chuyển cảnh chạy thì truyền nhiều ảnh (thẻ chuyển cảnh truyền 3 ảnh
+ *  để chuyển tự chạy 12s/lần). */
 function SlideshowStage({
   textEffect,
   fx,
@@ -147,6 +141,7 @@ function SlideshowStage({
   slideStyle?: SlideStyleId;
   photos?: string[];
 }) {
+  const Slideshow = resolveSlideStyleComponent(slideStyle);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [height, setHeight] = useState(640);
@@ -183,70 +178,14 @@ function SlideshowStage({
         data-stage-inner
         style={{ width: 390, transform: `scale(${scale})`, transformOrigin: "top left" }}
       >
-        {slideStyle === "romantic-brochure" ? (
-          <RomanticBrochureSlideshow
-            key={replayKey}
-            data={DEMO_DATA}
-            fx={fx}
-            photos={photos}
-            textEffect={textEffect}
-            onEnter={() => {}}
-          />
-        ) : slideStyle === "peach-heart" ? (
-          <PeachHeartSlideshow
-            key={replayKey}
-            data={DEMO_DATA}
-            fx={fx}
-            photos={photos}
-            textEffect={textEffect}
-            onEnter={() => {}}
-          />
-        ) : slideStyle === "warm-confession" ? (
-          <WarmConfessionSlideshow
-            key={replayKey}
-            data={DEMO_DATA}
-            fx={fx}
-            photos={photos}
-            textEffect={textEffect}
-            onEnter={() => {}}
-          />
-        ) : slideStyle === "comic-diary" ? (
-          <ComicDiarySlideshow
-            key={replayKey}
-            data={DEMO_DATA}
-            fx={fx}
-            photos={photos}
-            textEffect={textEffect}
-            onEnter={() => {}}
-          />
-        ) : slideStyle === "flowers-brochure" ? (
-          <FlowersBrochureSlideshow
-            key={replayKey}
-            data={DEMO_DATA}
-            fx={fx}
-            photos={photos}
-            textEffect={textEffect}
-            onEnter={() => {}}
-          />
-        ) : slideStyle === "layer-motion" ? (
-          <LayerMotionSlideshow
-            key={replayKey}
-            data={DEMO_DATA}
-            fx={fx}
-            photos={photos}
-            textEffect={textEffect}
-            onEnter={() => {}}
-          />
-        ) : (
-          <IntroSlideshow
-            key={replayKey}
-            data={DEMO_DATA}
-            fx={fx}
-            photos={photos}
-            textEffect={textEffect}
-            onEnter={() => {}}
-          />
-        )}
+        <Slideshow
+          key={replayKey}
+          data={DEMO_DATA}
+          fx={fx}
+          photos={photos}
+          textEffect={textEffect}
+          onEnter={() => {}}
+        />
       </div>
     </div>
   );
