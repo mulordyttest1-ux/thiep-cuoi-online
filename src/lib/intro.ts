@@ -147,15 +147,15 @@ export const SLIDESHOW_PHRASES = [
   "Forever & Always",
 ];
 
-/** Chia dòng thông tin theo số ảnh (kịch bản scrapbook đã duyệt):
- *  dòng chính theo thứ tự Tên → Ngày → Địa điểm; dòng phụ Happy Wedding
- *  → Save the Day → câu cưới khác khi còn ảnh. 1 ảnh = đủ hết trên 1 ảnh
- *  (các dòng chính còn lại dồn lên ảnh cuối); 2 ảnh = tên, rồi ngày +
- *  địa điểm; 3 ảnh = tên, ngày, địa điểm; 4 ảnh = + Happy Wedding;
- *  5 ảnh = + Save the Day; nhiều hơn thì thêm câu cưới khác. Lúc nào
- *  cũng đủ thông tin, không thiếu dòng chính. Dòng nào không có dữ liệu
- *  thật thì bỏ (không bịa). Trả về mảng theo từng ảnh: slides[i] là các
- *  dòng hiện trên ảnh i; photoCount = 0 thì trả []. */
+/** Chia dòng thông tin theo số ảnh (chị chốt 2026-11-12): THÔNG TIN
+ *  HẾT Ở ẢNH 1 — ảnh đầu tiên hiện đủ các dòng chính (Tên + Ngày +
+ *  Địa điểm); các ảnh sau chỉ thêm CHỮ TRANG TRÍ (câu cưới phụ: Happy
+ *  Wedding → Save the Day → Just Married → … theo thứ tự, hết thì lặp
+ *  lại). 1 ảnh = đủ hết trên 1 ảnh (như trước); nhiều ảnh = ảnh 1 đủ
+ *  thông tin, ảnh sau chỉ có câu trang trí. Dòng nào không có dữ liệu
+ *  thật thì bỏ (không bịa); nếu không có dòng chính nào thì ảnh 1 cũng
+ *  lấy câu trang trí như trước. Trả về mảng theo từng ảnh: slides[i]
+ *  là các dòng hiện trên ảnh i; photoCount = 0 thì trả []. */
 export function getSlideshowSlides(
   photoCount: number,
   core: { name: string; date: string; venue: string }
@@ -166,12 +166,15 @@ export function getSlideshowSlides(
   if (core.venue.trim()) coreLines.push({ text: core.venue, kind: "venue" });
   const slides: SlideshowLine[][] = [];
   for (let i = 0; i < photoCount; i++) {
-    if (i < coreLines.length) {
-      // Ảnh cuối cùng nhận nốt các dòng chính còn lại (1 ảnh = đủ hết).
-      slides.push(i === photoCount - 1 ? coreLines.slice(i) : [coreLines[i]]);
+    if (i === 0 && coreLines.length > 0) {
+      // Ảnh 1: đủ thông tin (tên + ngày + địa điểm).
+      slides.push(coreLines);
     } else {
+      // Ảnh sau: chỉ chữ trang trí; không có dòng chính nào thì ảnh 1
+      // cũng lấy câu trang trí (chỉ số tính từ 0).
+      const phraseIndex = coreLines.length > 0 ? i - 1 : i;
       const phrase =
-        SLIDESHOW_PHRASES[(i - coreLines.length) % SLIDESHOW_PHRASES.length];
+        SLIDESHOW_PHRASES[phraseIndex % SLIDESHOW_PHRASES.length];
       slides.push([{ text: phrase, kind: "phrase" }]);
     }
   }
