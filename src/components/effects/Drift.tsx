@@ -13,6 +13,17 @@
 // (rAF, nhiều lớp lệch nhịp) nên không dùng Drift.tsx — nhưng vẫn
 // phải trôi, và mọi thứ dính vào ảnh đều trôi cùng nhau (chung block).
 //
+// KHUNG + ẢNH LÀ MỘT NHÓM (Nancy 2026-11-12 17:30, chị thấy khung
+// trắng lệch khỏi ảnh): khung trắng LUÔN stick cứng với ảnh — MỌI
+// transform (nghiêng phẳng, nghiêng 3D, drift, zoom) đều áp lên
+// CHUNG MỘT element (DriftRest này), không bao giờ nghiêng/chuyển
+// riêng ảnh trong khi khung đứng yên, không lệch pha. Góc nghiêng
+// 2D nền của cả nhóm qua prop `tilt` (vd ảnh wide ±1,5°, ảnh nhỏ
+// collage ±2°); dao động nghỉ ±1° quanh góc nền đó. Lỗi cũ: góc
+// nghiêng đặt trên div trong (chỉ xoay ảnh, khung trắng đứng yên)
+// nên ảnh nghiêng lệch trong khung, góc ảnh còn bị overflow-hidden
+// của khung cắt mất.
+//
 // DRIFT V3 (Nancy 2026-11-12 17:09, chị phát hiện ảnh chỉ nghiêng
 // phẳng 2D, không có perspective): thêm CHIỀU SÂU 3D — perspective
 // 1000px + rotateX ±4° (chu kỳ 7s) + rotateY ±4° (chu kỳ 9s, lệch pha
@@ -50,13 +61,17 @@ export const DRIFT_SURGE = { xPx: 50, durationS: 1.3 } as const;
 
 /** Cả khung ảnh trôi + zoom + nghiêng 3D nhẹ liên tục lúc nghỉ.
  *  Bọc NGOÀI KHUNG ẢNH (khung + ảnh + mọi thứ dính vào khung trôi
- *  cùng nhau); không bọc mỗi ảnh trong khung đứng yên. Không đụng
- *  transform của phần tử cha (trượt/lật/zoom của kiểu đó nằm ở lớp
- *  khác). Giảm chuyển động (disabled): div thường, không motion. */
+ *  cùng nhau); không bọc mỗi ảnh trong khung đứng yên. KHÔNG đặt
+ *  transform riêng lên ảnh trong — góc nghiêng 2D nền của CẢ NHÓM
+ *  qua prop `tilt` (dao động nghỉ ±1° quanh góc nền đó). Giảm chuyển
+ *  động (disabled): div thường, không motion — nhưng vẫn giữ góc
+ *  nghiêng tĩnh (đó là góc thiết kế của tấm ảnh, không phải chuyển
+ *  động). */
 export function DriftRest({
   children,
   disabled,
   className,
+  tilt = 0,
   tiltX = 0,
   tiltY = 0,
   amp = DRIFT_REST.rotXDeg,
@@ -65,6 +80,9 @@ export function DriftRest({
   /** true khi giảm chuyển động — ảnh tĩnh hoàn toàn. */
   disabled?: boolean;
   className?: string;
+  /** Góc nghiêng 2D nền của CẢ NHÓM khung + ảnh (độ) — vd ảnh wide
+   *  ±1,5°, ảnh nhỏ collage ±2°. Mặc định 0. */
+  tilt?: number;
   /** Góc nghiêng 3D nền quanh trục ngang (độ) — ảnh collage nghiêng
    *  đối nhau quanh góc này (vd trên +3°, dưới −3°). Mặc định 0. */
   tiltX?: number;
@@ -76,7 +94,11 @@ export function DriftRest({
 }) {
   if (disabled) {
     return (
-      <div data-testid="drift-rest" className={className}>
+      <div
+        data-testid="drift-rest"
+        className={className}
+        style={tilt ? { transform: `rotate(${tilt}deg)` } : undefined}
+      >
         {children}
       </div>
     );
@@ -94,7 +116,9 @@ export function DriftRest({
       animate={{
         x: [0, DRIFT_REST.xPx, 0, -DRIFT_REST.xPx, 0],
         y: [0, -DRIFT_REST.yPx, 0, DRIFT_REST.yPx, 0],
-        rotate: [0, DRIFT_REST.rotateDeg, 0, -DRIFT_REST.rotateDeg, 0],
+        // Xoay phẳng: dao động ±1° quanh góc nghiêng nền `tilt` của
+        // CẢ NHÓM khung + ảnh (không xoay riêng ảnh trong khung).
+        rotate: [tilt, tilt + DRIFT_REST.rotateDeg, tilt, tilt - DRIFT_REST.rotateDeg, tilt],
         // Zoom đỉnh đúng lúc |dịch chuyển| lớn nhất (keyframe 1 và 3),
         // về 1 đúng lúc khung về vị trí giữa — move + zoom cùng nhịp.
         scale: [1, DRIFT_REST.scaleMax, 1, DRIFT_REST.scaleMax, 1],
