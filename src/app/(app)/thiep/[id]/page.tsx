@@ -6,7 +6,7 @@ import Link from "next/link";
 import { MotionConfig } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { defaultInvitation } from "@/lib/types";
-import { getVariantEffects, isEffectVariant, PRESET_PHOTOS } from "@/lib/templates";
+import { getTemplate, getVariantEffects, isEffectVariant, PRESET_PHOTOS } from "@/lib/templates";
 import { resolveTextEffect } from "@/lib/intro";
 import { resolveSlideStyle } from "@/lib/slide-styles";
 import { decodeShare, loadInvitationById } from "@/lib/store";
@@ -50,6 +50,20 @@ function CardInner() {
     id === "demo" && Number.isFinite(photosParam) && photosParam > 1
       ? PRESET_PHOTOS.slice(0, Math.min(6, Math.floor(photosParam))).map((p) => p.url)
       : undefined;
+  // Demo xem cover từng mẫu (?template=<id> — CHỈ trang demo /thiep/demo):
+  // dùng dữ liệu mẫu của đúng mẫu đó để xem cover/biến thể của nó.
+  // Id lạ → rơi về minimal-do-do. Không đụng thiệp thật (id !== "demo"
+  // không bao giờ tới nhánh demo). getTemplate không throw khi id lạ
+  // (nó rơi về TEMPLATES[0]) nên phải kiểm tpl.id === t.
+  const demoInvitation = () => {
+    const t = search.get("template");
+    if (id !== "demo" || !t) return defaultInvitation("minimal-do-do");
+    try {
+      return getTemplate(t).id === t ? defaultInvitation(t) : defaultInvitation("minimal-do-do");
+    } catch {
+      return defaultInvitation("minimal-do-do");
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -127,14 +141,14 @@ function CardInner() {
         if (id === "demo") {
           // Route demo trưng bày (/thiep/demo không kèm ?d=): dùng dữ liệu
           // mẫu — đây là demo, không phải thiệp của khách nào.
-          setData(defaultInvitation("minimal-do-do"));
+          setData(demoInvitation());
           setStatus("found");
           return;
         }
         setStatus("notfound");
       } catch {
         setStatus(id === "demo" ? "found" : "notfound");
-        if (id === "demo") setData(defaultInvitation("minimal-do-do"));
+        if (id === "demo") setData(demoInvitation());
       }
     })();
     return () => {
