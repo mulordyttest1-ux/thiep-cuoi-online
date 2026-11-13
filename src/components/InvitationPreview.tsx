@@ -56,6 +56,15 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   const tpl = getTemplate(data.templateId);
   const p = tpl.palette;
   const deco = tpl.decorationImages;
+  // Vườn Kính Xanh (specs/vuon-kinh.md): thân thiệp kiểu "kính mờ" — dùng
+  // lại bố cục có cấu trúc của mẫu deco (ngày có cấu trúc, album coverflow,
+  // tiệc + lịch tim, bản đồ nhúng, dress code, timeline dọc) nhưng với màu
+  // accent của mẫu (deep) thay cho đỏ #710001, nền hoa liên tục thay cho
+  // giấy kem; KHÔNG có đếm ngược (bản gốc không có).
+  const glass = !!tpl.glassBody;
+  const deep: string = glass ? p.accent : "#710001"; // màu đậm của bố cục có cấu trúc
+  const glassBg = tpl.coverArt?.bodyBg ?? tpl.coverArt?.bg;
+  const bigNameFont = glass ? "font-display" : "font-eb-garamond";
   // Bộ hiệu ứng của mẫu (preset của biến thể trong templates.ts, không có
   // thì sinh theo id — xem specs/song-phung-do.md §4h/§4i). motion=true chỉ
   // ở trang khách: editor/thumbnail/dialog preview để false để bố cục đứng
@@ -96,15 +105,15 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   const blurClick = (field: SensitiveField) => (e: React.MouseEvent) => {
     if (blurred && revealedField !== field) { e.stopPropagation(); onSensitiveClick?.(field); }
   };
-  // Coverflow album (chỉ mẫu deco): chỉ số ảnh đang ở giữa.
+  // Coverflow album (mẫu deco + mẫu kính): chỉ số ảnh đang ở giữa.
   const [coverIdx, setCoverIdx] = useState(0);
-  // Section tiệc (chỉ mẫu deco): giờ đón khách = giờ cưới trừ 30 phút
+  // Section tiệc (mẫu deco + mẫu kính): giờ đón khách = giờ cưới trừ 30 phút
   // (mẫu bản gốc: đón 17:30 / tiệc 18:00), màu dress code, bản đồ nhúng.
-  const welcomeTime = deco ? minusMinutes(data.time, 30) : "";
+  const welcomeTime = deco || glass ? minusMinutes(data.time, 30) : "";
   // Giờ lễ (mặc định = giờ tiệc): dòng "VÀO LÚC" trong khối THÔNG TIN dùng
   // giờ lễ; các mục tiệc vẫn dùng giờ tiệc.
   const ceremonyTime = data.ceremonyTime?.trim() ? data.ceremonyTime : data.time;
-  const dressColors = deco ? parseDressCode(data.dressCode) : [];
+  const dressColors = deco || glass ? parseDressCode(data.dressCode) : [];
   // Khối online thêm/bớt (src/lib/blocks.ts): chỉ quyết định section nào
   // render — không đụng hiệu ứng, không đụng dữ liệu in. Lõi (hero +
   // thông tin lễ + thông tin tiệc) không nằm trong danh sách này nên lúc
@@ -120,15 +129,15 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   // Google match nhầm sang khu Hồ Tây/Thụy Khuê (có địa điểm tên Sen Hồng
   // ở đó), không có ghim; địa chỉ thuần "123 Đường Láng, Đống Đa, Hà Nội"
   // thì ghim đỏ đúng vị trí. Giữ z=16.
-  const mapEmbedUrl = deco && data.address?.trim()
+  const mapEmbedUrl = (deco || glass) && data.address?.trim()
     ? `https://www.google.com/maps?q=${encodeURIComponent(data.address.trim())}&z=16&output=embed`
     : "";
   // Phần ngày có cấu trúc (thứ | số ngày | tháng, năm, ghi chú âm lịch) theo
-  // đúng code bản gốc (vòng 10, spec §4): chỉ tính cho mẫu deco.
-  const parts = deco ? getDateParts(data.date) : null;
+  // đúng code bản gốc (vòng 10, spec §4): chỉ tính cho mẫu deco + mẫu kính.
+  const parts = deco || glass ? getDateParts(data.date) : null;
   // Ngày làm lễ (khối THÔNG TIN): lễ có ngày riêng — trước đây khối này
   // dùng nhầm parts (ngày tiệc) nên ngày lễ hiện sai khi lễ ≠ tiệc.
-  const leParts = deco ? getDateParts(effectiveCeremonyDate(data)) : null;
+  const leParts = deco || glass ? getDateParts(effectiveCeremonyDate(data)) : null;
   // --- Chế độ sửa cho khách (mẫu chuẩn #1): bấm vào nội dung -> box sửa ---
   const tapRect = (e: React.MouseEvent): { top: number; left: number; bottom: number; width: number } => {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -216,7 +225,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   let calDay = 0;
   let calMonth = 0;
   let calYear = 0;
-  if (deco && data.date) {
+  if ((deco || glass) && data.date) {
     try {
       const d = new Date(`${data.date}T00:00:00`);
       if (!isNaN(d.getTime())) {
@@ -236,7 +245,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   const calTitle = calMonth ? (vi ? `Tháng ${calMonth} / ${calYear}` : `${MONTHS_EN[calMonth - 1]} / ${calYear}`) : "";
   // Link "Thêm vào lịch" (Google Calendar) — bản gốc có nút này ở section tiệc.
   let calUrl: string | null = null;
-  if (deco && parts) {
+  if ((deco || glass) && parts) {
     try {
       const start = new Date(`${data.date}T${data.time || "00:00"}:00`);
       const end = new Date(start.getTime() + 2 * 3600 * 1000);
@@ -253,11 +262,25 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
   }
   return (
     <div
-      className={deco ? "shadow-lg" : "rounded-3xl shadow-lg"}
+      className={deco ? "shadow-lg" : glass ? "overflow-hidden rounded-3xl shadow-lg" : "rounded-3xl shadow-lg"}
       style={
         deco
           ? { background: "#f9ede3", border: "none", padding: 0 }
-          : { background: p.bg, border: `${FRAME_OUTER[tpl.frame] ?? 2}px solid ${p.gold}`, padding: 6 }
+          : glass
+            ? {
+                // Nền hoa liên tục (bản gốc: một nền hoa watercolor cho toàn
+                // thiệp) + lớp trắng mờ phủ lên để chữ xanh đọc được; ảnh
+                // trải theo chiều rộng, lặp dọc như vân giấy NENGIAY.
+                background: glassBg
+                  ? `linear-gradient(rgba(255,255,255,0.45), rgba(255,255,255,0.45)), url(${glassBg})`
+                  : p.bg,
+                backgroundSize: "100% auto",
+                backgroundRepeat: "repeat-y",
+                backgroundPosition: "top center",
+                border: "none",
+                padding: 0,
+              }
+            : { background: p.bg, border: `${FRAME_OUTER[tpl.frame] ?? 2}px solid ${p.gold}`, padding: 6 }
       }
     >
     <article
@@ -265,7 +288,9 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
       style={
         deco
           ? { border: "none", background: "#f9ede3", color: p.text, containerType: "inline-size" }
-          : { border: `${FRAME_INNER[tpl.frame] ?? "1px solid"} ${p.gold}`, background: p.bg, color: p.text }
+          : glass
+            ? { border: "none", background: "transparent", color: p.text, containerType: "inline-size" }
+            : { border: `${FRAME_INNER[tpl.frame] ?? "1px solid"} ${p.gold}`, background: p.bg, color: p.text }
       }
     >
       {/* Vân giấy bản gốc: NENGIAY.jpg opacity 0.3 trên nền kem (spec §1,
@@ -280,7 +305,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         </div>
       )}
       <div className="relative p-6 text-center sm:p-8">
-        {!deco && (
+        {!deco && !glass && (
           <>
             <TemplateMotif motif={tpl.motif} accent={p.accent} gold={p.gold} size="lg" />
             {tpl.motif === "phoenix" && (
@@ -288,18 +313,19 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             )}
           </>
         )}
-        {!deco && (
+        {!deco && !glass && (
           <p className="mt-3 text-xs uppercase tracking-[0.35em]" style={{ color: p.accent }}>
             {vi ? "Thiệp mời cưới" : "Wedding Invitation"}
           </p>
         )}
-        {guestName && !deco && (
+        {guestName && !deco && !glass && (
           <p className="mx-auto mt-3 max-w-md rounded-full px-4 py-2 text-sm" style={{ background: p.card, border: `1px solid ${p.gold}` }}>
             {vi ? "Trân trọng kính mời" : "With honour, we invite"} <strong>{guestName}</strong>
           </p>
         )}
-        {deco ? (
+        {(deco || glass) ? (
           <>
+          {deco ? (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
           {/* Màn hero ghim (B4): desktop ghim hero rồi nhả (Hỷ nở, tên trồi,
               dải wipe), điện thoại chỉ scrub không ghim. Chương 1/6. */}
@@ -360,7 +386,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             <h2
               data-hero-names
               className="font-display relative z-20 mt-[7%] w-fit text-left text-2xl uppercase leading-[1.11] sm:text-3xl"
-              style={{ color: "#710001", fontWeight: 400, fontSize: "clamp(20px, 5.96cqw, 52px)", marginLeft: "12.3%" }}
+              style={{ color: deep, fontWeight: 400, fontSize: "clamp(20px, 5.96cqw, 52px)", marginLeft: "12.3%" }}
             >
               {/* Tên hero — chữ nhảy (GSAP SplitText): từng từ nhô lên từ
                   sau mặt nạ (yPercent 120 → 0, expo.out, 0.8s, stagger
@@ -402,6 +428,40 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             </section>
             </PinnedHero>
             </ScrollReveal>
+          ) : (
+            <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
+            {/* Hero vòm (Vườn Kính Xanh, specs/vuon-kinh.md): khung kính hình
+                vòm chứa tên + ngày, dưới khung là bó hoa trắng — như hero
+                bản gốc (bìa gốc cũng để chú rể trước). Cover của app không
+                có tên nên hero vòm là lần đầu tên xuất hiện. */}
+            <section data-chapter="1" className="relative -mx-6 -mt-6 text-center sm:-mx-8 sm:-mt-8">
+              <div
+                className="mx-auto max-w-[340px] px-6 pb-8 pt-10"
+                style={{ borderRadius: "170px 170px 24px 24px", border: `1px solid ${deep}66`, background: "rgba(255,255,255,0.55)", backdropFilter: "blur(6px)" }}
+              >
+                {/* Huy hiệu: vòng tròn xanh đậm, tim trắng (như bìa gốc). */}
+                <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-full" style={{ background: deep }}>
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5" style={{ fill: "#ffffff" }}>
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                  </svg>
+                </span>
+                <h2 className={`mt-4 ${fontClass} text-4xl font-bold leading-tight`} style={{ color: deep }}>
+                  {editWrap("groomName", blurField("names", data.groomName))}
+                </h2>
+                <p className="mt-1 text-2xl" style={{ color: deep }} aria-hidden="true">&amp;</p>
+                <h2 className={`mt-1 ${fontClass} text-4xl font-bold leading-tight`} style={{ color: deep }}>
+                  {editWrap("brideName", blurField("names", data.brideName))}
+                </h2>
+                <p className="mt-4 text-sm uppercase tracking-[0.25em]" style={{ color: deep }}>
+                  {editWrap("date", blurField("date", formatDateVi(data.date)))}
+                </p>
+              </div>
+              {tpl.coverArt?.main && (
+                <img src={tpl.coverArt.main} alt="" aria-hidden="true" loading="lazy" className="mx-auto mt-4 w-[220px] object-contain" />
+              )}
+            </section>
+            </ScrollReveal>
+          )}
             {/* Khối THÔNG TIN LỄ CƯỚI — trích đúng code bản gốc vòng 10 (spec §4,
                 module 22705): thứ tự tiêu đề → cha mẹ → lời mời → tên lớn
                 xếp chồng → hàng ngày có cấu trúc. Pill khách KHÔNG có trong
@@ -413,11 +473,13 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 phía phải, KHÔNG nằm trong khoảng kem dưới dải). */}
             <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
             <div data-chapter="2" className="relative z-20 mt-14 text-center">
+              {deco && (
               <ParallaxLayer speed={fx.parallax?.hoa ?? 0.4} depth={0.2} disabled={!motion} className="pointer-events-none absolute right-0 -z-10 w-[39.7%]" style={{ top: "-39.7cqw" }}>
                 <img src={deco.hoa} alt="Họa tiết hoa lớn góc dưới-phải" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { e.currentTarget.style.display = "none"; }} className="w-full object-contain" />
               </ParallaxLayer>
+              )}
               {/* Tiêu đề gốc: uppercase, font-bold, 20px md:24px. */}
-              <p className="font-display text-[20px] font-bold uppercase md:text-[24px]" style={{ color: "#710001" }}>
+              <p className="font-display text-[20px] font-bold uppercase md:text-[24px]" style={{ color: deep }}>
                 <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "THÔNG TIN LỄ CƯỚI" : "CEREMONY INFO").split(" ")} />
               </p>
               {/* Cha mẹ (cD gốc): lưới 2 bên + vạch 1px cao 60px ở giữa, 4 hàng
@@ -429,20 +491,20 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   app chưa có trường này thì không hiện, không bịa). */}
               <div className="mx-auto mt-5 grid w-full max-w-[560px] grid-cols-[1fr_auto_1fr] grid-rows-[repeat(4,auto)] justify-center gap-x-3 gap-y-1 md:gap-x-8">
                 <div className="row-span-4 grid min-w-0 grid-rows-subgrid justify-items-center text-center">
-                  <span className="font-display text-[14px] md:text-[15px]" style={{ color: "#710001" }}>Ông Bà</span>
-                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: "#710001" }}>{editWrap("brideFather", data.brideFather)}</span>
-                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: "#710001" }}>{editWrap("brideMother", data.brideMother)}</span>
+                  <span className="font-display text-[14px] md:text-[15px]" style={{ color: deep }}>Ông Bà</span>
+                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: deep }}>{editWrap("brideFather", data.brideFather)}</span>
+                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: deep }}>{editWrap("brideMother", data.brideMother)}</span>
                   {(data.brideParentsAddress || editable) && (
-                    <span className="mt-1 whitespace-pre-line text-[12px] leading-tight md:text-[13px]" style={{ color: "#710001" }}>{editWrap("brideParentsAddress", data.brideParentsAddress || "+ Thêm địa chỉ")}</span>
+                    <span className="mt-1 whitespace-pre-line text-[12px] leading-tight md:text-[13px]" style={{ color: deep }}>{editWrap("brideParentsAddress", data.brideParentsAddress || "+ Thêm địa chỉ")}</span>
                   )}
                 </div>
-                <div className="row-span-4 h-[60px] w-[1px] self-center" style={{ backgroundColor: "#710001" }} />
+                <div className="row-span-4 h-[60px] w-[1px] self-center" style={{ backgroundColor: deep }} />
                 <div className="row-span-4 grid min-w-0 grid-rows-subgrid justify-items-center text-center">
-                  <span className="font-display text-[14px] md:text-[15px]" style={{ color: "#710001" }}>Ông Bà</span>
-                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: "#710001" }}>{editWrap("groomFather", data.groomFather)}</span>
-                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: "#710001" }}>{editWrap("groomMother", data.groomMother)}</span>
+                  <span className="font-display text-[14px] md:text-[15px]" style={{ color: deep }}>Ông Bà</span>
+                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: deep }}>{editWrap("groomFather", data.groomFather)}</span>
+                  <span className="font-display text-[14px] font-semibold [overflow-wrap:anywhere] md:text-[15px]" style={{ color: deep }}>{editWrap("groomMother", data.groomMother)}</span>
                   {(data.groomParentsAddress || editable) && (
-                    <span className="mt-1 whitespace-pre-line text-[12px] leading-tight md:text-[13px]" style={{ color: "#710001" }}>{editWrap("groomParentsAddress", data.groomParentsAddress || "+ Thêm địa chỉ")}</span>
+                    <span className="mt-1 whitespace-pre-line text-[12px] leading-tight md:text-[13px]" style={{ color: deep }}>{editWrap("groomParentsAddress", data.groomParentsAddress || "+ Thêm địa chỉ")}</span>
                   )}
                 </div>
               </div>
@@ -451,7 +513,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   Lời mời KHÔNG có khóa CEP — sửa thì vào danh sách sửa tay
                   (đánh dấu MẠNH), không vào ghost text. */}
               {(data.message || editable) && (
-                <p className="font-display mx-auto mt-6 max-w-[560px] whitespace-pre-line text-[16px] uppercase leading-[1.4] md:text-[20px]" style={{ color: "#710001" }}>
+                <p className="font-display mx-auto mt-6 max-w-[560px] whitespace-pre-line text-[16px] uppercase leading-[1.4] md:text-[20px]" style={{ color: deep }}>
                   {editWrap("message", data.message || "+ Thêm lời mời", { strong: true })}
                 </p>
               )}
@@ -463,21 +525,21 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   liệu có (bản gốc cũng ẩn khi trống). */}
               <div className="mt-6 flex w-full flex-col items-center gap-2">
                 <div className="flex w-full flex-col items-center">
-                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{editWrap("brideName", blurField("names", <SplitLines disabled={!motion} trigger="inView" className="block" lines={[{ text: data.brideName }]} />))}</h3>
+                  <h3 className={`${bigNameFont} whitespace-nowrap leading-[1.2]`} style={{ color: deep, fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{editWrap("brideName", blurField("names", <SplitLines disabled={!motion} trigger="inView" className="block" lines={[{ text: data.brideName }]} />))}</h3>
                   {(data.brideBirthOrder || editable) && (
-                    <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: "#710001" }}>{editWrap("brideBirthOrder", data.brideBirthOrder || "+ Thêm vị thứ")}</div>
+                    <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: deep }}>{editWrap("brideBirthOrder", data.brideBirthOrder || "+ Thêm vị thứ")}</div>
                   )}
                 </div>
                 {/* Trạng thái trống (vòng 14): chỉ render "&" khi CẢ 2 tên
                     đều có chữ — tên trống thì đừng để dấu & lẻ loi giữa 2
                     dòng tên trống. */}
                 {data.brideName?.trim() && data.groomName?.trim() ? (
-                  <div className="font-eb-garamond text-[35px] leading-none md:text-[48px]" style={{ color: "#710001" }}>&amp;</div>
+                  <div className={`${bigNameFont} text-[35px] leading-none md:text-[48px]`} style={{ color: deep }}>&amp;</div>
                 ) : null}
                 <div className="flex w-full flex-col items-center">
-                  <h3 className="font-eb-garamond whitespace-nowrap leading-[1.2]" style={{ color: "#710001", fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{editWrap("groomName", blurField("names", <SplitLines disabled={!motion} trigger="inView" className="block" lines={[{ text: data.groomName }]} />))}</h3>
+                  <h3 className={`${bigNameFont} whitespace-nowrap leading-[1.2]`} style={{ color: deep, fontSize: "clamp(26px, 7.34cqw, 64px)" }}>{editWrap("groomName", blurField("names", <SplitLines disabled={!motion} trigger="inView" className="block" lines={[{ text: data.groomName }]} />))}</h3>
                   {(data.groomBirthOrder || editable) && (
-                    <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: "#710001" }}>{editWrap("groomBirthOrder", data.groomBirthOrder || "+ Thêm vị thứ")}</div>
+                    <div className="font-display mt-1 text-[12px] uppercase tracking-[0.2em] md:text-[13px]" style={{ color: deep }}>{editWrap("groomBirthOrder", data.groomBirthOrder || "+ Thêm vị thứ")}</div>
                   )}
                 </div>
               </div>
@@ -494,7 +556,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                       Chế độ sửa: dòng 1 là CÂU MẪU (không vào ghost text —
                       vd "LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI"), dòng 2 là nơi làm
                       lễ (trường dữ liệu, khóa ceremony.ten, VÀO ghost text). */}
-                  <p className="whitespace-pre-line text-[16px] uppercase leading-[1.4] md:text-[20px]" style={{ color: "#710001" }}>
+                  <p className="whitespace-pre-line text-[16px] uppercase leading-[1.4] md:text-[20px]" style={{ color: deep }}>
                     {editable ? (
                       <>
                         {customWrap("ceremonyHeaderLine1", headerLine1)}
@@ -507,22 +569,22 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                         ? "LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI\nTƯ GIA"
                         : "WEDDING CEREMONY AT\nFAMILY HOME"}
                   </p>
-                  <p className="text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>
+                  <p className="text-[14px] uppercase md:text-[15px]" style={{ color: deep }}>
                     {vi ? "Vào lúc " : "At "}{editable ? editWrap("ceremonyTime", ceremonyTime?.trim() ? blurField("time", ceremonyTime) : "+ Chọn giờ lễ") : blurField("time", ceremonyTime)}
                   </p>
                   {leParts ? (
                     blurField("date", editBlock("ceremonyDate", (
                       <>
-                  <div className="flex items-center justify-center" style={{ color: "#710001" }}>
-                    <span className="w-[70px] text-right text-[14px] uppercase md:w-[85px] md:text-[15px]">{leParts.weekday}</span>
+                  <div className="flex items-center justify-center" style={{ color: deep }}>
+                    <span className="w-auto min-w-[70px] whitespace-nowrap text-right text-[14px] uppercase md:min-w-[85px] md:text-[15px]">{leParts.weekday}</span>
                     <span className="mx-2 text-[14px] opacity-50 md:mx-3" aria-hidden="true">|</span>
                     <span className="text-[32px] leading-none md:text-[38px]">{leParts.day}</span>
                     <span className="mx-2 text-[14px] opacity-50 md:mx-3" aria-hidden="true">|</span>
                     <span className="text-left text-[14px] uppercase md:text-[15px]">{leParts.monthDisplay}</span>
                   </div>
-                  <p className="text-[20px] md:text-[22px]" style={{ color: "#710001" }}>{leParts.year}</p>
+                  <p className="text-[20px] md:text-[22px]" style={{ color: deep }}>{leParts.year}</p>
                   {leParts.lunarNote && (
-                    <p className="text-[13px] md:text-[14px]" style={{ color: "#710001" }}>({leParts.lunarNote})</p>
+                    <p className="text-[13px] md:text-[14px]" style={{ color: deep }}>({leParts.lunarNote})</p>
                   )}
                       </>
                     )), "block")
@@ -573,7 +635,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             {showAlbum && (
             <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"}>
             <section data-chapter="3" className="relative z-20 mx-auto mt-10 w-full max-w-[560px]" aria-label={vi ? "Album ảnh cưới" : "Wedding album"}>
-              <h3 className="font-display text-center text-[20px] font-bold uppercase md:text-[24px]" style={{ color: "#710001" }}>
+              <h3 className="font-display text-center text-[20px] font-bold uppercase md:text-[24px]" style={{ color: deep }}>
                 <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "ALBUM ẢNH" : "ALBUM").split(" ")} />
               </h3>
               <div className="relative mx-auto mt-4 h-[470px] w-full" style={{ perspective: "1000px" }}>
@@ -606,12 +668,12 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                     </button>
                   );
                 })}
-                <FM.button type="button" whileTap={{ scale: 0.9 }} onClick={() => setCoverIdx((coverIdx - 1 + PRESET_PHOTOS.length) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh trước" : "Previous photo"} className="absolute left-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: "#710001", color: "#710001", background: "#f9ede3" }}>‹</FM.button>
-                <FM.button type="button" whileTap={{ scale: 0.9 }} onClick={() => setCoverIdx((coverIdx + 1) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh sau" : "Next photo"} className="absolute right-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: "#710001", color: "#710001", background: "#f9ede3" }}>›</FM.button>
+                <FM.button type="button" whileTap={{ scale: 0.9 }} onClick={() => setCoverIdx((coverIdx - 1 + PRESET_PHOTOS.length) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh trước" : "Previous photo"} className="absolute left-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: deep, color: deep, background: glass ? "rgba(255,255,255,0.9)" : "#f9ede3" }}>‹</FM.button>
+                <FM.button type="button" whileTap={{ scale: 0.9 }} onClick={() => setCoverIdx((coverIdx + 1) % PRESET_PHOTOS.length)} aria-label={vi ? "Ảnh sau" : "Next photo"} className="absolute right-0 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border text-xl" style={{ borderColor: deep, color: deep, background: glass ? "rgba(255,255,255,0.9)" : "#f9ede3" }}>›</FM.button>
               </div>
               <div className="mt-2 flex items-center justify-center gap-2">
                 {PRESET_PHOTOS.map((p, i) => (
-                  <button key={p.url} type="button" onClick={() => setCoverIdx(i)} aria-label={p.label} className="h-2 cursor-pointer rounded-full border-0 p-0 transition-all" style={{ width: i === coverIdx ? 20 : 8, background: i === coverIdx ? "#710001" : "#71000155" }} />
+                  <button key={p.url} type="button" onClick={() => setCoverIdx(i)} aria-label={p.label} className="h-2 cursor-pointer rounded-full border-0 p-0 transition-all" style={{ width: i === coverIdx ? 20 : 8, background: i === coverIdx ? deep : deep + "55" }} />
                 ))}
               </div>
             </section>
@@ -644,7 +706,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         )}
         {/* Cha mẹ đã nằm trong khối THÔNG TIN LỄ CƯỚI ở nhánh deco nên
             lưới chung này chỉ render cho mẫu không-deco (tránh trùng). */}
-        {!deco && (
+        {!deco && !glass && (
         <div className="mx-auto mt-5 grid max-w-md grid-cols-2 gap-4 text-sm">
           <div>
             <p className="font-semibold" style={{ color: p.accent }}>{vi ? "Nhà trai" : "Groom's family"}</p>
@@ -662,7 +724,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             bản gốc nên chỉ giữ cho mẫu không-deco; mẫu deco trình bày ngày
             trong khối THÔNG TIN (trên) và địa điểm/bản đồ trong section tiệc
             (dưới, sau Lịch trình) theo đúng vị trí bản gốc. */}
-        {!deco && (
+        {!deco && !glass && (
         <div className="mx-auto mt-6 max-w-md rounded-2xl p-5" style={{ background: p.card, border: `1px solid ${p.gold}` }}>
           <p className={`${fontClass} text-2xl font-bold`}>{editWrap("date", vi ? blurField("date", formatDateVi(data.date)) : blurField("date", data.date))}</p>
           <p className="mt-1 text-lg">{vi ? "Lúc " : "At "}{editWrap("time", blurField("time", data.time))}</p>
@@ -676,14 +738,16 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         </div>
         )}
         {/* Đếm ngược: bản gốc KHÔNG có đếm ngược trong khối THÔNG TIN — nó nằm
-            ở section tiệc, sau Lịch trình. Mẫu không-deco giữ vị trí cũ. */}
+            ở section tiệc, sau Lịch trình. Mẫu không-deco giữ vị trí cũ.
+            Mẫu kính cũng KHÔNG có đếm ngược (bản gốc Vườn Kính không có —
+            isBlockVisible trả false cho countdown khi glassBody). */}
         {!deco && showCountdown && <Countdown date={data.date} time={data.time} accent={p.accent} />}
-        {(!deco && (data.message || editable)) && (
+        {(!deco && !glass && (data.message || editable)) && (
         <p className="mx-auto mt-6 max-w-lg whitespace-pre-line text-sm leading-relaxed sm:text-base">{editWrap("message", data.message || "+ Thêm lời mời", { strong: true })}</p>
         )}
         {/* Lịch trình dạng hàng be chỉ giữ cho mẫu không-deco; mẫu deco
             dùng timeline dọc có chấm ở cuối trang (sau dress code). */}
-        {!deco && showTimeline && schedule.length > 0 && (
+        {!deco && !glass && showTimeline && schedule.length > 0 && (
           <section className="mx-auto mt-6 max-w-md text-left" aria-label={vi ? "Lịch trình" : "Schedule"}>
             <h3 className="text-center font-semibold" style={{ color: p.accent }}>{vi ? "Lịch trình" : "Schedule"}</h3>
             <ul className="mt-3 space-y-2 text-sm">
@@ -706,28 +770,28 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             zp nhưng demo (ngày 03.05.2026 đã qua lúc QA xem) không hiện —
             QA11 ghi "bản gốc không có đếm ngược ở đâu cả" nên bỏ với deco
             cho khớp hình demo; mẫu không-deco giữ đếm ngược như cũ. */}
-        {deco && (
+        {(deco || glass) && (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
           <section data-chapter="4" className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Thông tin tiệc cưới" : "Reception info"}>
-            <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: "#710001" }}>
+            <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: deep }}>
               {editable ? (
                 customWrap("partyHeader", partyHeader)
               ) : (
                 <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "THÔNG TIN TIỆC CƯỚI" : "RECEPTION INFO").split(" ")} />
               )}
             </h3>
-            <p className="mt-3 text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>
+            <p className="mt-3 text-[14px] uppercase md:text-[15px]" style={{ color: deep }}>
               {vi ? "Tiệc cưới sẽ diễn ra vào lúc:" : "The reception will take place at:"}
             </p>
-            <p className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{editWrap("time", blurField("time", data.time))}</p>
+            <p className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: deep }}>{editWrap("time", blurField("time", data.time))}</p>
             <div className="mt-4 flex items-start justify-center gap-8">
               <div className="flex flex-col items-center">
-                <span className="text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>{vi ? "Đón khách" : "Welcome"}</span>
-                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{blurField("time", welcomeTime)}</span>
+                <span className="text-[14px] uppercase md:text-[15px]" style={{ color: deep }}>{vi ? "Đón khách" : "Welcome"}</span>
+                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: deep }}>{blurField("time", welcomeTime)}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-[14px] uppercase md:text-[15px]" style={{ color: "#710001" }}>{vi ? "Khai tiệc" : "Reception"}</span>
-                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: "#710001" }}>{editWrap("time", blurField("time", data.time))}</span>
+                <span className="text-[14px] uppercase md:text-[15px]" style={{ color: deep }}>{vi ? "Khai tiệc" : "Reception"}</span>
+                <span className="mt-1 text-[18px] font-semibold md:text-[20px]" style={{ color: deep }}>{editWrap("time", blurField("time", data.time))}</span>
               </div>
             </div>
             {parts ? (
@@ -737,7 +801,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                 {/* Hàng ngày ở section tiệc: tên thứ KHÔNG ngắt dòng (vòng 12:
                     "CHỦ NHẬT" 18–20px không vừa hộp 70/85px nên ngắt 2 dòng)
                     — dùng w-auto + min-w + whitespace-nowrap. */}
-                <div className="mt-3 flex items-center justify-center" style={{ color: "#710001" }}>
+                <div className="mt-3 flex items-center justify-center" style={{ color: deep }}>
                   <span className="w-auto min-w-[70px] whitespace-nowrap text-right text-[18px] font-semibold uppercase md:min-w-[85px] md:text-[20px]">{parts.weekday}</span>
                   <span className="mx-2 text-[14px] opacity-50 md:mx-3" aria-hidden="true">/</span>
                   <span className="text-[30px] font-semibold leading-none md:text-[36px]">{parts.day}</span>
@@ -745,7 +809,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                   <span className="whitespace-nowrap text-left text-[18px] font-semibold uppercase md:text-[20px]">{parts.monthDisplay}</span>
                 </div>
                 {parts.lunarNote && (
-                  <p className="mt-1 text-[13px] md:text-[14px]" style={{ color: "#710001" }}>({parts.lunarNote})</p>
+                  <p className="mt-1 text-[13px] md:text-[14px]" style={{ color: deep }}>({parts.lunarNote})</p>
                 )}
                   </>
                 )), "block")}
@@ -757,17 +821,17 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
               // Khung viền bo tròn quanh lịch (vòng 16): bản gốc lịch nằm
               // trong một hộp có viền bo tròn. Lịch rộng 388px (ô ~52px như
               // bản gốc đo vòng 14) để tim 30px = ~59% ô.
-              <div className={`mx-auto mt-5 w-full max-w-[388px] rounded-2xl border px-4 py-3 ${blurCls("date")}`} onClick={blurClick("date")} style={{ borderColor: "#71000155" }}>
+              <div className={`mx-auto mt-5 w-full max-w-[388px] rounded-2xl border px-4 py-3 ${blurCls("date")}`} onClick={blurClick("date")} style={{ borderColor: deep + "55" }}>
                 {/* Tiêu đề tháng/năm của lịch (bản gốc: "Tháng 5 / 2026"). */}
                 {calTitle && (
-                  <p className="mb-2 text-center text-[16px] font-semibold md:text-[18px]" style={{ color: "#710001" }}>{calTitle}</p>
+                  <p className="mb-2 text-center text-[16px] font-semibold md:text-[18px]" style={{ color: deep }}>{calTitle}</p>
                 )}
-                <div className="grid grid-cols-7 gap-1 text-center text-[12px] font-semibold uppercase" style={{ color: "#710001" }}>
+                <div className="grid grid-cols-7 gap-1 text-center text-[12px] font-semibold uppercase" style={{ color: deep }}>
                   {(vi ? ["T2", "T3", "T4", "T5", "T6", "T7", "CN"] : ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]).map((w) => (
                     <span key={w}>{w}</span>
                   ))}
                 </div>
-                <div className="mt-1 grid grid-cols-7 gap-1 text-center text-[13px]" style={{ color: "#710001" }}>
+                <div className="mt-1 grid grid-cols-7 gap-1 text-center text-[13px]" style={{ color: deep }}>
                   {calCells.map((c, i) =>
                     c === null ? (
                       <span key={i} />
@@ -794,7 +858,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
                       // ≈ 35 × 0.83 ≈ 29px (≈ 55% ô ~53px, gốc ~54%).
                       // Giữ fill #710001 đặc, số trắng 15px extrabold.
                       <span key={i} className="relative flex aspect-square items-center justify-center">
-                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[35px] w-[35px]" style={{ fill: "#710001" }}>
+                        <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[35px] w-[35px]" style={{ fill: deep }}>
                           <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
                         </svg>
                         <span className="absolute inset-0 flex items-center justify-center text-[15px] font-extrabold" style={{ color: "#ffffff" }}>{c}</span>
@@ -808,7 +872,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             )}
             {calUrl && (
               <div className="mt-4">
-                <FM.a href={calUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }} className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: "#710001" }}>
+                <FM.a href={calUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }} className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: deep }}>
                   {vi ? "Thêm vào lịch" : "Add to calendar"} ↗
                 </FM.a>
               </div>
@@ -824,10 +888,10 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             không thấy ghim; bản gốc zoom vào địa điểm với ghim + place
             card), cao 280px md:380px, tối đa 340px md:560px, bo 16px —
             đúng số gốc, link "Xem bản đồ". */}
-        {deco && showMap && (
+        {(deco || glass) && showMap && (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
           <section data-chapter="4" className="relative z-20 mx-auto mt-10 text-center" aria-label={vi ? "Địa điểm tiệc cưới" : "Reception venue"}>
-            <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: "#710001" }}>
+            <h3 className="font-display text-[16px] uppercase md:text-[20px]" style={{ color: deep }}>
               {editable ? (
                 customWrap("partyHeader", partyHeader)
               ) : (
@@ -837,12 +901,12 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             {/* Tên địa điểm (vòng 16): bản gốc là chữ NGHIÊNG serif, viết
                 thường xen hoa — KHÔNG sans đậm IN HOA như trước. Giữ nguyên
                 chữ hoa/thường như dữ liệu nhập, không uppercase. */}
-            <p className="mt-3 font-eb-garamond text-[20px] italic md:text-[24px]" style={{ color: "#710001" }}>{editWrap("venue", blurField("venue", data.venue))}</p>
+            <p className={`mt-3 ${bigNameFont} text-[20px] italic md:text-[24px]`} style={{ color: deep }}>{editWrap("venue", blurField("venue", data.venue))}</p>
             {/* Trạng thái trống (vòng 14): chỉ render pill địa chỉ và iframe
                 bản đồ khi có địa chỉ — không địa chỉ thì iframe nhúng sẽ
                 hiện khung bản đồ thế giới trống. */}
             {(data.address?.trim() || editable) && (
-              <p className="mx-auto mt-4 max-w-sm rounded-full px-4 py-2 text-sm md:max-w-[600px] md:px-6 md:py-3" style={{ color: "#710001" }}>{editWrap("address", data.address?.trim() ? blurField("venue", data.address) : "+ Thêm địa chỉ")}</p>
+              <p className="mx-auto mt-4 max-w-sm rounded-full px-4 py-2 text-sm md:max-w-[600px] md:px-6 md:py-3" style={{ color: deep }}>{editWrap("address", data.address?.trim() ? blurField("venue", data.address) : "+ Thêm địa chỉ")}</p>
             )}
             {data.address?.trim() && (
               <iframe
@@ -854,7 +918,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
               />
             )}
             <div className="mt-3">
-              <FM.a href={mapsUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }} className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: "#710001" }}>
+              <FM.a href={mapsUrl} target="_blank" rel="noreferrer" whileTap={{ scale: 0.96 }} className="text-sm tracking-wider underline underline-offset-4 decoration-1 transition-opacity hover:opacity-70" style={{ color: deep }}>
                 {vi ? "Xem bản đồ" : "View map"} ↗
               </FM.a>
             </div>
@@ -865,16 +929,16 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             "DRESS CODE", phụ đề "Trang phục dự tiệc" / "Party Attire").
             Chỉ hiện khi dữ liệu có màu; thứ tự gốc: sau bản đồ, trước
             timeline. */}
-        {deco && showDresscode && dressColors.length > 0 && (
+        {(deco || glass) && showDresscode && dressColors.length > 0 && (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
           <section data-chapter="5" className="relative z-20 mx-auto mt-10 text-center" aria-label="Dress code">
-            <h3 className="font-display text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
+            <h3 className="font-display text-[20px] uppercase md:text-[26px]" style={{ color: deep }}>
               <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={"DRESS CODE".split(" ")} />
             </h3>
-            <p className="mt-1 text-sm md:text-base" style={{ color: "#710001" }}>{vi ? "Trang phục dự tiệc" : "Party Attire"}</p>
+            <p className="mt-1 text-sm md:text-base" style={{ color: deep }}>{vi ? "Trang phục dự tiệc" : "Party Attire"}</p>
             <div className="mt-5 flex items-center justify-center gap-4">
               {dressColors.map((c) => (
-                <span key={c} title={c} className="h-12 w-12 rounded-full border" style={{ background: c, borderColor: "#71000133" }} />
+                <span key={c} title={c} className="h-12 w-12 rounded-full border" style={{ background: c, borderColor: deep + "33" }} />
               ))}
             </div>
           </section>
@@ -913,34 +977,34 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
             thường căn phải, nhãn italic serif.
             Tiêu đề gốc "LỊCH TRÌNH NGÀY CƯỚI" / "WEDDING DAY SCHEDULE". */}
         {/* Dải tên cặp đôi thứ hai trước lịch trình (B8). */}
-        {deco && motion && fx.cinema?.marquee !== false && (
+        {(deco || glass) && motion && fx.cinema?.marquee !== false && (
           <Marquee text={`${data.brideName} & ${data.groomName}`} />
         )}
-        {deco && showTimeline && schedule.length > 0 && (
+        {(deco || glass) && showTimeline && schedule.length > 0 && (
           <ScrollReveal disabled={!motion} strength={fx.reveal?.strength ?? "standard"} wipe>
           <section data-chapter="6" className="relative z-20 mx-auto mt-10 w-full text-left" aria-label={vi ? "Lịch trình ngày cưới" : "Wedding day schedule"}>
-            <h3 className="font-display text-center text-[20px] uppercase md:text-[26px]" style={{ color: "#710001" }}>
+            <h3 className="font-display text-center text-[20px] uppercase md:text-[26px]" style={{ color: deep }}>
               <StaggeredText disabled={!motion} stagger={0.1} itemClassName="inline-block mr-[0.28em]" items={(vi ? "LỊCH TRÌNH NGÀY CƯỚI" : "WEDDING DAY SCHEDULE").split(" ")} />
             </h3>
             <ol className="relative mt-6 space-y-11">
               {/* Đường kẻ dọc chấm vẽ dần từ trên xuống khi mục vào khung
                   (C10); giảm chuyển động hoặc không motion thì kẻ sẵn. */}
               {motion && !reduce ? (
-                <FM.span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: "#710001", transformOrigin: "top" }} initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ amount: 0.5, once: false }} transition={{ duration: 0.8, ease: "easeOut" }} />
+                <FM.span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: deep, transformOrigin: "top" }} initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ amount: 0.5, once: false }} transition={{ duration: 0.8, ease: "easeOut" }} />
               ) : (
-                <span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: "#710001" }} />
+                <span aria-hidden="true" className="absolute bottom-[13px] left-[calc(50%-1px)] top-[13px] border-l-2 border-dotted" style={{ borderColor: deep }} />
               )}
               {schedule.map((s, i) => (
                 <li key={i} className="relative flex items-baseline leading-[26px]">
-                  <span className="min-w-0 flex-1 pr-4 text-right font-eb-garamond text-[17px]" style={{ color: "#710001" }}>{s.time}</span>
+                  <span className={`min-w-0 flex-1 pr-4 text-right ${bigNameFont} text-[17px]`} style={{ color: deep }}>{s.time}</span>
                   <span className="flex w-[14px] shrink-0 items-center justify-center self-center">
                     {motion && !reduce ? (
-                      <FM.span className="block h-3 w-3 rounded-full" style={{ background: "#710001" }} initial={{ scale: 0 }} whileInView={{ scale: 1 }} viewport={{ amount: 0.6, once: false }} transition={{ type: "spring", stiffness: 300, damping: 15, delay: i * 0.08 }} />
+                      <FM.span className="block h-3 w-3 rounded-full" style={{ background: deep }} initial={{ scale: 0 }} whileInView={{ scale: 1 }} viewport={{ amount: 0.6, once: false }} transition={{ type: "spring", stiffness: 300, damping: 15, delay: i * 0.08 }} />
                     ) : (
-                      <span className="block h-3 w-3 rounded-full" style={{ background: "#710001" }} />
+                      <span className="block h-3 w-3 rounded-full" style={{ background: deep }} />
                     )}
                   </span>
-                  <span className="min-w-0 flex-1 pl-4 font-eb-garamond text-[17px] italic" style={{ color: "#710001" }}>{s.label}</span>
+                  <span className={`min-w-0 flex-1 pl-4 ${bigNameFont} text-[17px] italic`} style={{ color: deep }}>{s.label}</span>
                 </li>
               ))}
             </ol>
@@ -949,7 +1013,7 @@ export default function InvitationPreview({ data, guestName, motion, blurred, re
         )}
         {/* Câu chuyện chỉ giữ cho mẫu không-deco; bản gốc không có section
             này với mẫu Song Phụng Đỏ nên ẩn với deco (vòng 12). */}
-        {!deco && showStory && data.story && (
+        {!deco && !glass && showStory && data.story && (
           <section className="mx-auto mt-6 max-w-lg text-left" aria-label={vi ? "Câu chuyện tình yêu" : "Our story"}>
             <h3 className="text-center font-semibold" style={{ color: p.accent }}>{vi ? "Câu chuyện của chúng tôi" : "Our story"}</h3>
             <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">{data.story}</p>
