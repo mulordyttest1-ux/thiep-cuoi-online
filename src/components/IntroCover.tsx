@@ -5,14 +5,21 @@
 // biến thể. Tự chạy ~4–6s rồi sang bộ sưu tập; khách bấm vào cover thì
 // bỏ qua, sang ngay. Giảm chuyển động: hiện tĩnh, không tự chạy, bấm
 // nút "Tiếp tục" (hoặc bấm vào cover) để sang.
+//
+// Hệ thống cover (kế hoạch 2026-11-13, hướng lai):
+// - Mẫu có decorationImages (song-phung-do): giữ nhánh deco riêng.
+// - Mẫu có coverArt: cover từ artwork gốc (ArtCover).
+// - Mẫu còn lại: cover vẽ bằng code theo motif (registry
+//   src/components/covers/, ngôn ngữ đã chốt bằng demo Song Hỷ Đỏ).
 "use client";
 
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { InvitationData } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
-import TemplateMotif from "@/components/TemplateMotif";
 import { AmbientLayer } from "@/components/effects";
+import { ArtCover } from "@/components/covers/shared";
+import { resolveCoverComponent } from "@/components/covers";
 import { getIntroPreset, resolveIntroVariant, type SunFlareKind } from "@/lib/intro";
 
 /** Vệt nắng chói — lớp sáng phủ lên cover, kiểu theo biến thể.
@@ -89,6 +96,11 @@ export function IntroCover({
         transition: { duration: variant === "dien-anh" ? 2.2 : 1.2, ease: "easeOut" as const },
       };
 
+  // Chữ "Chạm để tiếp tục" theo màu nền THẬT của bìa, không theo preset:
+  // mẫu có ảnh nền (coverArt.bg — cẩm thạch trắng, damask kem, lá xanh...)
+  // thì nền thật là sáng/dậm dù preset biến thể ghi nền tối → chữ tối.
+  const coverIsDark = preset.darkBg && !tpl.coverArt?.bg;
+
   return (
     <div
       role="button"
@@ -109,9 +121,12 @@ export function IntroCover({
       </div>
 
       {/* Dấu ấn mẫu: mẫu deco dùng artwork gốc (chữ Hỷ + phụng + hoa),
-          mẫu khác dùng họa tiết cách điệu của mẫu. */}
-      <motion.div {...motifMotion} className="relative z-10 flex flex-col items-center">
-        {deco ? (
+          mẫu có coverArt dùng artwork gốc (ArtCover), mẫu còn lại dùng
+          cover vẽ bằng code theo motif (registry src/components/covers/).
+          Chữ "Chạm để tiếp tục" nằm trong luồng, dưới họa tiết chính,
+          trong vùng trống — không bị họa tiết che. */}
+      {deco ? (
+        <motion.div {...motifMotion} className="relative z-10 flex flex-col items-center">
           <>
             <img
               src={deco.phuongRight}
@@ -158,13 +173,18 @@ export function IntroCover({
               className="pointer-events-none absolute -bottom-16 -left-16 w-[110px] object-contain opacity-70 md:w-[150px]"
             />
           </>
-        ) : (
-          <TemplateMotif motif={tpl.motif} accent={tpl.palette.accent} gold={tpl.palette.gold} size="lg" light={preset.darkBg} />
-        )}
-      </motion.div>
+        </motion.div>
+      ) : tpl.coverArt ? (
+        <ArtCover art={tpl.coverArt} gold={tpl.palette.gold} variant={variant} />
+      ) : (
+        (() => {
+          const Cover = resolveCoverComponent(tpl.motif);
+          return <Cover tpl={tpl} variant={variant} />;
+        })()
+      )}
 
       <p
-        className={`relative z-10 mt-10 text-center text-sm tracking-[0.3em] ${preset.darkBg ? "text-white/70" : "text-[#7a6a68]"}`}
+        className={`relative z-10 mt-10 text-center text-sm tracking-[0.3em] ${coverIsDark ? "text-white/70" : "text-[#7a6a68]"}`}
       >
         {reduce ? "Bấm để tiếp tục" : "Chạm để tiếp tục"}
       </p>
