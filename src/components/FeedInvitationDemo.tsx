@@ -144,6 +144,9 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
   )}`;
   const dateDots = data.date ? data.date.split("-").reverse().join(".") : "";
   const ceremonyTime = data.ceremonyTime?.trim() ? data.ceremonyTime : data.time;
+  // Giờ tiệc lấy từ lịch trình ("Tiệc mừng" 12:00) khi có, tránh hiển thị
+  // trùng giờ lễ (11:00) trong khi timeline ghi tiệc 12:00.
+  const partyTime = schedule.find((s) => /tiệc/i.test(s.label))?.time ?? data.time;
 
   // Lịch tháng cưới: lưới 7 cột, tuần bắt đầu thứ Hai, tim đánh dấu ngày cưới.
   let calCells: (number | null)[] = [];
@@ -216,13 +219,13 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
         <section className="pt-10 text-center" aria-label="Bìa thiệp">
           <Reveal>
             <div className="relative mx-auto h-[340px] w-full max-w-[340px]">
-              <div className="absolute left-0 top-2 w-[55%] -rotate-6 rounded-lg bg-white p-2 pb-6 shadow-lg">
+              <div className="absolute left-0 top-2 w-[50%] -rotate-4 rounded-lg bg-white p-2 pb-6 shadow-lg">
                 <img src={PRESET_PHOTOS[0].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
-                <p className="font-script mt-2 text-lg" style={{ color: OLIVE }}>Save our date</p>
+                <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Save our date</p>
               </div>
-              <div className="absolute right-0 top-10 w-[55%] rotate-6 rounded-lg bg-white p-2 pb-6 shadow-lg">
+              <div className="absolute right-0 top-10 w-[50%] rotate-4 rounded-lg bg-white p-2 pb-6 shadow-lg">
                 <img src={PRESET_PHOTOS[1].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
-                <p className="font-script mt-2 text-lg" style={{ color: OLIVE }}>{dateDots}</p>
+                <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>{dateDots}</p>
               </div>
               <div className="absolute -bottom-1 left-1/2 z-10 -translate-x-1/2">
                 <WaxSeal size={56} />
@@ -301,7 +304,7 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
         <section className="mt-12 space-y-8 text-center" aria-label="Thông tin lễ và tiệc">
           {[
             { label: "Lễ thành hôn", time: ceremonyTime },
-            { label: "Tiệc chung vui", time: data.time },
+            { label: "Tiệc chung vui", time: partyTime },
           ].map((b) => (
             <Reveal key={b.label}>
               <p className="text-[11px] font-semibold uppercase tracking-[0.35em]" style={{ color: OLIVE_SOFT }}>{b.label}</p>
@@ -322,14 +325,14 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
         {/* 7. Giới thiệu cô dâu – chú rể: 2 Polaroid nghiêng. */}
         <section className="mt-10 text-center" aria-label="Giới thiệu cô dâu chú rể">
           <SectionLabel>Cô dâu &amp; Chú rể</SectionLabel>
-          <div className="relative mx-auto mt-6 h-[280px] max-w-[340px]">
-            <Reveal className="absolute left-0 top-0 w-[58%] -rotate-6 rounded-lg bg-white p-2 pb-5 shadow-lg">
+          <div className="relative mx-auto mt-6 h-[320px] max-w-[340px]">
+            <Reveal className="absolute left-0 top-0 w-[50%] -rotate-4 rounded-lg bg-white p-2 pb-5 shadow-lg">
               <img src={PRESET_PHOTOS[3].url} alt={`Chú rể ${data.groomName}`} loading="lazy" className="aspect-[4/5] w-full rounded object-cover" />
-              <p className="font-script mt-2 text-lg" style={{ color: OLIVE }}>Chú rể {data.groomName}</p>
+              <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Chú rể {data.groomName}</p>
             </Reveal>
-            <Reveal className="absolute right-0 top-8 w-[58%] rotate-6 rounded-lg bg-white p-2 pb-5 shadow-lg">
+            <Reveal className="absolute right-0 top-8 w-[50%] rotate-4 rounded-lg bg-white p-2 pb-5 shadow-lg">
               <img src={PRESET_PHOTOS[4].url} alt={`Cô dâu ${data.brideName}`} loading="lazy" className="aspect-[4/5] w-full rounded object-cover" />
-              <p className="font-script mt-2 text-lg" style={{ color: OLIVE }}>Cô dâu {data.brideName}</p>
+              <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Cô dâu {data.brideName}</p>
             </Reveal>
           </div>
         </section>
