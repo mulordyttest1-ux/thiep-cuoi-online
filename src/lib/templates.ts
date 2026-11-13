@@ -43,6 +43,23 @@ export interface TemplateDecorationImages {
   phuongRight: string; // Phụng Phải
 }
 
+/** Artwork gốc của mẫu dùng cho cover (hướng B — ảnh thật từ chungdoi.com,
+ *  đã tải về `public/themes/<theme>/`, không proxy lúc chạy).
+ *  Chỉ những mẫu đã đối chiếu chắc chắn mới có (xem
+ *  research_notes/ke-hoach-cover-cac-mau/artwork-goc-chungdoi.md).
+ *  - bg: ảnh nền toàn bìa (vd vân cẩm thạch, nền lá).
+ *  - main: họa tiết chính ở giữa bìa (vd chữ Hỷ, bông sen, rồng/phụng).
+ *  - corners: họa tiết nhỏ đặt ở 4 góc bìa (vd hoa góc, dải hoa).
+ *  - emblem: họa tiết nhỏ phụ (vd chữ Hỷ nhỏ dùng chung songlong-red).
+ *  Mẫu không có coverArt dùng cover vẽ bằng code theo motif (hướng A).
+ *  Mẫu đã có decorationImages (song-phung-do) giữ nhánh deco riêng. */
+export interface TemplateCoverArt {
+  bg?: string;
+  main?: string;
+  corners?: string;
+  emblem?: string;
+}
+
 // Biến thể hiệu ứng (2026-11-09, xem specs/song-phung-do.md §4i +
 // docs/effect-variants-research.md): 6 preset ĐẶT TÊN, có chủ đích — mỗi
 // mẫu trong TEMPLATES gán đúng 1 biến thể, không còn random theo hash.
@@ -125,6 +142,7 @@ export interface Template {
   pattern: string; // mô tả họa tiết, dùng để render bằng CSS
   photo: string;
   decorationImages?: TemplateDecorationImages; // ảnh trang trí gốc của mẫu, chỉ dùng khi có
+  coverArt?: TemplateCoverArt; // artwork gốc cho cover (hướng B), file ở public/themes/
   motif: TemplateMotif;
   frame: TemplateFrame;
   frameLabel: string;
@@ -293,6 +311,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem",
     variant: "toi-gian",
     effects: VARIANT_PRESETS["toi-gian"],
+    coverArt: { main: "/themes/minimalism-red/header-bottom-01.png", emblem: "/themes/songlong-red/chinese_happiness.webp" },
   },
   {
     id: "minimal-nau",
@@ -311,6 +330,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem trắng",
     variant: "toi-gian",
     effects: VARIANT_PRESETS["toi-gian"],
+    coverArt: { main: "/themes/minimalism-brown/flower2-decoration.webp" },
   },
   {
     id: "minimal-lam-dam",
@@ -329,6 +349,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy trắng xanh",
     variant: "toi-gian",
     effects: VARIANT_PRESETS["toi-gian"],
+    coverArt: { main: "/themes/minimalism-dark-blue/flower2-decoration.webp" },
   },
   {
     id: "song-hy-do",
@@ -347,6 +368,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem",
     variant: "le-nghi",
     effects: VARIANT_PRESETS["le-nghi"],
+    coverArt: { main: "/themes/song-hy-red/chu-hy.webp", emblem: "/themes/songlong-red/chinese_happiness.webp" },
   },
   {
     id: "song-hy-xanh",
@@ -365,6 +387,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy trắng",
     variant: "dien-anh",
     effects: VARIANT_PRESETS["dien-anh"],
+    coverArt: { main: "/themes/song-hy-red/chu-hy.webp", emblem: "/themes/songlong-red/chinese_happiness.webp" },
   },
   {
     id: "long-phung",
@@ -383,6 +406,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem ấm",
     variant: "le-nghi",
     effects: VARIANT_PRESETS["le-nghi"],
+    coverArt: { main: "/themes/red-v1/rong.webp", corners: "/themes/red-v1/phuong.webp", emblem: "/themes/songlong-red/chinese_happiness.webp" },
   },
   {
     id: "hoa-moc",
@@ -401,6 +425,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem xanh",
     variant: "hoa-bay",
     effects: VARIANT_PRESETS["hoa-bay"],
+    coverArt: { main: "/themes/boho-floral-green/flower.webp" },
   },
   {
     id: "mai-lan-trang",
@@ -419,6 +444,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem trắng",
     variant: "hoa-bay",
     effects: VARIANT_PRESETS["hoa-bay"],
+    coverArt: { main: "/themes/moclan-white/hoa.webp" },
   },
   {
     id: "vuon-kinh",
@@ -437,6 +463,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy trắng xanh",
     variant: "hoa-bay",
     effects: VARIANT_PRESETS["hoa-bay"],
+    coverArt: { bg: "/themes/glass-garden-green/floral-background.webp", main: "/themes/glass-garden-green/flower2-decoration.webp" },
   },
   {
     id: "cam-thach-vang",
@@ -455,6 +482,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem",
     variant: "anh-vang",
     effects: VARIANT_PRESETS["anh-vang"],
+    coverArt: { bg: "/themes/marble-yellow/marble.webp", main: "/themes/marble-yellow/leaf-1.webp", corners: "/themes/marble-yellow/leaf-2.webp" },
   },
   {
     id: "baroque",
@@ -473,6 +501,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy vàng nhạt",
     variant: "anh-vang",
     effects: VARIANT_PRESETS["anh-vang"],
+    coverArt: { bg: "/themes/baroque-blue/bg-pattern.webp", main: "/themes/baroque-blue/gold4-decoration.webp" },
   },
   {
     id: "ren-theu",
@@ -491,6 +520,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem trắng",
     variant: "anh-vang",
     effects: VARIANT_PRESETS["anh-vang"],
+    coverArt: { main: "/themes/applique-lace-white/flower.webp" },
   },
   {
     id: "song-phung-do",
@@ -567,6 +597,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem",
     variant: "le-nghi",
     effects: VARIANT_PRESETS["le-nghi"],
+    coverArt: { main: "/themes/nhat-binh-red/hoa.webp", emblem: "/themes/songlong-red/chinese_happiness.webp" },
   },
   {
     id: "nhat-binh-xanh-ngoc",
@@ -585,6 +616,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem nhạt",
     variant: "dien-anh",
     effects: VARIANT_PRESETS["dien-anh"],
+    coverArt: { main: "/themes/nhat-binh-red/hoa.webp" },
   },
   {
     id: "song-hy-vang",
@@ -603,6 +635,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy kem vàng",
     variant: "le-hoi",
     effects: VARIANT_PRESETS["le-hoi"],
+    coverArt: { main: "/themes/song-hy-v2-red/double-happiness-light.webp" },
   },
   {
     id: "minimal-den-trang",
@@ -657,6 +690,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy trắng xanh rêu",
     variant: "toi-gian",
     effects: VARIANT_PRESETS["toi-gian"],
+    coverArt: { bg: "/themes/minimalism-green/flower-background.webp" },
   },
   {
     id: "minimal-kem-vang",
@@ -693,6 +727,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy hồng phấn",
     variant: "hoa-bay",
     effects: VARIANT_PRESETS["hoa-bay"],
+    coverArt: { main: "/themes/lien-hoa-pink/flower4.webp" },
   },
   {
     id: "vuon-hong",
@@ -711,6 +746,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy hồng nhạt",
     variant: "le-hoi",
     effects: VARIANT_PRESETS["le-hoi"],
+    coverArt: { bg: "/themes/brocade-flower-red/tile-background.webp", main: "/themes/brocade-flower-red/dai-hoa.webp", corners: "/themes/brocade-flower-red/flower-corner.webp" },
   },
   {
     id: "lavender-tim",
@@ -747,6 +783,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy vàng nhạt",
     variant: "anh-vang",
     effects: VARIANT_PRESETS["anh-vang"],
+    coverArt: { bg: "/themes/baroque-gold/bg.webp", main: "/themes/baroque-gold/hoa.webp" },
   },
   {
     id: "cam-thach-hong",
@@ -765,6 +802,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy hồng nhạt",
     variant: "anh-vang",
     effects: VARIANT_PRESETS["anh-vang"],
+    coverArt: { bg: "/themes/marble-yellow/marble.webp", main: "/themes/marble-yellow/leaf-1.webp" },
   },
   {
     id: "hien-dai-be",
@@ -801,6 +839,7 @@ export const TEMPLATES: Template[] = [
     paper: "Giấy trắng xanh biển",
     variant: "anh-vang",
     effects: VARIANT_PRESETS["anh-vang"],
+    coverArt: { main: "/themes/santorini-blue/cover-scene.webp" },
   },
 ];
 
