@@ -284,3 +284,27 @@ html.lenis, html.lenis body {
     animation: none !important;
   }
 }
+
+/* Hiệu ứng trồi khối khi cuộn cho demo feed (?layout=feed) — cơ chế
+   IntersectionObserver + CSS transition (pattern chung, code tự viết):
+   khối lọt vào khung thì trồi lên 40px trong 0,7s ease-out. Luân chuyển
+   class: feed-reveal-armed → feed-reveal-visible → feed-reveal-done. */
+.feed-reveal-armed {
+  opacity: 0;
+  transform: translateY(40px);
+}
+.feed-reveal-armed.feed-reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 0.7s ease-out,
+    transform 0.7s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-reveal-armed,
+  .feed-reveal-armed.feed-reveal-visible {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}
