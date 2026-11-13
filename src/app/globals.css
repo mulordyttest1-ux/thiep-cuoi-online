@@ -308,3 +308,100 @@ html.lenis, html.lenis body {
     transition: none;
   }
 }
+
+/* Hiệu ứng từng phần tử trong demo feed (?layout=feed) — lớp 2 của pipeline:
+   12 kiểu xuất hiện, mỗi phần tử mang kiểu + duration + delay + easing riêng
+   qua biến CSS --feed-fx-*. Chưa lọt khung: opacity 0; lọt khung
+   (IntersectionObserver threshold 0,1, rootMargin -50px): gắn .feed-fx-play
+   rồi chạy animation 1 lần, fillMode both. Keyframe tự viết. */
+.feed-fx {
+  opacity: 0;
+}
+.feed-fx-play {
+  animation-name: var(--feed-fx-name, feedFadeIn);
+  animation-duration: var(--feed-fx-duration, 1.5s);
+  animation-delay: var(--feed-fx-delay, 0s);
+  animation-timing-function: var(--feed-fx-easing, ease);
+  animation-fill-mode: both;
+  animation-iteration-count: 1;
+}
+@keyframes feedFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes feedSlideInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes feedSlideInDown {
+  from { opacity: 0; transform: translateY(-30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes feedSlideInLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes feedSlideInRight {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes feedZoomIn {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes feedRotateIn {
+  from { opacity: 0; transform: rotate(-12deg) scale(0.9); }
+  to { opacity: 1; transform: rotate(0) scale(1); }
+}
+@keyframes feedBounceIn {
+  0% { opacity: 0; transform: scale(0.6); }
+  55% { opacity: 1; transform: scale(1.06); }
+  75% { transform: scale(0.97); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes feedFlipInY {
+  from { opacity: 0; transform: perspective(500px) rotateY(70deg); }
+  to { opacity: 1; transform: perspective(500px) rotateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-fx {
+    opacity: 1;
+  }
+  .feed-fx-play {
+    animation: none;
+  }
+}
+
+/* Timeline demo feed chạy nối tiếp (lớp 3 của pipeline): trục vẽ ra trước
+   (scaleX 0→1, 600ms), rồi từng mốc fade-up lệch nhau 150ms/mốc qua biến
+   --tl-i. Máy trạng thái bằng data-tl-anim="waiting" | "playing". */
+.feed-tl[data-tl-anim="waiting"] .feed-tl-axis {
+  transform: scaleX(0);
+}
+.feed-tl[data-tl-anim="waiting"] .feed-tl-item {
+  opacity: 0;
+}
+.feed-tl[data-tl-anim="playing"] .feed-tl-axis {
+  transform-origin: left center;
+  animation: feedTlAxisX 600ms ease-out both;
+}
+.feed-tl[data-tl-anim="playing"] .feed-tl-item {
+  animation: feedTlFadeUp 450ms ease-out both;
+  animation-delay: calc(var(--tl-i, 0) * 150ms);
+}
+@keyframes feedTlAxisX {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+@keyframes feedTlFadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-tl[data-tl-anim] .feed-tl-axis,
+  .feed-tl[data-tl-anim] .feed-tl-item {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
