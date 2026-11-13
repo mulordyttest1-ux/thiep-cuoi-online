@@ -72,6 +72,10 @@ export function hasBlockContent(data: InvitationData, id: BlockId): boolean {
  *  thì ẩn). */
 export function isBlockVisible(data: InvitationData, id: BlockId): boolean {
   if (data.hiddenBlocks?.includes(id)) return false;
+  // Mẫu kính (Vườn Kính Xanh) KHÔNG có đếm ngược — bản gốc không có khối
+  // này (specs/vuon-kinh.md); ẩn ở tầng này để nút bật/tắt trong editor
+  // cũng nhất quán (không bật được).
+  if (id === "countdown" && getTemplate(data.templateId).glassBody) return false;
   return hasBlockContent(data, id);
 }
 

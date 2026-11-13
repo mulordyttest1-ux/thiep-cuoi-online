@@ -177,6 +177,9 @@ export default function GuestInvitationView({
   // py-10 cho cột chỉ ~737px và thừa 40px kem phía trên — chỉ mẫu deco
   // dùng cột rộng không padding trên; mẫu khác giữ nguyên.
   const isDeco = !!getTemplate(data.templateId).decorationImages;
+  // Mẫu kính (Vườn Kính Xanh): bố cục có cấu trúc như mẫu deco (cột rộng,
+  // album coverflow trong InvitationPreview) — xem specs/vuon-kinh.md.
+  const isGlass = !!getTemplate(data.templateId).glassBody;
   // Demo mở từ wizard: nút quay lại (history.back) nổi góc trái, hiện ở cả
   // 2 nhánh intro/thiệp. Khách mời thật không có nút này.
   const backBtn = fromWizard ? (
@@ -222,7 +225,7 @@ export default function GuestInvitationView({
       {burstOverlay}
     <SmoothScroll lerp={0.09}>
       <ScrollProgress color="linear-gradient(90deg,#c9a86a,#710001)" disabled={fx.progressBar === false} chapter={fx.cinema?.chapters === false || chapterTotal === 0 ? null : { current: chapter, total: chapterTotal }} />
-      <div className={isDeco ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
+      <div className={isDeco || isGlass ? "mx-auto w-full max-w-[872px] px-4 py-0 sm:px-0" : "mx-auto max-w-3xl px-4 py-10"}>
         <InvitationPreview
           data={data}
           guestName={guestName}
@@ -239,10 +242,10 @@ export default function GuestInvitationView({
           editedCustomTexts={editedCustomTexts}
         />
 
-      {/* Album — mẫu deco đã có album ngay sau khối THÔNG TIN trong
+      {/* Album — mẫu deco/kính đã có album coverflow ngay sau khối THÔNG TIN trong
           InvitationPreview nên ẩn section riêng này để không trùng (vòng 11).
           Khối thêm/bớt: ẩn khi khách tắt album (hoặc chưa có ảnh). */}
-      {!isDeco && isBlockVisible(data, "album") && (
+      {!isDeco && !isGlass && isBlockVisible(data, "album") && (
       <section className="mt-10" aria-labelledby="album-title">
         <h2 id="album-title" className="text-center font-display text-2xl font-bold text-[#7a1f2b]">Album ảnh cưới</h2>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
