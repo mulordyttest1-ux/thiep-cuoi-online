@@ -607,7 +607,7 @@ export function PeachHeartSlideshow({
             disabled={!!reduce || burstKey === 0}
             className="absolute inset-0"
           >
-            <DriftRest disabled={!!reduce} className="absolute inset-0">
+            <DriftRest disabled={!!reduce} shadow={false} className="absolute inset-0">
               {/* Cú mở đầu: tim bắt đầu nhỏ ~30% + mờ mềm, trong ~2s
               phóng tới ~99% và nét dần (video 0–2s); áp dụng lúc mở
               mỗi cảnh tim (key theo index nên chạy lại mỗi cảnh).
@@ -656,7 +656,7 @@ export function PeachHeartSlideshow({
               disabled={!!reduce || burstKey === 0}
               className="absolute inset-0"
             >
-              <DriftRest disabled={!!reduce} className="absolute inset-0">
+              <DriftRest disabled={!!reduce} shadow={false} className="absolute inset-0">
                 <div className="absolute inset-0">
               <AnimatePresence>
                 <motion.div

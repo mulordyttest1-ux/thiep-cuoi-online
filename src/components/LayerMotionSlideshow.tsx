@@ -294,6 +294,9 @@ export function LayerMotionSlideshow({
   // độc lập; vòng lặp rAF ghi thẳng el.style.transform. Giảm chuyển
   // động: vòng lặp không chạy, các lớp tĩnh hoàn toàn.
   const layerEls = useRef<Partial<Record<LayerKey, HTMLDivElement | null>>>({});
+  // Bóng động dưới ảnh chính (V4) — lái ngược với ảnh trong vòng lặp
+  // rAF bên dưới, không phải một lớp Lissajous.
+  const shadowEl = useRef<HTMLDivElement | null>(null);
   const layerCur = useRef<Record<LayerKey, { x: number; y: number }>>({
     bg: { x: 0, y: 0 },
     echo: { x: 0, y: 0 },
@@ -322,13 +325,23 @@ export function LayerMotionSlideshow({
         cur.y += (gy - cur.y) * f.lerp;
         if (key === "photo") {
           // Ảnh: trôi + xoay nhẹ ±0,5° + scale thở 1,00 → 1,03 (7s) +
-          // NGHIÊNG 3D V3: rotateX ±3° (7s) + rotateY ±3° (9s, lệch
+          // NGHIÊNG 3D V4: rotateX ±6° (7s) + rotateY ±6° (9s, lệch
           // pha) — như tấm ảnh thật lơ lửng trong không gian.
           const wob = 0.5 * Math.sin((2 * Math.PI * t) / 7 + 2);
           const sc = 1 + 0.015 * (1 + Math.sin((2 * Math.PI * t) / 7)) / 2;
-          const rx = 3 * Math.sin((2 * Math.PI * t) / 7 + 1.1);
-          const ry = 3 * Math.sin((2 * Math.PI * t) / 9 + 0.4);
+          const rx = 6 * Math.sin((2 * Math.PI * t) / 7 + 1.1);
+          const ry = 6 * Math.sin((2 * Math.PI * t) / 9 + 0.4);
           el.style.transform = `translate(${cur.x.toFixed(2)}px, ${cur.y.toFixed(2)}px) rotate(${(tiltRef.current + wob).toFixed(2)}deg) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) scale(${sc.toFixed(4)})`;
+          // Bóng động (V4): lái NGƯỢC với ảnh — ảnh lên (cur.y âm)
+          // thì bóng nhỏ + mờ, ảnh xuống thì bóng to + đậm; lệch
+          // ngang ngược chiều ảnh. cur.y ±12 → scale 0,86–1,14,
+          // opacity 0,26–0,50.
+          if (shadowEl.current) {
+            const shScale = 1 + (cur.y / 12) * 0.14;
+            const shOp = 0.38 + (cur.y / 12) * 0.12;
+            shadowEl.current.style.transform = `translate(${(-cur.x * 0.5).toFixed(2)}px, 0px) scale(${shScale.toFixed(4)})`;
+            shadowEl.current.style.opacity = shOp.toFixed(3);
+          }
         } else if (key === "echo") {
           // Bóng mờ ảnh: trôi + scale thở 1,06 → 1,10 (8s).
           const sc = 1.08 + 0.02 * Math.sin((2 * Math.PI * t) / 8);
@@ -558,6 +571,25 @@ export function LayerMotionSlideshow({
               >
                 <img src={currentPhoto} alt="" loading="eager" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
               </div>
+              {/* Bóng động dưới ảnh (V4, Nancy 2026-11-13: bóng xa +
+                  đậm hơn, nhúc nhích khác vật thể): elip mềm nằm dưới
+                  khung 28px; vòng lặp rAF lái nó NGƯỢC với ảnh — ảnh
+                  lên thì bóng nhỏ + mờ, ảnh xuống thì bóng to + đậm,
+                  lệch ngang ngược chiều. Giảm chuyển động: bóng tĩnh. */}
+              <div
+                aria-hidden="true"
+                data-testid="lm-layer-shadow"
+                ref={(el) => {
+                  shadowEl.current = el;
+                }}
+                className="pointer-events-none absolute left-[-1%] right-[-1%] -bottom-7 h-9 rounded-[50%]"
+                style={{
+                  background:
+                    "radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.20) 55%, transparent 78%)",
+                  filter: "blur(8px)",
+                  opacity: 0.38,
+                }}
+              />
               {/* Lớp ảnh chính: khung trắng ~10px + ảnh, nghiêng xen kẽ.
                   Thẻ tiêu đề đỏ nằm CHUNG BLOCK với ảnh (bên trong div
                   này) nên dính cứng vào ảnh: trôi, nghiêng, thở cùng

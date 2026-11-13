@@ -253,7 +253,9 @@ function ComicPanel({
   const rotate = PANEL_ROTATES[index % PANEL_ROTATES.length];
   const borderColor = index % 3 === 1 ? DARK_RED : INK;
   return (
-    <DriftRest disabled={reduce}>
+    <DriftRest disabled={reduce} shadow={false}>
+      {/* Panel truyện tranh KHÔNG bóng động (V4): đã có bóng cứng
+          riêng (5px solid) — elip mềm sẽ làm bẩn phong cách truyện. */}
     <div
       data-testid="comic-panel"
       className={`relative overflow-hidden ${ratioClass} border-[3px] bg-white shadow-[5px_5px_0_rgba(0,0,0,0.85)]`}
