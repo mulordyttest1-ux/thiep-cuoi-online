@@ -166,7 +166,10 @@ export default function TemplateCard({
   // trưng bày trong ?d=), KHÔNG mở hộp xem mẫu nữa — xem trước là sản phẩm
   // (cùng GuestInvitationView như trang khách). Dữ liệu ở đây là mẫu trưng
   // bày (cặp Minh Quân & Thu An), không phải thiệp của khách nào.
-  const demoUrl = `/thiep/demo?d=${encodeShare(defaultInvitation(template.id))}`;
+  // &photos=6: demo của mẫu luôn chạy slideshow 6 ảnh (chị chốt 12/11:
+  // "demo của mấy cái thiệp cho slideshow nhiều ảnh đi") — thiệp thật
+  // vẫn chỉ 1 ảnh nên wizard (?d= của khách) KHÔNG thêm tham số này.
+  const demoUrl = `/thiep/demo?d=${encodeShare(defaultInvitation(template.id))}&photos=6`;
   const handlePreview = (e: React.MouseEvent) => {
     if (reduce) {
       router.push(demoUrl);
