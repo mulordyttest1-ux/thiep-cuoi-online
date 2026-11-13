@@ -11,6 +11,7 @@ import { resolveTextEffect } from "@/lib/intro";
 import { resolveSlideStyle } from "@/lib/slide-styles";
 import { decodeShare, loadInvitationById } from "@/lib/store";
 import GuestInvitationView from "@/components/GuestInvitationView";
+import FeedInvitationDemo from "@/components/FeedInvitationDemo";
 import { STATUS_LABEL, type InvitationStatus } from "@/lib/access";
 
 function CardInner() {
@@ -206,6 +207,13 @@ function CardInner() {
         </div>
       </div>
     );
+  }
+
+  // Demo kiểu trình bày FEED (?layout=feed — CHỈ trang demo /thiep/demo):
+  // cột hẹp + ảnh lồng + chữ bay khi cuộn, thay cho intro + thiệp thường.
+  // Không đụng thiệp thật (id !== "demo" không bao giờ tới nhánh này).
+  if (id === "demo" && search.get("layout") === "feed") {
+    return <FeedInvitationDemo data={data} />;
   }
 
   // Trải nghiệm khách duy nhất (phong bì + mở thiệp + hiệu ứng) — cùng
