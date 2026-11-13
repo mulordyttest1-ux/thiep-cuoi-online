@@ -291,7 +291,7 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
                 {parts.lunarNote && <p className="mt-1 text-[13px]" style={{ color: OLIVE_SOFT }}>({parts.lunarNote})</p>}
               </>
             )}
-            <p className="mt-4 text-lg font-semibold" style={{ color: OLIVE }}>Vào lúc {ceremonyTime}</p>
+            <p className="mt-4 text-lg font-semibold" style={{ color: OLIVE }}>Vào lúc {partyTime}</p>
             <p className="mt-1 font-semibold">{data.venue}</p>
             <p className="text-sm" style={{ color: OLIVE_SOFT }}>{data.address}</p>
             <a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-4 inline-block rounded-full px-5 py-2 text-sm font-semibold text-white" style={{ background: OLIVE }}>
