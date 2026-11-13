@@ -303,7 +303,11 @@ export function RomanticBrochureSlideshow({
         <div className="relative z-10 flex flex-1 flex-col sm:flex-row">
           {/* Ảnh chính nghiêng 3D ngược với ảnh tim nhỏ (đối nhau như
               hai phía của cuốn sách mở — V3 perspective). */}
-          <DriftRest disabled={!!reduce} tiltX={-2} tiltY={3} amp={1.5} className="relative min-h-[46dvh] flex-1 overflow-hidden">
+          <DriftRest disabled={!!reduce} tiltX={-2} tiltY={3} amp={1.5} className="relative min-h-[46dvh] flex-1">
+            {/* KHÔNG overflow-hidden trên DriftRest (V4): bóng động
+                nằm dưới khung 28px — overflow-hidden sẽ cắt mất bóng.
+                Ảnh trong đã có overflow-hidden riêng (absolute inset-0
+                + KenBurns object-cover, không tràn). */}
             {currentPhoto && (
               <AnimatePresence>
                 <motion.div
@@ -348,7 +352,9 @@ export function RomanticBrochureSlideshow({
             {/* Trái tim nhỏ: ảnh kế tiếp — DRIFT V2: DriftRest bọc NGOÀI
                 cả hình tim (khung cắt + ảnh trôi cùng nhau). */}
             {nextPhoto && (
-              <DriftRest disabled={!!reduce} tiltX={2} tiltY={-3} amp={1.5} className="relative h-28 w-32 shrink-0">
+              <DriftRest disabled={!!reduce} tiltX={2} tiltY={-3} amp={1.5} shadow={false} className="relative h-28 w-32 shrink-0">
+              {/* Tim nhỏ KHÔNG bóng động (V4): ảnh nhỏ xíu, bóng nằm
+                  dưới sẽ đè lên thẻ chữ bên dưới. */}
               <div
                 className="relative h-full w-full overflow-hidden"
                 style={{ clipPath: `url(#${heartId})` }}

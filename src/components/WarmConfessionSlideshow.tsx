@@ -44,7 +44,7 @@ import type { InvitationData } from "@/lib/types";
 import { formatDateVi } from "@/lib/types";
 import { getTemplate, type TemplateEffects } from "@/lib/templates";
 import { AmbientLayer } from "@/components/effects";
-import { DriftRest, DriftSurge } from "@/components/effects/Drift";
+import { DRIFT_REST, DriftRest, DriftSurge } from "@/components/effects/Drift";
 import { FadeThroughWhiteScene } from "@/components/transitions";
 import { SandText } from "@/components/SandText";
 import { PaperText } from "@/components/PaperText";
@@ -209,6 +209,7 @@ function PhotoFrame({
   photoMotion = false,
   panSign = 1,
   reduce = false,
+  seed = 0,
 }: {
   src: string;
   className?: string;
@@ -221,6 +222,9 @@ function PhotoFrame({
   photoMotion?: boolean;
   panSign?: 1 | -1;
   reduce?: boolean;
+  /** Hạt giống lệch nhịp — mỗi ảnh một seed riêng để không bồng bềnh
+   *  đồng bộ (Aduok). Ảnh đơn: 0; ảnh nhỏ collage: 1, 2… */
+  seed?: number;
 }) {
   const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     e.currentTarget.style.display = "none";
@@ -231,8 +235,14 @@ function PhotoFrame({
       tilt={tilt}
       tiltX={tilt3d?.x ?? 0}
       tiltY={tilt3d?.y ?? 0}
-      amp={tilt3d?.amp ?? 4}
-      className={`relative overflow-hidden rounded-[3px] bg-white p-2 shadow-[0_12px_35px_rgba(0,0,0,0.18)] ${className}`}
+      // Biên độ mặc định theo hệ thống (V4: ±8°) — đổi amp hệ thống
+      // là ăn vào ảnh wide; collage truyền amp riêng (1,5°) thì giữ.
+      amp={tilt3d?.amp ?? DRIFT_REST.rotXDeg}
+      seed={seed}
+      // KHÔNG overflow-hidden trên DriftRest (V4): bóng động nằm
+      // ngoài khung, dưới khung 28px — overflow-hidden sẽ cắt mất
+      // bóng. Ảnh trong đã có overflow-hidden riêng ở photo-frame.
+      className={`relative rounded-[3px] bg-white p-2 shadow-[0_12px_35px_rgba(0,0,0,0.18)] ${className}`}
     >
     {/* KHUNG + ẢNH LÀ MỘT NHÓM (Nancy 2026-11-12 17:30): góc nghiêng
         2D nằm trên DriftRest (cả khung trắng + ảnh nghiêng cùng
@@ -761,6 +771,9 @@ export function WarmConfessionSlideshow({
                             ? { x: 3, y: -3, amp: 1.5 }
                             : { x: -3, y: 3, amp: 1.5 }
                         }
+                        // Mỗi ảnh nhỏ một seed riêng — bồng bềnh
+                        // lệch nhịp với ảnh lớn (seed 0) và với nhau.
+                        seed={i + 1}
                         reduce={!!reduce}
                       />
                     ))}
