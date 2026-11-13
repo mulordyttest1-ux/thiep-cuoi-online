@@ -58,6 +58,10 @@ export interface TemplateCoverArt {
   main?: string;
   corners?: string;
   emblem?: string;
+  /** Nền lặp dọc cho thân thiệp khi glassBody (vd ảnh gốc + bản lật dọc
+   *  xếp chồng để mối nối không lộ đường cắt — xem specs/vuon-kinh.md).
+   *  Không có thì thân thiệp dùng lại bg. */
+  bodyBg?: string;
 }
 
 // Biến thể hiệu ứng (2026-11-09, xem specs/song-phung-do.md §4i +
@@ -143,6 +147,12 @@ export interface Template {
   photo: string;
   decorationImages?: TemplateDecorationImages; // ảnh trang trí gốc của mẫu, chỉ dùng khi có
   coverArt?: TemplateCoverArt; // artwork gốc cho cover (hướng B), file ở public/themes/
+  /** Thân thiệp kiểu "kính mờ" (Vườn Kính Xanh, specs/vuon-kinh.md):
+   *  nền hoa liên tục + dùng lại bố cục có cấu trúc của mẫu deco
+   *  (ngày có cấu trúc, album coverflow, tiệc + lịch tim, bản đồ nhúng,
+   *  dress code, timeline dọc) nhưng với màu accent của mẫu thay cho
+   *  đỏ #710001 của Song Phụng Đỏ; KHÔNG có đếm ngược (bản gốc không có). */
+  glassBody?: boolean;
   motif: TemplateMotif;
   frame: TemplateFrame;
   frameLabel: string;
@@ -452,18 +462,19 @@ export const TEMPLATES: Template[] = [
     style: "floral",
     styleLabel: "Hoa lá",
     description: "Giấy trắng xanh, khung kính cách điệu, lá xanh bao quanh — sáng và thoáng, hợp cưới ngoài trời và nhà kính.",
-    palette: { bg: "#f3f8f3", card: "#ffffff", accent: "#3e6b4f", gold: "#c9a86a", text: "#223528", muted: "#64796a" },
+    palette: { bg: "#f3f8f3", card: "#ffffff", accent: "#47613E", gold: "#c9a86a", text: "#223528", muted: "#64796a" },
     pattern: "Khung kính cách điệu, lá xanh bao quanh.",
     photo: PRESET_PHOTOS[3].url,
     motif: "glass",
     frame: "double",
     frameLabel: "Khung kép",
     font: "display",
-    envelope: "#3e6b4f",
+    envelope: "#47613E",
     paper: "Giấy trắng xanh",
     variant: "hoa-bay",
     effects: VARIANT_PRESETS["hoa-bay"],
-    coverArt: { bg: "/themes/glass-garden-green/floral-background.webp", main: "/themes/glass-garden-green/flower2-decoration.webp" },
+    glassBody: true, // Vườn Kính Xanh: thân thiệp kính mờ (specs/vuon-kinh.md)
+    coverArt: { bg: "/themes/glass-garden-green/floral-background.webp", main: "/themes/glass-garden-green/flower2-decoration.webp", bodyBg: "/themes/glass-garden-green/floral-background-tile.webp" },
   },
   {
     id: "cam-thach-vang",
