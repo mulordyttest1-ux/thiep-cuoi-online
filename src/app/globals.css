@@ -405,3 +405,50 @@ html.lenis, html.lenis body {
     transform: none !important;
   }
 }
+
+/* Feed dupe Orchid VÒNG 2 (PR #72) — element động: cánh hoa rơi + lan đung
+   đưa + Polaroid trôi nhẹ. Giảm chuyển động: ẩn cánh rơi, tắt đung đưa/trôi. */
+.feed-petal {
+  position: absolute;
+  top: -4vh;
+  animation-name: feedPetalFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.feed-petal-sway {
+  display: block;
+  background: #fdf3f5;
+  border-radius: 60% 0 60% 60%;
+  opacity: 0.85;
+  animation-name: feedPetalSway;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+@keyframes feedPetalFall {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(116vh) rotate(340deg); }
+}
+@keyframes feedPetalSway {
+  0% { transform: translateX(-8px) rotate(-14deg); }
+  100% { transform: translateX(8px) rotate(14deg); }
+}
+.orchid-sway {
+  animation: feedOrchidSway 7s ease-in-out infinite alternate;
+  transform-origin: 50% 100%;
+}
+@keyframes feedOrchidSway {
+  0% { transform: rotate(-1.5deg); }
+  100% { transform: rotate(1.5deg); }
+}
+.feed-float {
+  animation: feedFloatY 7s ease-in-out infinite;
+}
+@keyframes feedFloatY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .feed-petals { display: none; }
+  .orchid-sway, .feed-float { animation: none; }
+}
