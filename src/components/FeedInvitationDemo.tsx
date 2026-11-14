@@ -863,7 +863,7 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
           <Fx fx="fade-in" duration={1.5}>
             <img src={PRESET_PHOTOS[0].url} alt="Ảnh cưới" loading="lazy" className="aspect-[4/5] w-full object-cover" />
           </Fx>
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/35 px-6 text-center text-white">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 px-6 text-center text-white">
             <Fx fx="zoom-in" duration={1.5}>
               <p className="font-script text-5xl">Thank you</p>
             </Fx>
