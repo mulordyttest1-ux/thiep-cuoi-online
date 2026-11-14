@@ -264,7 +264,8 @@ function FeedTimeline({ schedule }: { schedule: { time: string; label: string }[
   );
 }
 
-// Dấu sáp vẽ bằng code: vòng tròn olive 2 viền + hoa trắng 5 cánh ở giữa.
+// Dấu sáp vẽ bằng code: khối sáp olive (gradient xuyên tâm + viền blob
+// không tròn đều + bóng đổ cho giống sáp thật) + hoa trắng 5 cánh ở giữa.
 // oval: dấu sáp hình oval nằm ngang như trên nắp phong bì mẫu gốc.
 function WaxSeal({ size = 64, oval = false }: { size?: number; oval?: boolean }) {
   return (
@@ -274,11 +275,14 @@ function WaxSeal({ size = 64, oval = false }: { size?: number; oval?: boolean })
       style={{
         width: size,
         height: oval ? size * 0.72 : size,
-        borderRadius: "50%",
-        background: OLIVE,
+        borderRadius: oval
+          ? "48% 52% 55% 45% / 52% 46% 54% 48%"
+          : "49% 51% 52% 48% / 51% 48% 52% 49%",
+        background: "radial-gradient(circle at 35% 30%, #667a38 0%, #4a5d23 55%, #3a4a1a 100%)",
         border: "2px solid #fffdf6",
         outline: `1px solid ${OLIVE}`,
         outlineOffset: 3,
+        boxShadow: "0 2px 8px rgba(46,58,30,0.35), inset 0 1px 3px rgba(255,255,255,0.3)",
       }}
     >
       <svg viewBox="0 0 24 24" style={{ width: size * 0.5, height: size * 0.5, fill: "#fffdf6" }}>
@@ -290,6 +294,38 @@ function WaxSeal({ size = 64, oval = false }: { size?: number; oval?: boolean })
         </g>
       </svg>
     </span>
+  );
+}
+
+// Chùm lan trắng to (3 thân tỏa ra + 9 hoa + lá) — dùng cho bìa + couple,
+// nơi mẫu gốc có chùm lan lớn 2 góc. Cành đơn OrchidBranch giữ cho các
+// điểm nhấn nhỏ (lời mời, góc lễ/tiệc, RSVP, dải Monet).
+function OrchidCluster({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  const cflower = (x: number, y: number, s: number) => (
+    <g key={`${x}-${y}`} transform={`translate(${x} ${y}) scale(${s})`} fill="#fbf9f0" stroke="#a8b89a" strokeWidth="0.7">
+      {[0, 72, 144, 216, 288].map((deg) => (
+        <ellipse key={deg} cx="0" cy="-7" rx="3.4" ry="6" transform={`rotate(${deg})`} />
+      ))}
+      <circle r="2" fill="#c9a86a" stroke="none" />
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 120 160" className={["orchid-cluster", className].filter(Boolean).join(" ")} style={style} aria-hidden="true">
+      <path d="M60 158 C58 110 40 70 28 30" fill="none" stroke="#6b7f3e" strokeWidth="1.6" />
+      <path d="M60 158 C60 105 58 60 60 14" fill="none" stroke="#6b7f3e" strokeWidth="1.6" />
+      <path d="M60 158 C64 112 82 72 94 34" fill="none" stroke="#6b7f3e" strokeWidth="1.6" />
+      <path d="M60 148 C46 142 36 132 32 120 C42 126 52 134 58 144" fill="#8a9a6b" />
+      <path d="M60 148 C74 142 84 132 88 120 C78 126 68 134 62 144" fill="#8a9a6b" />
+      {cflower(28, 30, 1)}
+      {cflower(20, 70, 0.9)}
+      {cflower(34, 105, 0.85)}
+      {cflower(60, 14, 1.05)}
+      {cflower(58, 55, 0.95)}
+      {cflower(66, 95, 0.9)}
+      {cflower(94, 34, 1)}
+      {cflower(100, 72, 0.9)}
+      {cflower(88, 108, 0.85)}
+    </svg>
   );
 }
 
@@ -419,7 +455,8 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
   autoRef.current = auto;
   // RSVP demo: chỉ chạy local, không gửi đi đâu.
   const [guestName, setGuestName] = useState("");
-  const [attending, setAttending] = useState<"yes" | "no">("yes");
+  const [attending, setAttending] = useState<"yes" | "no" | "">("");
+  const [rsvpError, setRsvpError] = useState(false);
   const [guestCount, setGuestCount] = useState<number | "">("");
   const [rsvpDone, setRsvpDone] = useState(false);
   const [giftNote, setGiftNote] = useState(false);
@@ -557,12 +594,6 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
               <p className="font-script text-[42px] leading-none" style={{ color: OLIVE }}>Save our date</p>
             </Fx>
             <div className="relative mx-auto mt-[76px] w-full max-w-[360px]">
-              {/* Nắp phong bì: tam giác gập, nằm sau ảnh (z-0). */}
-              <div
-                aria-hidden="true"
-                className="absolute left-0 right-0 top-0 z-0 h-[104px]"
-                style={{ background: "#ece4cd", clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
-              />
               {/* Thân phong bì kem. */}
               <div className="relative z-0 rounded-2xl bg-[#f7f2e7] px-4 pb-6 pt-[228px] shadow-md ring-1 ring-black/5">
                 <p className="font-display text-xl font-semibold tracking-[0.2em]" style={{ color: OLIVE }}>{dateDots}</p>
@@ -571,7 +602,7 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
               <div className="absolute left-2 top-[-64px] z-10 w-[56%] -rotate-[9deg] rounded-lg bg-white p-2 pb-5 shadow-lg ring-1 ring-black/5">
                 <div className="feed-float" style={{ animationDelay: "0s" }}>
                   <Fx fx="slide-up" duration={1.2} delay={0.1}>
-                    <img src={PRESET_PHOTOS[0].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
+                    <img src={PRESET_PHOTOS[2].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
                   </Fx>
                 </div>
               </div>
@@ -582,16 +613,29 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
                   </Fx>
                 </div>
               </div>
+              {/* Nắp phong bì: tam giác gập ĐÈ LÊN trên ảnh (như nắp thật gập
+                  xuống) — 2 lớp cho thấy rõ mép gập, tone vàng kem đậm hơn
+                  thân bìa để nhìn ra ngay. */}
+              <div
+                aria-hidden="true"
+                className="absolute left-0 right-0 top-[3px] z-20 h-[76px]"
+                style={{ background: "#cbbd93", clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
+              />
+              <div
+                aria-hidden="true"
+                className="absolute left-0 right-0 top-0 z-20 h-[76px]"
+                style={{ background: "#e9dcba", clipPath: "polygon(0 0, 100% 0, 50% 100%)", filter: "drop-shadow(0 2px 2px rgba(0,0,0,0.12))" }}
+              />
               {/* Dấu sáp oval đè lên đầu nắp gập. */}
-              <div className="absolute left-1/2 top-[72px] z-30 -translate-x-1/2">
+              <div className="absolute left-1/2 top-[52px] z-30 -translate-x-1/2">
                 <Fx fx="scale-in" duration={1} delay={0.5}>
                   <WaxSeal size={72} oval />
                 </Fx>
               </div>
               {/* Chùm lan to 2 góc, đung đưa nhẹ. */}
-              <OrchidBranch className="orchid-sway absolute -right-2 -top-8 z-20 h-[150px] w-[74px]" />
+              <OrchidCluster className="orchid-sway absolute -right-2 -top-8 z-20 h-[170px] w-[110px]" />
               <span className="absolute -bottom-4 -left-4 z-20 block -scale-x-100">
-                <OrchidBranch className="orchid-sway h-[130px] w-[64px]" style={{ animationDelay: "1.2s" }} />
+                <OrchidCluster className="orchid-sway h-[150px] w-[98px]" style={{ animationDelay: "1.2s" }} />
               </span>
             </div>
           </Reveal>
@@ -760,14 +804,14 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
                   <span className="font-display block text-lg font-bold uppercase" style={{ color: OLIVE }}>{data.brideName}</span>
                 </p>
               </div>
-              <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+              <div className="absolute left-1/2 top-[42%] z-10 -translate-x-1/2 -translate-y-1/2">
                 <Fx fx="scale-in" duration={1} delay={0.4}>
                   <WaxSeal size={72} oval />
                 </Fx>
               </div>
-              <OrchidBranch className="orchid-sway absolute -left-3 top-1/3 h-[140px] w-[68px]" />
+              <OrchidCluster className="orchid-sway absolute -left-3 top-8 h-[160px] w-[104px]" />
               <span className="absolute -right-3 top-6 block -scale-x-100">
-                <OrchidBranch className="orchid-sway h-[140px] w-[68px]" style={{ animationDelay: "1s" }} />
+                <OrchidCluster className="orchid-sway h-[160px] w-[104px]" style={{ animationDelay: "1s" }} />
               </span>
             </div>
             <div className="mx-auto mt-8 max-w-md space-y-4">
@@ -934,6 +978,10 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
                   style={{ borderColor: `${OLIVE}33` }}
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (!attending) {
+                      setRsvpError(true);
+                      return;
+                    }
                     setRsvpDone(true);
                   }}
                 >
@@ -950,14 +998,17 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
                   <p className="font-display mt-4 text-sm font-semibold" style={{ color: OLIVE }}>Bạn có tham dự không?</p>
                   <div className="mt-2 space-y-2 text-sm">
                     <label className="flex cursor-pointer items-center gap-2">
-                      <input type="radio" name="attending" checked={attending === "yes"} onChange={() => setAttending("yes")} style={{ accentColor: RED }} />
+                      <input type="radio" name="attending" checked={attending === "yes"} onChange={() => { setAttending("yes"); setRsvpError(false); }} style={{ accentColor: RED }} />
                       Có, tôi sẽ tham dự
                     </label>
                     <label className="flex cursor-pointer items-center gap-2">
-                      <input type="radio" name="attending" checked={attending === "no"} onChange={() => setAttending("no")} style={{ accentColor: RED }} />
+                      <input type="radio" name="attending" checked={attending === "no"} onChange={() => { setAttending("no"); setRsvpError(false); }} style={{ accentColor: RED }} />
                       Rất tiếc, tôi không thể tham dự
                     </label>
                   </div>
+                  {rsvpError && (
+                    <p className="mt-2 text-[13px]" style={{ color: RED }}>Vui lòng chọn Tham dự hoặc Không tham dự.</p>
+                  )}
                   <label htmlFor="rsvp-count" className="font-display mt-4 block text-sm font-semibold" style={{ color: OLIVE }}>Số người tham dự</label>
                   <select
                     id="rsvp-count"
