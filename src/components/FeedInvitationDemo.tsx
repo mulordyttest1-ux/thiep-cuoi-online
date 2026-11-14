@@ -1,41 +1,48 @@
-// Demo kiểu trình bày FEED cho thiệp online — lấy cảm hứng trình bày từ mẫu
-// ZenLove "Orchid Keepsake" (research_notes/zenlove-orchid-keepsake/
-// code-analysis.md): cột hẹp cỡ điện thoại, ảnh lồng tràn viền xen kẽ khối
-// chữ, thanh tương tác cố định + tự động cuộn.
-// PIPELINE HIỆU ỨNG (theo cơ chế của mẫu, code + keyframe tự viết — không
-// copy code/tài nguyên của họ):
-//   Lớp 1 — Reveal: cả khối trồi lên 40px/0,7s khi lọt khung (giữ từ PR #66).
-//   Lớp 2 — Fx: từng phần tử (chữ/ảnh) có kiểu xuất hiện RIÊNG: 12 kiểu
-//     (fade-in, slide 4 hướng, scale, rotate, bounce, flip, zoom-in), mỗi
-//     phần tử chỉnh duration/delay/easing riêng; chưa lọt khung thì ẩn
-//     (opacity 0), lọt khung mới chạy đúng kiểu đã chọn, 1 lần.
-//   Lớp 3 — FeedTimeline: chạy NỐI TIẾP — trục vẽ ra trước (scaleX 0→1,
-//     600ms) rồi từng mốc fade-up lệch nhau 150ms (data-tl-anim
-//     waiting → playing).
-//   Lớp 4 — Tự cuộn rAF: 60px/giây, tự chạy sau 1 giây, bấm đâu cũng
-//     bật/tắt (trừ link/nút/input/bôi đen), lăn/chạm thì dừng, tới cuối
-//     thì dừng, người dùng can thiệp giữa chừng thì đồng bộ lại vị trí.
-// CHỈ LÀ DEMO (?layout=feed trên /thiep/demo): không đụng thiệp thật, không
-// dùng tài nguyên/thiết kế của ZenLove — màu, chữ, họa tiết (dấu sáp vẽ bằng
-// code) và ảnh đều là của ChungĐôi; câu chữ lấy từ dữ liệu demo của app.
+// Demo DUPE bố cục mẫu ZenLove "Orchid Keepsake" (?layout=feed) — làm theo
+// đúng bố cục 14 mục của mẫu đó (report ở research_notes/zenlove-orchid-
+// keepsake/report.md), NHƯNG nội dung là của ChungĐôi: tên/ảnh/câu chữ lấy
+// từ dữ liệu demo của app, dấu sáp + cành lan + họa tiết vẽ bằng code, không
+// dùng ảnh/tên/câu chữ của mẫu gốc. Cơ chế pipeline giữ nguyên (PR #69):
+// Lớp 1 Reveal khối trồi + Lớp 2 Fx 12 kiểu + Lớp 3 timeline nối tiếp +
+// Lớp 4 tự cuộn rAF 60px/s.
+// Bố cục dupe (theo mẫu): bìa phong bì trắng + 2 Polaroid chồng + lan;
+// ảnh tràn viền rồi lời mời (câu mời đầy đủ + cha mẹ + tên lớn); ngày giờ
+// tiệc (nhãn + giờ + thứ, ngày 3 cột, âm lịch); lễ + tiệc 2 khối riêng, mỗi
+// khối có nút XEM CHỈ ĐƯỜNG; ảnh + dấu sáp; giới thiệu 2 Polaroid + dấu sáp
+// đè giữa; Our story; lịch nền Monet + tim ĐỎ + ngày âm dưới mỗi ngày;
+// timeline NGANG có icon từng mốc; dresscode chỉ 2 vòng tròn, không chữ;
+// dải Monet + khối olive chữ dọc + câu trích; countdown + ảnh lớn bo góc;
+// RSVP + GỬI QUÀ MỪNG CƯỚI (form chỉ chạy local trong demo); Thank you.
+// CHỈ LÀ DEMO (?layout=feed trên /thiep/demo): không đụng thiệp thật.
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import type { InvitationData } from "@/lib/types";
 import { formatDateVi, parseDressCode, parseSchedule } from "@/lib/types";
-import { getDateParts } from "@/lib/lunar";
+import { getDateParts, getLunarParts } from "@/lib/lunar";
 import { PRESET_PHOTOS } from "@/lib/templates";
 import Countdown from "./Countdown";
 
 const OLIVE = "#4a5d23";
 const OLIVE_SOFT = "#6b7f3e";
-const SAGE = "#8a9a6b";
 const CREAM = "#f7f2e7";
 const PAPER = "#fffdf6";
 const INK = "#2e3a1e";
+const RED = "#c1272d";
 
 const HEART_PATH =
   "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z";
+
+// Nền lá xanh kiểu Monet (vẽ bằng CSS gradient, không dùng ảnh của mẫu).
+const MONET_BG =
+  "radial-gradient(circle at 18% 25%, rgba(255,255,255,0.55) 0%, transparent 42%), radial-gradient(circle at 85% 70%, rgba(120,160,90,0.5) 0%, transparent 55%), radial-gradient(circle at 70% 15%, rgba(190,220,170,0.6) 0%, transparent 45%), linear-gradient(155deg, #dfecc9 0%, #b5d194 55%, #93bd7a 100%)";
+const MONET_STRIP_BG =
+  "radial-gradient(circle at 30% 40%, rgba(255,182,193,0.75) 0%, transparent 42%), radial-gradient(circle at 72% 62%, rgba(255,255,255,0.85) 0%, transparent 45%), radial-gradient(circle at 55% 20%, rgba(220,235,200,0.7) 0%, transparent 50%), linear-gradient(140deg, #a8c686 0%, #7ba05b 100%)";
+
+const EN_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
 
 // Khối trồi khi cuộn tới: gắn class armed (ẩn + tụt 40px), IntersectionObserver
 // thấy lọt khung thì gắn visible + done (hiện + trồi lên), hết transition thì
@@ -44,10 +51,12 @@ const HEART_PATH =
 function Reveal({
   children,
   className,
+  style,
   ariaLabel,
 }: {
   children: React.ReactNode;
   className?: string;
+  style?: React.CSSProperties;
   ariaLabel?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -81,17 +90,15 @@ function Reveal({
     return () => io.disconnect();
   }, []);
   return (
-    <div ref={ref} className={["feed-reveal", className].filter(Boolean).join(" ")} aria-label={ariaLabel}>
+    <div ref={ref} className={["feed-reveal", className].filter(Boolean).join(" ")} style={style} aria-label={ariaLabel}>
       {children}
     </div>
   );
 }
 
-// Hiệu ứng từng phần tử (lớp 2): 12 kiểu chọn, map sang keyframe tự viết
-// (tên keyframe theo quy ước chung của animate.css, code keyframe là của
-// mình trong globals.css). Chưa lọt khung: opacity 0; lọt khung
-// (IntersectionObserver threshold 0,1, rootMargin -50px dưới): chạy
-// animation 1 lần, fillMode both. Giảm chuyển động: hiện luôn.
+// Hiệu ứng từng phần tử (lớp 2): 12 kiểu chọn, map sang keyframe tự viết.
+// Chưa lọt khung: opacity 0; lọt khung (IO threshold 0,1, rootMargin -50px):
+// chạy animation 1 lần, fillMode both. Giảm chuyển động: hiện luôn.
 type FxKind =
   | "fade-in"
   | "slide-up"
@@ -110,8 +117,6 @@ const FX_ANIMATION: Record<FxKind, string> = {
   "fade-in": "feedFadeIn",
   "slide-up": "feedSlideInUp",
   "slide-down": "feedSlideInDown",
-  // Vào từ phải rồi trượt sang trái / vào từ trái rồi trượt sang phải
-  // (theo đúng map của mẫu).
   "slide-left": "feedSlideInRight",
   "slide-right": "feedSlideInLeft",
   "scale-in": "feedZoomIn",
@@ -185,6 +190,36 @@ function Fx({
   );
 }
 
+// Icon từng mốc timeline, chọn theo nhãn (vẽ bằng code): đón khách = máy ảnh,
+// lễ thành hôn = nhẫn đôi, tiệc mừng = dao nĩa, chụp ảnh = máy ảnh.
+function TimelineIcon({ label }: { label: string }) {
+  const l = label.toLowerCase();
+  const common = { width: 18, height: 18, fill: "none", stroke: OLIVE, strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (/tiệc/i.test(l)) {
+    return (
+      <svg viewBox="0 0 24 24" {...common} aria-hidden="true">
+        <path d="M7 3v4.5M4.8 3v3.2a2.2 2.2 0 0 0 4.4 0V3M7 10.5V21" />
+        <path d="M16.5 3c1.8 2 1.8 4.6 0 6.5V21" />
+      </svg>
+    );
+  }
+  if (/lễ/i.test(l)) {
+    return (
+      <svg viewBox="0 0 24 24" {...common} aria-hidden="true">
+        <circle cx="9" cy="14.5" r="4.5" />
+        <circle cx="15" cy="14.5" r="4.5" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" {...common} aria-hidden="true">
+      <path d="M9 8l1.2-2.5h3.6L15 8" />
+      <rect x="3.5" y="8" width="17" height="12" rx="2.5" />
+      <circle cx="12" cy="14" r="3.4" />
+    </svg>
+  );
+}
+
 // Timeline chạy nối tiếp (lớp 3): trục vẽ ra trước (scaleX 0→1, 600ms),
 // rồi từng mốc fade-up lệch nhau 150ms/mốc qua biến --tl-i. Máy trạng thái
 // bằng attribute data-tl-anim="waiting" | "playing".
@@ -216,12 +251,14 @@ function FeedTimeline({ schedule }: { schedule: { time: string; label: string }[
   }, []);
   const items = schedule.slice(0, 4);
   return (
-    <div ref={ref} className="feed-tl relative mt-6" data-tl-anim={anim}>
-      <span aria-hidden="true" className="feed-tl-axis absolute left-2 right-2 top-[7px] border-t-2 border-dotted" style={{ borderColor: OLIVE }} />
+    <div ref={ref} className="feed-tl relative mt-8" data-tl-anim={anim}>
+      <span aria-hidden="true" className="feed-tl-axis absolute left-4 right-4 top-[15px] border-t-2 border-dotted" style={{ borderColor: OLIVE }} />
       <div className="relative grid" style={{ gridTemplateColumns: `repeat(${Math.min(items.length, 4)}, 1fr)` }}>
         {items.map((s, i) => (
           <div key={i} className="feed-tl-item flex flex-col items-center px-1" style={{ "--tl-i": i } as React.CSSProperties}>
-            <span className="relative z-10 block h-3.5 w-3.5 rounded-full border-2 border-white shadow" style={{ background: OLIVE }} />
+            <span className="relative z-10 flex h-8 w-8 items-center justify-center rounded-full border bg-white shadow-sm" style={{ borderColor: `${OLIVE}44` }}>
+              <TimelineIcon label={s.label} />
+            </span>
             <span className="mt-2 text-[13px] font-bold" style={{ color: OLIVE }}>{s.time}</span>
             <span className="mt-0.5 px-0.5 text-[11px] leading-tight">{s.label}</span>
           </div>
@@ -251,6 +288,27 @@ function WaxSeal({ size = 64 }: { size?: number }) {
   );
 }
 
+// Cành lan trắng vẽ bằng code (thân xanh + 3 hoa trắng 5 cánh + lá).
+function OrchidBranch({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  const flower = (x: number, y: number) => (
+    <g key={`${x}-${y}`} transform={`translate(${x} ${y})`} fill="#fbf9f0" stroke="#a8b89a" strokeWidth="0.7">
+      {[0, 72, 144, 216, 288].map((deg) => (
+        <ellipse key={deg} cx="0" cy="-7" rx="3.4" ry="6" transform={`rotate(${deg})`} />
+      ))}
+      <circle r="2" fill="#c9a86a" stroke="none" />
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 60 120" className={className} style={style} aria-hidden="true">
+      <path d="M30 118 C28 80 34 50 26 12" fill="none" stroke="#6b7f3e" strokeWidth="1.6" />
+      <path d="M30 100 C20 96 14 88 12 80 C20 84 26 90 30 98" fill="#8a9a6b" />
+      {flower(26, 22)}
+      {flower(36, 55)}
+      {flower(24, 88)}
+    </svg>
+  );
+}
+
 function SectionLabel({ children }: { children: string }) {
   return (
     <p className="text-center text-[11px] font-semibold uppercase tracking-[0.35em]" style={{ color: OLIVE_SOFT }}>
@@ -259,6 +317,11 @@ function SectionLabel({ children }: { children: string }) {
   );
 }
 
+// Dải trắng của cột feed: các khối chữ nền trắng chảy liền mạch, xen kẽ ảnh
+// tràn viền (không viền/bóng tách card, đúng kiểu mẫu).
+const BAND = "-mx-4 w-[calc(100%+2rem)] bg-[#fffdf6] px-4 py-10";
+const BAND_TEXT = "text-center";
+
 export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
   const [liked, setLiked] = useState(false);
   // Tự cuộn MẶC ĐỊNH BẬT như mẫu: tự chạy sau 1 giây.
@@ -266,6 +329,12 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
   const [copied, setCopied] = useState(false);
   const autoRef = useRef(true);
   autoRef.current = auto;
+  // RSVP demo: chỉ chạy local, không gửi đi đâu.
+  const [guestName, setGuestName] = useState("");
+  const [attending, setAttending] = useState<"yes" | "no">("yes");
+  const [guestCount, setGuestCount] = useState(2);
+  const [rsvpDone, setRsvpDone] = useState(false);
+  const [giftNote, setGiftNote] = useState(false);
 
   // Tự động cuộn bằng requestAnimationFrame theo thời gian: 60px/giây
   // (0,06px/ms), tự chạy sau 1 giây; lăn/chạm thì dừng; bấm vào thiệp thì
@@ -314,7 +383,7 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (t.closest("a, button, input, textarea, select")) return;
+      if (t.closest("a, button, input, textarea, select, label")) return;
       if (window.getSelection()?.toString()) return;
       setAuto((v) => !v);
     };
@@ -324,7 +393,7 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
 
   const parts = getDateParts(data.date);
   const schedule = parseSchedule(data.scheduleText);
-  const dressColors = parseDressCode(data.dressCode);
+  const dressColors = parseDressCode(data.dressCode).slice(0, 2);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
     `${data.venue} ${data.address}`.trim()
   )}`;
@@ -334,24 +403,31 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
   // trùng giờ lễ (11:00) trong khi timeline ghi tiệc 12:00.
   const partyTime = schedule.find((s) => /tiệc/i.test(s.label))?.time ?? data.time;
 
-  // Lịch tháng cưới: lưới 7 cột, tuần bắt đầu thứ Hai, tim đánh dấu ngày cưới.
+  // Lịch tháng cưới: lưới 7 cột, tuần bắt đầu thứ Hai, tim ĐỎ đánh dấu ngày
+  // cưới, ngày âm nhỏ dưới mỗi ngày.
   let calCells: (number | null)[] = [];
   let calDay = 0;
+  let calLunar: (number | null)[] = [];
+  let calMonthEn = "";
   if (data.date) {
     try {
       const d = new Date(`${data.date}T00:00:00`);
       if (!isNaN(d.getTime())) {
         calDay = d.getDate();
+        calMonthEn = EN_MONTHS[d.getMonth()] ?? "";
         const first = new Date(d.getFullYear(), d.getMonth(), 1);
         const offset = (first.getDay() + 6) % 7;
         const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
         calCells = [...Array<number | null>(offset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+        calLunar = calCells.map((c) =>
+          c === null ? null : getLunarParts(`${data.date.slice(0, 8)}${String(c).padStart(2, "0")}`)?.day ?? null
+        );
       }
     } catch {
       calCells = [];
+      calLunar = [];
     }
   }
-  const calTitle = parts ? `Tháng ${Number(data.date.split("-")[1])} / ${parts.year}` : "";
 
   const share = async () => {
     try {
@@ -363,6 +439,11 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
     }
   };
 
+  const scrollToId = (id: string) => {
+    setAuto(false);
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const railBtn =
     "flex w-11 flex-col items-center gap-0.5 rounded-full py-2 text-[10px] font-semibold shadow-md transition-transform active:scale-90";
 
@@ -370,13 +451,26 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
     <div className="min-h-screen" style={{ background: CREAM, color: INK }}>
       {/* Cột feed hẹp cỡ điện thoại, căn giữa — như mẫu tham khảo. */}
       <div className="relative mx-auto w-full max-w-[490px] px-4 pb-16">
-        {/* Thanh tương tác cố định (desktop): Thích / Tự cuộn / Chia sẻ / Lên đầu. */}
+        {/* Thanh tương tác cố định (desktop): Thích / Lời chúc / Quà mừng /
+            Tham dự / Chia sẻ / Lên đầu / Xuống cuối. */}
         <div className="fixed right-5 top-1/2 z-40 hidden -translate-y-1/2 flex-col gap-2 md:flex" aria-hidden={false}>
           <button type="button" onClick={() => setLiked((v) => !v)} className={railBtn} style={{ background: PAPER, color: liked ? "#c1272d" : OLIVE }} aria-label="Thích">
             <svg viewBox="0 0 24 24" className="h-5 w-5" style={{ fill: liked ? "#c1272d" : "none", stroke: liked ? "#c1272d" : OLIVE, strokeWidth: 1.8 }}>
               <path d={HEART_PATH} />
             </svg>
             {liked ? 1 : 0}
+          </button>
+          <button type="button" onClick={() => scrollToId("rsvp")} className={railBtn} style={{ background: PAPER, color: OLIVE }} aria-label="Lời chúc">
+            <span className="text-base leading-none">✉</span>
+            5
+          </button>
+          <button type="button" onClick={() => scrollToId("gift")} className={railBtn} style={{ background: PAPER, color: OLIVE }} aria-label="Quà mừng">
+            <span className="text-base leading-none">🎁</span>
+            Quà mừng
+          </button>
+          <button type="button" onClick={() => scrollToId("rsvp")} className={railBtn} style={{ background: PAPER, color: OLIVE }} aria-label="Tham dự">
+            <span className="text-base leading-none">✓</span>
+            Tham dự
           </button>
           <button type="button" onClick={() => setAuto((v) => !v)} className={railBtn} style={{ background: auto ? OLIVE : PAPER, color: auto ? "#fff" : OLIVE }} aria-label="Tự động cuộn">
             <span className="text-base leading-none">{auto ? "❚❚" : "▶"}</span>
@@ -386,9 +480,13 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
             <span className="text-base leading-none">↗</span>
             {copied ? "Đã sao chép" : "Chia sẻ"}
           </button>
-          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className={railBtn} style={{ background: PAPER, color: OLIVE }} aria-label="Lên đầu">
+          <button type="button" onClick={() => { setAuto(false); window.scrollTo({ top: 0, behavior: "smooth" }); }} className={railBtn} style={{ background: PAPER, color: OLIVE }} aria-label="Lên đầu">
             <span className="text-base leading-none">↑</span>
             Lên đầu
+          </button>
+          <button type="button" onClick={() => { setAuto(false); window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" }); }} className={railBtn} style={{ background: PAPER, color: OLIVE }} aria-label="Xuống cuối">
+            <span className="text-base leading-none">↓</span>
+            Xuống cuối
           </button>
         </div>
         {/* Nút tự cuộn nổi trên điện thoại. */}
@@ -401,174 +499,175 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
           {auto ? "❚❚ Dừng cuộn" : "▶ Tự cuộn"}
         </button>
 
-        {/* 1. Bìa: 2 ảnh Polaroid nghiêng chồng nhau + Save our date + ngày. */}
+        {/* 1. Bìa: phong bì trắng + 2 ảnh Polaroid nghiêng chồng nhau + lan. */}
         <section className="pt-10 text-center" aria-label="Bìa thiệp">
           <Reveal>
-            <div className="relative mx-auto h-[340px] w-full max-w-[340px]">
-              <div className="absolute left-0 top-2 w-[50%] -rotate-4 rounded-lg bg-white p-2 pb-6 shadow-lg">
-                <Fx fx="slide-up" duration={1.2} delay={0.1}>
-                  <img src={PRESET_PHOTOS[0].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
-                  <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Save our date</p>
-                </Fx>
-              </div>
-              <div className="absolute right-0 top-10 w-[50%] rotate-4 rounded-lg bg-white p-2 pb-6 shadow-lg">
-                <Fx fx="slide-up" duration={1.2} delay={0.35}>
-                  <img src={PRESET_PHOTOS[1].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
-                  <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>{dateDots}</p>
-                </Fx>
-              </div>
-              <div className="absolute -bottom-1 left-1/2 z-10 -translate-x-1/2">
-                <Fx fx="scale-in" duration={1} delay={0.5}>
-                  <WaxSeal size={56} />
-                </Fx>
+            <div className="relative mx-auto w-full max-w-[360px] rounded-2xl bg-white p-4 pb-6 shadow-md">
+              <div className="relative mx-auto h-[300px] w-full max-w-[320px]">
+                <div className="absolute left-0 top-0 w-[52%] -rotate-4 rounded-lg bg-white p-2 pb-6 shadow-lg ring-1 ring-black/5">
+                  <Fx fx="slide-up" duration={1.2} delay={0.1}>
+                    <img src={PRESET_PHOTOS[0].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
+                    <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Save our date</p>
+                  </Fx>
+                </div>
+                <div className="absolute right-0 top-8 w-[52%] rotate-4 rounded-lg bg-white p-2 pb-6 shadow-lg ring-1 ring-black/5">
+                  <Fx fx="slide-up" duration={1.2} delay={0.35}>
+                    <img src={PRESET_PHOTOS[1].url} alt="Ảnh cưới" className="aspect-[4/5] w-full rounded object-cover" />
+                    <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>{dateDots}</p>
+                  </Fx>
+                </div>
+                <div className="absolute -bottom-2 left-1/2 z-10 -translate-x-1/2">
+                  <Fx fx="scale-in" duration={1} delay={0.5}>
+                    <WaxSeal size={56} />
+                  </Fx>
+                </div>
+                <OrchidBranch className="absolute -right-3 top-1 h-[110px] w-[54px]" />
               </div>
             </div>
           </Reveal>
-          <Reveal>
-            <Fx fx="zoom-in" duration={1.5}>
-              <h1 className="font-display mt-8 text-4xl font-bold leading-tight" style={{ color: OLIVE }}>
-                {data.groomName} &amp; {data.brideName}
-              </h1>
-            </Fx>
-            <Fx fx="fade-in" duration={1.2} delay={0.2}>
-              <p className="mt-2 text-sm tracking-[0.25em]" style={{ color: OLIVE_SOFT }}>
-                {formatDateVi(data.date)}
-              </p>
-            </Fx>
-          </Reveal>
         </section>
 
-        {/* 2. Ảnh lồng tràn viền. */}
-        <Reveal className="-mx-4 mt-10 w-[calc(100%+2rem)]">
-          <Fx fx="zoom-in" duration={1.5}>
-            <img src={PRESET_PHOTOS[2].url} alt="Ảnh cưới" loading="lazy" className="aspect-[4/3] w-full object-cover" />
-          </Fx>
-        </Reveal>
-
-        {/* 3. Lời mời: cha mẹ 2 bên + tên lớn. */}
-        <section className="mt-12 text-center" aria-label="Lời mời">
-          <Reveal>
-            <Fx fx="fade-in">
-              <SectionLabel>Trân trọng kính mời</SectionLabel>
+        {/* 2. Lời mời: ảnh tràn viền rồi câu mời đầy đủ + cha mẹ + tên lớn. */}
+        <section aria-label="Lời mời">
+          <Reveal className="-mx-4 mt-10 w-[calc(100%+2rem)]">
+            <Fx fx="zoom-in" duration={1.5}>
+              <img src={PRESET_PHOTOS[2].url} alt="Ảnh cưới" loading="lazy" className="aspect-[4/3] w-full object-cover" />
             </Fx>
-            <div className="mx-auto mt-5 grid max-w-md grid-cols-2 gap-4 text-sm">
-              <Fx fx="slide-right">
-                <p className="font-semibold" style={{ color: OLIVE }}>Nhà trai</p>
-                <p>{data.groomFather}</p>
-                <p>{data.groomMother}</p>
+          </Reveal>
+          <Reveal className={`${BAND} ${BAND_TEXT}`}>
+            <div className="relative">
+              <OrchidBranch className="absolute -top-2 right-0 h-[90px] w-[44px] opacity-90" />
+              <Fx fx="fade-in">
+                <p className="mx-auto max-w-md text-[11px] font-semibold uppercase leading-relaxed tracking-[0.25em]" style={{ color: OLIVE_SOFT }}>
+                  Trân trọng kính mời Quý Khách đến chung vui cùng gia đình chúng tôi
+                </p>
               </Fx>
-              <Fx fx="slide-left">
-                <p className="font-semibold" style={{ color: OLIVE }}>Nhà gái</p>
-                <p>{data.brideFather}</p>
-                <p>{data.brideMother}</p>
+              <div className="mx-auto mt-6 grid max-w-md grid-cols-2 gap-4 text-sm">
+                <Fx fx="slide-right">
+                  <p className="font-semibold" style={{ color: OLIVE }}>Nhà trai</p>
+                  <p>{data.groomFather}</p>
+                  <p>{data.groomMother}</p>
+                </Fx>
+                <Fx fx="slide-left">
+                  <p className="font-semibold" style={{ color: OLIVE }}>Nhà gái</p>
+                  <p>{data.brideFather}</p>
+                  <p>{data.brideMother}</p>
+                </Fx>
+              </div>
+              <Fx fx="zoom-in" duration={1.5}>
+                <h1 className="font-display mt-8 text-4xl font-bold uppercase leading-tight tracking-wide" style={{ color: OLIVE }}>
+                  {data.groomName} <span className="mx-1" style={{ color: "#c9a86a" }}>&amp;</span> {data.brideName}
+                </h1>
+              </Fx>
+              <Fx fx="fade-in" duration={1.2} delay={0.2}>
+                <p className="mt-2 text-sm tracking-[0.25em]" style={{ color: OLIVE_SOFT }}>
+                  {formatDateVi(data.date)}
+                </p>
               </Fx>
             </div>
           </Reveal>
-          <Reveal>
-            <Fx fx="zoom-in" duration={1.5}>
-              <h2 className="font-display mt-8 text-4xl font-bold leading-tight" style={{ color: OLIVE }}>
-                {data.groomName} <span className="mx-2" style={{ color: "#c9a86a" }}>&amp;</span> {data.brideName}
-              </h2>
-            </Fx>
-            <Fx fx="fade-in" delay={0.2}>
-              <p className="mx-auto mt-4 max-w-sm text-sm leading-relaxed" style={{ color: INK }}>
-                Cùng gia đình hai bên trân trọng kính mời Quý Khách đến chung vui cùng gia đình chúng tôi.
-              </p>
-            </Fx>
-          </Reveal>
         </section>
 
-        {/* 4. Ngày giờ: 3 cột thứ | ngày | tháng năm + giờ + chỉ đường. */}
-        <section className="mt-12 text-center" aria-label="Ngày giờ">
-          <Reveal>
-            <Fx fx="fade-in">
-              <SectionLabel>Bữa tiệc chung vui</SectionLabel>
-            </Fx>
+        {/* 3. Ngày giờ tiệc: nhãn + giờ + thứ, ngày 3 cột, âm lịch. */}
+        <section aria-label="Ngày giờ">
+          <Reveal className={`${BAND} ${BAND_TEXT}`}>
             {parts && (
               <>
+                <Fx fx="fade-in">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.25em]" style={{ color: OLIVE_SOFT }}>
+                    Bữa tiệc chung vui — {partyTime}, {parts.weekday}
+                  </p>
+                </Fx>
                 <div className="mt-4 flex items-center justify-center" style={{ color: OLIVE }}>
-                  <Fx fx="slide-right" className="w-auto min-w-[70px] whitespace-nowrap text-right text-[15px] font-semibold uppercase">{parts.weekday}</Fx>
+                  <Fx fx="slide-right" className="w-auto min-w-[70px] whitespace-nowrap text-right text-[15px] font-semibold uppercase">{parts.monthDisplay}</Fx>
                   <span className="mx-2 text-sm opacity-50" aria-hidden="true">|</span>
                   <Fx fx="fade-in" delay={0.15} className="text-[34px] font-bold leading-none">{parts.day}</Fx>
                   <span className="mx-2 text-sm opacity-50" aria-hidden="true">|</span>
-                  <Fx fx="slide-left" delay={0.3} className="whitespace-nowrap text-left text-[15px] font-semibold uppercase">{parts.monthDisplay}</Fx>
+                  <Fx fx="slide-left" delay={0.3} className="whitespace-nowrap text-left text-[15px] font-semibold uppercase">Năm {parts.year}</Fx>
                 </div>
-                <Fx fx="fade-in" delay={0.4}>
-                  <p className="mt-1 text-xl font-semibold" style={{ color: OLIVE }}>{parts.year}</p>
-                </Fx>
                 {parts.lunarNote && (
-                  <Fx fx="fade-in" delay={0.5}>
-                    <p className="mt-1 text-[13px]" style={{ color: OLIVE_SOFT }}>({parts.lunarNote})</p>
+                  <Fx fx="fade-in" delay={0.4}>
+                    <p className="mt-2 text-[13px]" style={{ color: OLIVE_SOFT }}>({parts.lunarNote})</p>
                   </Fx>
                 )}
               </>
             )}
-            <Fx fx="fade-in" delay={0.6}>
-              <p className="mt-4 text-lg font-semibold" style={{ color: OLIVE }}>Vào lúc {partyTime}</p>
-            </Fx>
-            <Fx fx="fade-in" delay={0.7}>
-              <p className="mt-1 font-semibold">{data.venue}</p>
-              <p className="text-sm" style={{ color: OLIVE_SOFT }}>{data.address}</p>
-            </Fx>
-            <a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-4 inline-block rounded-full px-5 py-2 text-sm font-semibold text-white" style={{ background: OLIVE }}>
-              Xem chỉ đường ↗
-            </a>
           </Reveal>
         </section>
 
-        {/* 5. Lễ + tiệc: 2 khối riêng cùng địa điểm. */}
-        <section className="mt-12 space-y-8 text-center" aria-label="Thông tin lễ và tiệc">
-          {[
-            { label: "Lễ thành hôn", time: ceremonyTime },
-            { label: "Tiệc chung vui", time: partyTime },
-          ].map((b) => (
-            <Reveal key={b.label}>
-              <Fx fx="fade-in">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.35em]" style={{ color: OLIVE_SOFT }}>{b.label}</p>
-              </Fx>
-              <Fx fx="slide-up" delay={0.15} className="font-display mt-1 text-2xl font-bold" style={{ color: OLIVE }}>{b.time}</Fx>
-              <Fx fx="fade-in" delay={0.3}>
-                <p className="mt-1 text-sm">{data.venue} — {data.address}</p>
-              </Fx>
-            </Reveal>
-          ))}
+        {/* 4. Lễ + tiệc: 2 khối riêng, mỗi khối có nút XEM CHỈ ĐƯỜNG. */}
+        <section aria-label="Thông tin lễ và tiệc">
+          <Reveal className={`${BAND} ${BAND_TEXT}`}>
+            {[
+              { label: "Lễ thành hôn", time: ceremonyTime },
+              { label: "Tiệc chung vui", time: partyTime },
+            ].map((b, bi) => (
+              <div key={b.label} className={bi === 0 ? "" : "mt-10 border-t pt-10"} style={bi === 0 ? undefined : { borderColor: `${OLIVE}22` }}>
+                <Fx fx="fade-in">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.35em]" style={{ color: OLIVE_SOFT }}>{b.label}</p>
+                </Fx>
+                <Fx fx="slide-up" delay={0.15} className="font-display mt-1 text-2xl font-bold" style={{ color: OLIVE }}>{b.time}</Fx>
+                {parts && (
+                  <Fx fx="fade-in" delay={0.3}>
+                    <p className="mt-1 text-sm font-semibold">{parts.weekday}, {dateDots}</p>
+                    {parts.lunarNote && <p className="mt-0.5 text-[12px]" style={{ color: OLIVE_SOFT }}>({parts.lunarNote})</p>}
+                  </Fx>
+                )}
+                <Fx fx="fade-in" delay={0.4}>
+                  <p className="mt-2 text-sm">TẠI {data.venue} — {data.address}</p>
+                </Fx>
+                <Fx fx="fade-in" delay={0.5}>
+                  <a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-4 inline-block rounded-full px-5 py-2 text-sm font-semibold text-white" style={{ background: OLIVE }}>
+                    XEM CHỈ ĐƯỜNG
+                  </a>
+                </Fx>
+              </div>
+            ))}
+          </Reveal>
         </section>
 
-        {/* 6. Ảnh lồng + dấu sáp ngăn cách. */}
-        <Reveal className="-mx-4 mt-12 w-[calc(100%+2rem)]">
+        {/* 5. Ảnh chuyển đoạn + dấu sáp ở khoảng trắng. */}
+        <Reveal className="-mx-4 w-[calc(100%+2rem)]">
           <Fx fx="fade-in" duration={1.5}>
             <img src={PRESET_PHOTOS[3].url} alt="Ảnh cưới" loading="lazy" className="aspect-[4/3] w-full object-cover" />
           </Fx>
         </Reveal>
-        <div className="mt-8 text-center">
+        <div className="py-8 text-center">
           <Fx fx="scale-in" duration={1} className="inline-block">
             <WaxSeal size={60} />
           </Fx>
         </div>
 
-        {/* 7. Giới thiệu cô dâu – chú rể: 2 Polaroid nghiêng. */}
-        <section className="mt-10 text-center" aria-label="Giới thiệu cô dâu chú rể">
-          <SectionLabel>Cô dâu &amp; Chú rể</SectionLabel>
-          <div className="relative mx-auto mt-6 h-[320px] max-w-[340px]">
-            <Reveal className="absolute left-0 top-0 w-[50%] -rotate-4 rounded-lg bg-white p-2 pb-5 shadow-lg">
-              <Fx fx="slide-up" duration={1.2}>
-                <img src={PRESET_PHOTOS[3].url} alt={`Chú rể ${data.groomName}`} loading="lazy" className="aspect-[4/5] w-full rounded object-cover" />
-                <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Chú rể {data.groomName}</p>
-              </Fx>
-            </Reveal>
-            <Reveal className="absolute right-0 top-8 w-[50%] rotate-4 rounded-lg bg-white p-2 pb-5 shadow-lg">
-              <Fx fx="slide-up" duration={1.2} delay={0.25}>
-                <img src={PRESET_PHOTOS[4].url} alt={`Cô dâu ${data.brideName}`} loading="lazy" className="aspect-[4/5] w-full rounded object-cover" />
-                <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Cô dâu {data.brideName}</p>
-              </Fx>
-            </Reveal>
-          </div>
+        {/* 6. Giới thiệu cô dâu – chú rể: 2 Polaroid + dấu sáp đè giữa. */}
+        <section aria-label="Giới thiệu cô dâu chú rể">
+          <Reveal className={`${BAND} ${BAND_TEXT}`}>
+            <SectionLabel>Cô dâu &amp; Chú rể</SectionLabel>
+            <div className="relative mx-auto mt-6 h-[320px] max-w-[340px]">
+              <div className="absolute left-0 top-0 w-[50%] -rotate-4 rounded-lg bg-white p-2 pb-5 shadow-lg">
+                <Fx fx="slide-up" duration={1.2}>
+                  <img src={PRESET_PHOTOS[3].url} alt={`Chú rể ${data.groomName}`} loading="lazy" className="aspect-[4/5] w-full rounded object-cover" />
+                  <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Chú rể {data.groomName}</p>
+                </Fx>
+              </div>
+              <div className="absolute right-0 top-8 w-[50%] rotate-4 rounded-lg bg-white p-2 pb-5 shadow-lg">
+                <Fx fx="slide-up" duration={1.2} delay={0.25}>
+                  <img src={PRESET_PHOTOS[4].url} alt={`Cô dâu ${data.brideName}`} loading="lazy" className="aspect-[4/5] w-full rounded object-cover" />
+                  <p className="font-script mt-2 text-base" style={{ color: OLIVE }}>Cô dâu {data.brideName}</p>
+                </Fx>
+              </div>
+              <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+                <Fx fx="scale-in" duration={1} delay={0.4}>
+                  <WaxSeal size={56} />
+                </Fx>
+              </div>
+            </div>
+          </Reveal>
         </section>
 
-        {/* 8. Câu chuyện. */}
+        {/* 7. Câu chuyện. */}
         {data.story && (
-          <section className="mt-14 text-center" aria-label="Câu chuyện">
-            <Reveal>
+          <section aria-label="Câu chuyện">
+            <Reveal className={`${BAND} ${BAND_TEXT}`}>
               <Fx fx="rotate-in" duration={1.2}>
                 <h2 className="font-script text-4xl" style={{ color: OLIVE }}>Our story</h2>
               </Fx>
@@ -579,14 +678,14 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
           </section>
         )}
 
-        {/* 9. Lịch tháng: nền lá nhạt + tim đánh dấu ngày cưới. */}
+        {/* 8. Lịch: nền Monet + tiêu đề tháng tiếng Anh + ngày âm + tim ĐỎ. */}
         {calCells.length > 0 && (
-          <section className="mt-14 text-center" aria-label="Lịch tháng">
-            <Reveal>
+          <section aria-label="Lịch tháng">
+            <Reveal className="-mx-4 w-[calc(100%+2rem)] px-4 py-10 text-center" style={{ background: MONET_BG }}>
               <Fx fx="zoom-in" duration={1.2}>
-                <div className="mx-auto max-w-[380px] rounded-3xl px-4 py-5" style={{ background: "#eef1e4", border: `1px solid ${SAGE}55` }}>
-                  <p className="font-display text-lg font-bold" style={{ color: OLIVE }}>{calTitle}</p>
-                  <div className="mt-3 grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase" style={{ color: OLIVE }}>
+                <p className="font-display text-2xl font-bold" style={{ color: OLIVE }}>{calMonthEn}</p>
+                <div className="mx-auto mt-4 max-w-[380px]">
+                  <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase" style={{ color: OLIVE }}>
                     {["T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((w) => (
                       <span key={w}>{w}</span>
                     ))}
@@ -596,14 +695,18 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
                       c === null ? (
                         <span key={i} />
                       ) : c === calDay ? (
-                        <Fx key={i} fx="bounce-in" delay={0.4} className="relative flex aspect-square items-center justify-center">
-                          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[34px] w-[34px]" style={{ fill: OLIVE }}>
+                        <Fx key={i} fx="bounce-in" delay={0.4} className="relative flex aspect-square flex-col items-center justify-center">
+                          <svg viewBox="0 0 24 24" aria-hidden="true" className="h-[36px] w-[36px]" style={{ fill: RED }}>
                             <path d={HEART_PATH} />
                           </svg>
-                          <span className="absolute inset-0 flex items-center justify-center text-[14px] font-extrabold text-white">{c}</span>
+                          <span className="absolute top-[7px] left-0 right-0 flex items-center justify-center text-[13px] font-extrabold leading-none text-white">{c}</span>
+                          <span className="cal-lunar mt-0.5 text-[8px] leading-none" style={{ color: OLIVE }}>{calLunar[i]}</span>
                         </Fx>
                       ) : (
-                        <span key={i} className="flex aspect-square items-center justify-center">{c}</span>
+                        <span key={i} className="flex aspect-square flex-col items-center justify-center">
+                          <span className="text-[13px] leading-none">{c}</span>
+                          <span className="cal-lunar mt-0.5 text-[8px] leading-none" style={{ color: OLIVE_SOFT }}>{calLunar[i]}</span>
+                        </span>
                       )
                     )}
                   </div>
@@ -613,20 +716,20 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
           </section>
         )}
 
-        {/* 10. Timeline NGANG: trục vẽ ra rồi từng mốc hiện nối tiếp. */}
+        {/* 9. Timeline NGANG có icon từng mốc, chạy nối tiếp. */}
         {schedule.length > 0 && (
-          <section className="mt-14 text-center" aria-label="Lịch trình ngày cưới">
-            <SectionLabel>Lịch trình ngày cưới</SectionLabel>
-            <Reveal>
+          <section aria-label="Lịch trình ngày cưới">
+            <Reveal className={`${BAND} ${BAND_TEXT}`}>
+              <SectionLabel>Lịch trình ngày cưới</SectionLabel>
               <FeedTimeline schedule={schedule} />
             </Reveal>
           </section>
         )}
 
-        {/* 11. Dress code: vòng tròn màu chồng nhau, không chữ. */}
+        {/* 10. Dress code: chỉ 2 vòng tròn màu chồng nhau, không chữ. */}
         {dressColors.length > 0 && (
-          <section className="mt-14 text-center" aria-label="Dress code">
-            <Reveal>
+          <section aria-label="Dress code">
+            <Reveal className={`${BAND} ${BAND_TEXT}`}>
               <Fx fx="fade-in">
                 <h2 className="font-script text-4xl" style={{ color: OLIVE }}>Dresscode</h2>
               </Fx>
@@ -636,8 +739,8 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
                     key={c}
                     fx="bounce-in"
                     delay={i * 0.15}
-                    className="h-12 w-12 rounded-full border shadow-sm"
-                    style={{ background: c, borderColor: `${OLIVE}33`, marginLeft: i === 0 ? 0 : -10, zIndex: dressColors.length - i }}
+                    className="dress-circle h-12 w-12 rounded-full border shadow-sm"
+                    style={{ background: c, borderColor: `${OLIVE}33`, marginLeft: i === 0 ? 0 : -14, zIndex: dressColors.length - i }}
                   >
                     <span title={c} className="block h-full w-full rounded-full" />
                   </Fx>
@@ -647,29 +750,116 @@ export default function FeedInvitationDemo({ data }: { data: InvitationData }) {
           </section>
         )}
 
-        {/* 12. Ảnh lồng + câu trang trí (chữ của app, không lấy câu của mẫu khác). */}
-        <Reveal className="-mx-4 mt-14 w-[calc(100%+2rem)]">
-          <Fx fx="slide-up" duration={1.2}>
-            <img src={PRESET_PHOTOS[5].url} alt="Ảnh cưới" loading="lazy" className="aspect-[4/3] w-full object-cover" />
+        {/* 11. Dải Monet + khối olive chữ dọc + câu trích. */}
+        <Reveal className="-mx-4 mt-0 w-[calc(100%+2rem)]">
+          <Fx fx="fade-in" duration={1.5}>
+            <div className="flex h-[120px] overflow-hidden">
+              <div className="flex-1" style={{ background: MONET_STRIP_BG }} />
+              <div className="flex w-[64px] items-center justify-center" style={{ background: OLIVE }}>
+                <span className="text-sm font-semibold tracking-[0.3em] text-white" style={{ writingMode: "vertical-rl" }}>Thiệp Đôi</span>
+              </div>
+            </div>
           </Fx>
         </Reveal>
-        <Reveal>
+        <Reveal className={`${BAND} ${BAND_TEXT}`}>
           <Fx fx="flip-in" duration={1.2}>
-            <p className="font-script mt-6 text-center text-3xl" style={{ color: OLIVE }}>Forever &amp; Always</p>
+            <p className="font-script text-3xl" style={{ color: OLIVE }}>Forever &amp; Always</p>
           </Fx>
         </Reveal>
 
-        {/* 13. Đếm ngược (dùng lại component Countdown của app). */}
-        <section className="mt-10" aria-label="Đếm ngược">
-          <Reveal>
+        {/* 12. Đếm ngược + ảnh lớn bo góc bên dưới. */}
+        <section aria-label="Đếm ngược">
+          <Reveal className={`${BAND} ${BAND_TEXT}`}>
             <Fx fx="fade-in">
               <Countdown date={data.date} time={data.time} accent={OLIVE} />
+            </Fx>
+            <Fx fx="zoom-in" duration={1.5}>
+              <img src={PRESET_PHOTOS[0].url} alt="Ảnh cưới" loading="lazy" className="mt-6 aspect-[4/3] w-full rounded-3xl object-cover shadow-md" />
             </Fx>
           </Reveal>
         </section>
 
+        {/* 13. RSVP + Mừng cưới (form chỉ chạy local trong demo). */}
+        <section aria-label="Xác nhận tham dự" id="rsvp">
+          <Reveal className={`${BAND} ${BAND_TEXT}`}>
+            <div className="relative">
+              <OrchidBranch className="absolute -left-1 top-0 hidden h-[110px] w-[54px] sm:block" />
+              <OrchidBranch className="absolute -right-1 top-0 hidden h-[110px] w-[54px] sm:block" />
+              <Fx fx="zoom-in" duration={1.2}>
+                <img src={PRESET_PHOTOS[1].url} alt="Ảnh cưới" loading="lazy" className="mx-auto aspect-[4/3] w-full max-w-[420px] rounded-3xl object-cover shadow-md" />
+              </Fx>
+              <Fx fx="fade-in" delay={0.2}>
+                <h2 className="font-script mt-6 text-4xl" style={{ color: OLIVE }}>Xác nhận tham dự</h2>
+              </Fx>
+              {!rsvpDone ? (
+                <form
+                  className="mx-auto mt-5 max-w-sm space-y-3 text-left"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setRsvpDone(true);
+                  }}
+                >
+                  <input
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Tên của bạn"
+                    aria-label="Tên của bạn"
+                    className="w-full rounded-full border bg-white px-4 py-2.5 text-sm outline-none"
+                    style={{ borderColor: `${OLIVE}55` }}
+                  />
+                  <div className="flex justify-center gap-6 text-sm">
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input type="radio" name="attending" checked={attending === "yes"} onChange={() => setAttending("yes")} style={{ accentColor: OLIVE }} />
+                      Tham dự
+                    </label>
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input type="radio" name="attending" checked={attending === "no"} onChange={() => setAttending("no")} style={{ accentColor: OLIVE }} />
+                      Không tham dự
+                    </label>
+                  </div>
+                  <select
+                    value={guestCount}
+                    onChange={(e) => setGuestCount(Number(e.target.value))}
+                    aria-label="Số người tham dự"
+                    className="w-full rounded-full border bg-white px-4 py-2.5 text-sm outline-none"
+                    style={{ borderColor: `${OLIVE}55` }}
+                  >
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>{n} người</option>
+                    ))}
+                  </select>
+                  <button type="submit" className="w-full rounded-full py-2.5 text-sm font-semibold text-white" style={{ background: OLIVE }}>
+                    Gửi xác nhận
+                  </button>
+                </form>
+              ) : (
+                <p className="mx-auto mt-5 max-w-sm text-sm leading-relaxed">
+                  Cảm ơn {guestName.trim() || "bạn"} đã xác nhận {attending === "yes" ? "tham dự" : "không tham dự"}
+                  {attending === "yes" ? ` (${guestCount} người)` : ""}!{" "}
+                  <span className="text-xs" style={{ color: OLIVE_SOFT }}>(Bản demo — chưa gửi đi đâu)</span>
+                </p>
+              )}
+              <div id="gift" className="mx-auto mt-6 max-w-sm">
+                <button
+                  type="button"
+                  onClick={() => setGiftNote((v) => !v)}
+                  className="w-full rounded-full py-3 text-sm font-bold tracking-wide text-white"
+                  style={{ background: OLIVE }}
+                >
+                  GỬI QUÀ MỪNG CƯỚI
+                </button>
+                {giftNote && (
+                  <p className="mt-3 text-xs leading-relaxed" style={{ color: OLIVE_SOFT }}>
+                    Bản demo — trong thiệp thật, khách quét mã VietQR của cô dâu chú rể để mừng cưới.
+                  </p>
+                )}
+              </div>
+            </div>
+          </Reveal>
+        </section>
+
         {/* 14. Cảm ơn: ảnh tràn viền + lời cảm ơn (câu của app). */}
-        <Reveal className="relative -mx-4 mt-14 w-[calc(100%+2rem)] overflow-hidden" ariaLabel="Cảm ơn">
+        <Reveal className="relative -mx-4 mt-0 w-[calc(100%+2rem)] overflow-hidden" ariaLabel="Cảm ơn">
           <Fx fx="fade-in" duration={1.5}>
             <img src={PRESET_PHOTOS[0].url} alt="Ảnh cưới" loading="lazy" className="aspect-[4/5] w-full object-cover" />
           </Fx>
